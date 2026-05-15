@@ -14,12 +14,19 @@ import TeamDetailPage from "./pages/TeamDetailPage";
 import MyPage from "./pages/MyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import StudentsNetworkPage from "./pages/StudentsNetworkPage";
+import SignInPage from "./pages/SignInPage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: LandingPage,
   },
+
+  {
+    path: "/signin",
+    Component: SignInPage,
+  },
+
   {
     path: "/app",
     Component: MainLayout,
@@ -74,6 +81,7 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
   {
     path: "*",
     Component: NotFoundPage,

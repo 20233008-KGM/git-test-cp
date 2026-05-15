@@ -1,18 +1,41 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate("/app/courses");
-  };
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    role: ""
+  });
+
+  const handlechange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
 
   const handleDevLogin = () => {
     navigate("/app/courses");
+  };
+
+  const handlesubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    signInWithEmailAndPassword(auth, form.email, form.password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        navigate("/app/courses");
+      })
+      .catch((error) => {
+        const errorCode = error.code;
+        const errorMessage = error.message;
+        alert(`로그인 실패: ${errorMessage}`);
+      });
   };
 
   return (
@@ -74,15 +97,15 @@ export default function LandingPage() {
               로그인
             </h2>
 
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handlesubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   학번 또는 이메일
                 </label>
                 <input
                   type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  onChange={handlechange}
                   placeholder="student@example.com"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
@@ -94,8 +117,8 @@ export default function LandingPage() {
                 </label>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
+                  onChange={handlechange}
                   placeholder="••••••••"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
@@ -103,6 +126,7 @@ export default function LandingPage() {
 
               <button
                 type="submit"
+                onClick={handlesubmit}
                 className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md text-sm"
               >
                 로그인
@@ -121,9 +145,9 @@ export default function LandingPage() {
                 비밀번호를 잊으셨나요?
               </a>
               <span className="text-gray-400 mx-2">|</span>
-              <a href="#" className="text-blue-600 hover:underline">
+              <Link to="/signin" className="text-blue-600 hover:underline">
                 회원가입
-              </a>
+              </Link>
             </div>
           </div>
         </div>
