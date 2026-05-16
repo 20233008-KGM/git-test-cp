@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 
 interface PeerReview {
@@ -151,10 +151,28 @@ export default function MyPage() {
   ];
 
   const totalSlides = Math.ceil(projects.length / 2);
+  const sideNavItems = ["요약 리포트", "상세 리포트", "내 정보 조회", "내 정보 수정"];
 
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
-      <div className="container mx-auto px-4 py-8 max-w-[1400px]">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 px-4 py-8 lg:flex-row lg:items-start">
+        {/* 사이드 네비게이션 바 */}
+        <aside className="w-full rounded-[14px] bg-white p-5 shadow-md lg:sticky lg:top-8 lg:w-[240px] lg:shrink-0">
+          <p className="mb-4 text-[18px] font-bold text-black">마이페이지 메뉴</p>
+          <nav className="flex gap-3 overflow-x-auto lg:flex-col lg:overflow-visible">
+            {sideNavItems.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className="whitespace-nowrap rounded-[10px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-3 text-left text-[15px] font-bold text-[#155dfc] transition-colors hover:bg-[#dbeafe] lg:w-full"
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="min-w-0 flex-1">
         {/* 페이지 헤더 */}
         <h1 className="text-[30px] font-bold text-black mb-10">마이페이지</h1>
 
@@ -462,6 +480,7 @@ export default function MyPage() {
             </p>
           </div>
         </div>
+        </main>
       </div>
 
       {/* 프로젝트 상세 모달 */}

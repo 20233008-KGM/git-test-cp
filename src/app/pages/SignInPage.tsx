@@ -1,51 +1,73 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { supabase } from "../supabase";
+import { useAuth } from "../contexts/AuthContext";
+import type { Signupinput } from "../contexts/AuthContext";
+import { UserRole } from "../types";
 
 export default function SignInPage() {
+  // 페이지 이동을 도와주는 함수입니다.
+  // 예: 회원가입 성공 후 "/app/courses" 페이지로 이동할 때 사용합니다.
   const navigate = useNavigate();
-  const [form, setForm] = useState({
+
+  // AuthContext에서 회원가입 함수를 꺼내옵니다.
+  // Firebase/Supabase에 실제로 가입시키는 코드는 AuthContext.tsx에 있습니다.
+  const { signInWithEmail } = useAuth();
+
+  // 사용자가 입력한 이메일, 비밀번호, 역할을 저장하는 상태입니다.
+  // input/select 값이 바뀔 때마다 setForm으로 이 값들을 업데이트합니다.
+  const [form, setForm] = useState<Partial<Signupinput>>({
     email: "",
     password: "",
-    role: ""
+    role: "student" as UserRole
   });
 
-  const handlechange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // 이메일/비밀번호 input이나 역할 select 값이 바뀔 때 실행됩니다.
+  const handlechange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
+    setForm((prev: Partial<Signupinput>) => ({
       ...prev,
       [name]: value,
     }));
-  }
+  };
 
-  const handlesubmit = (e: React.FormEvent) => {
+  // 회원가입 폼이 제출될 때 실행됩니다.
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    // 브라우저의 기본 form 제출 동작은 페이지 새로고침입니다.
+    // React에서는 새로고침 없이 직접 처리하려고 이 기본 동작을 막습니다.
     e.preventDefault();
-    createUserWithEmailAndPassword(auth, form.email, form.password)
-      .then((userCredential) => {
-        const user = userCredential.user;
 
-        const userData = {
-          email: user.email,
-          uid: user.uid,
-          role: form.role
-        };
+    // 역할을 고르지 않았으면 회원가입을 진행하지 않습니다.
+    if (!form.role) {
+      alert("역할을 선택해주세요");
+      return;
+    }
 
-        // return superbase.from("users").insert([userData]);
-      })
-      .then(() => {
-        alert("회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.");
-        navigate("/");
-      })
-      .catch((error) => {
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        alert(`회원가입 실패: ${errorMessage}`);
+    try {
+      // AuthContext의 signInWithEmail 함수에 회원가입 정보를 넘깁니다.
+      // 객체 하나로 넘기면 나중에 name, major 같은 값을 추가하기 쉽습니다.
+      await signInWithEmail({
+        email: form.email as string,
+        password: form.password as string,
+        role: form.role as UserRole,
       });
-  }
+
+      // 회원가입이 성공하면 과목 목록 페이지로 이동합니다.
+      navigate("/");
+    } catch (error) {
+      // 회원가입 중 에러가 나면 간단한 실패 메시지를 보여줍니다.
+      alert("로그인 실패");
+    }
+  };
 
 
   return (
+    // 이 페이지 전체를 감싸는 가장 바깥 영역입니다.
+    // min-h-screen은 화면 높이를 꽉 채우라는 뜻입니다.
     <div className="min-h-screen w-full flex flex-col" style={{
       backgroundImage: "linear-gradient(141.655deg, rgb(239, 246, 255) 0%, rgb(238, 242, 255) 50%, rgb(250, 245, 255) 100%)",
     }}>
@@ -104,13 +126,15 @@ export default function SignInPage() {
               회원가입
             </h2>
 
-            <form onSubmit={handlesubmit} className="space-y-4">
+            {/* form 안의 submit 버튼을 누르면 onSubmit에 연결된 handleSignIn이 실행됩니다. */}
+            <form onSubmit={handleSignIn} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   이메일
                 </label>
                 <input
                   type="text"
+                  // name이 "email"이므로 handlechange에서 form.email을 바꿉니다.
                   name="email"
                   onChange={handlechange}
                   placeholder="student@example.com"
@@ -124,6 +148,7 @@ export default function SignInPage() {
                 </label>
                 <input
                   type="password"
+                  // name이 "password"이므로 handlechange에서 form.password를 바꿉니다.
                   name="password"
                   onChange={handlechange}
                   placeholder="••••••••"
@@ -137,19 +162,21 @@ export default function SignInPage() {
                   역할
                 </label>
                 <select
+                  // name이 "role"이므로 handlechange에서 form.role을 바꿉니다.
                   name="role"
                   onChange={handlechange}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
+                  {/* value가 실제로 form.role에 저장되는 값입니다. */}
                   <option value="">선택하세요</option>
                   <option value="student">학생</option>
-                  <option value="instructor">교수</option>
+                  <option value="professor">교수</option>
                 </select>
               </div>
 
               <button
+                // submit 버튼이라서 클릭하면 form의 onSubmit이 실행됩니다.
                 type="submit"
-                onClick={handlesubmit}
                 className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md text-sm"
               >
                 회원가입

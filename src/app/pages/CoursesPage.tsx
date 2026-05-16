@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
 import type { Course } from "../types";
 import { api } from "../api/mock-data";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     api.courses.getAll().then((data) => {
@@ -21,6 +23,10 @@ export default function CoursesPage() {
       </div>
     );
   }
+
+
+
+  if (!isAuthenticated) return <div>로그인이 필요합니다</div>;
 
   return (
     <div className="container mx-auto px-4 py-8">

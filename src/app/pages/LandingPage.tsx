@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function LandingPage() {
   const navigate = useNavigate();
-
+  const { setIsAuthenticated } = useAuth();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -21,6 +22,7 @@ export default function LandingPage() {
   }
 
   const handleDevLogin = () => {
+    setIsAuthenticated(true);
     navigate("/app/courses");
   };
 
@@ -29,6 +31,7 @@ export default function LandingPage() {
     signInWithEmailAndPassword(auth, form.email, form.password)
       .then((userCredential) => {
         const user = userCredential.user;
+        setIsAuthenticated(true);
         navigate("/app/courses");
       })
       .catch((error) => {

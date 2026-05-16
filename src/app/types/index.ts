@@ -1,30 +1,32 @@
 // 사용자 역할
 export type UserRole = "student" | "professor" | "admin";
 
-// 사용자 관련 타입
-export interface User {
+export interface BaseProfile {
   id: string;
   name: string;
   email: string;
   role: UserRole;
 }
 
-export interface StudentProfile extends User {
+// 사용자 관련 타입
+export interface AdminProfile extends BaseProfile {
+  role: "admin";
+}
+
+export interface StudentProfile extends BaseProfile {
   role: "student";
   studentId: string;
   major: string;
-  skills: string[];
-  bio: string;
-  avatar?: string;
+  skills?: string[];
+  bio?: string;
 }
 
-export interface ProfessorProfile extends User {
+export interface ProfessorProfile extends BaseProfile {
   role: "professor";
   department: string;
   office: string;
-  researchAreas: string[];
   officeHours: string;
-  avatar?: string;
+  researchAreas?: string[];
 }
 
 // 과목 관련 타입
