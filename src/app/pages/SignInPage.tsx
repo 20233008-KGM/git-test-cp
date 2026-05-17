@@ -1,8 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
-import { supabase } from "../supabase";
 import { useAuth } from "../contexts/AuthContext";
 import type { Signupinput } from "../contexts/AuthContext";
 import { UserRole } from "../types";
@@ -16,9 +13,10 @@ export default function SignInPage() {
   // Firebase/Supabase에 실제로 가입시키는 코드는 AuthContext.tsx에 있습니다.
   const { signInWithEmail } = useAuth();
 
-  // 사용자가 입력한 이메일, 비밀번호, 역할을 저장하는 상태입니다.
+  // 사용자가 입력한 이름, 이메일, 비밀번호, 역할을 저장하는 상태입니다.
   // input/select 값이 바뀔 때마다 setForm으로 이 값들을 업데이트합니다.
   const [form, setForm] = useState<Partial<Signupinput>>({
+    name: "",
     email: "",
     password: "",
     role: "student" as UserRole
@@ -41,9 +39,9 @@ export default function SignInPage() {
     // React에서는 새로고침 없이 직접 처리하려고 이 기본 동작을 막습니다.
     e.preventDefault();
 
-    // 역할을 고르지 않았으면 회원가입을 진행하지 않습니다.
-    if (!form.role) {
-      alert("역할을 선택해주세요");
+    // 필수값을 모두 입력했는지 확인합니다.
+    if (!form.name || !form.email || !form.password || !form.role) {
+      alert("이름, 이메일, 비밀번호, 역할을 모두 입력해주세요");
       return;
     }
 
@@ -51,6 +49,7 @@ export default function SignInPage() {
       // AuthContext의 signInWithEmail 함수에 회원가입 정보를 넘깁니다.
       // 객체 하나로 넘기면 나중에 name, major 같은 값을 추가하기 쉽습니다.
       await signInWithEmail({
+        name: form.name as string,
         email: form.email as string,
         password: form.password as string,
         role: form.role as UserRole,
@@ -59,8 +58,9 @@ export default function SignInPage() {
       // 회원가입이 성공하면 과목 목록 페이지로 이동합니다.
       navigate("/");
     } catch (error) {
-      // 회원가입 중 에러가 나면 간단한 실패 메시지를 보여줍니다.
-      alert("로그인 실패");
+      // Firebase/Supabase가 돌려준 실제 에러를 콘솔에 남겨야 400 원인을 확인하기 쉽습니다.
+      console.error("회원가입 실패:", error);
+      alert("회원가입 실패: 콘솔의 에러 메시지를 확인해주세요");
     }
   };
 
@@ -128,6 +128,20 @@ export default function SignInPage() {
 
             {/* form 안의 submit 버튼을 누르면 onSubmit에 연결된 handleSignIn이 실행됩니다. */}
             <form onSubmit={handleSignIn} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  이름
+                </label>
+                <input
+                  type="text"
+                  // name이 "name"이므로 handlechange에서 form.name을 바꿉니다.
+                  name="name"
+                  onChange={handlechange}
+                  placeholder="홍길동"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   이메일

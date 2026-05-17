@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router";
-import type { Course } from "../types";
 import { api } from "../api/mock-data";
 import { useAuth } from "../contexts/AuthContext";
+import type { Course } from "../types";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     api.courses.getAll().then((data) => {
@@ -19,20 +19,18 @@ export default function CoursesPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p className="text-gray-600">로딩 중...</p>
+        <p className="text-gray-600">?? ?...</p>
       </div>
     );
   }
 
-
-
-  if (!isAuthenticated) return <div>로그인이 필요합니다</div>;
+  if (!isAuthenticated) return <div>???? ?????</div>;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">수강 중인 과목</h1>
-        <p className="text-gray-600">총 {courses.length}개 과목</p>
+        <h1 className="text-3xl font-bold text-gray-900">?? ?? ??</h1>
+        <p className="text-gray-600">? {courses.length}? ??</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -58,14 +56,14 @@ export default function CoursesPage() {
             )}
 
             <div className="space-y-1 text-sm">
-              <p className="text-gray-600">👨‍🏫 {course.professor}</p>
-              <p className="text-gray-600">🕒 {course.schedule}</p>
+              <p className="text-gray-600">??: {course.professor}</p>
+              <p className="text-gray-600">??: {course.schedule}</p>
               {course.room && (
-                <p className="text-gray-600">📍 {course.room}</p>
+                <p className="text-gray-600">???: {course.room}</p>
               )}
               <p className="text-gray-600">
-                👥 {course.students}
-                {course.maxStudents && `/${course.maxStudents}`}명
+                ???: {course.students}
+                {course.maxStudents && `/${course.maxStudents}`}?
               </p>
             </div>
           </Link>

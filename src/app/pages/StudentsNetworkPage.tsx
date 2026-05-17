@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Search, BookOpen, Clock, MapPin, FlaskConical, User, Pencil, Shuffle } from "lucide-react";
-import imgKangDongwon from "figma:asset/9de9fdaeffd8fddb608de811ab9b40d6f981daba.png";
+import { api } from "../api/mock-data";
 import { useAuth } from "../contexts/AuthContext";
 import type { ProfessorProfile } from "../types";
 
@@ -24,7 +24,7 @@ interface StudentExtra {
   keywords: { text: string; count: number }[];
 }
 
-const studentExtras: Record<string, StudentExtra> = {
+const fallbackStudentExtras: Record<string, StudentExtra> = {
   "1": {
     temperature: 38.2,
     teamProjectCount: 7,
@@ -153,7 +153,7 @@ const studentExtras: Record<string, StudentExtra> = {
   },
 };
 
-const students: Student[] = [
+const fallbackStudents: Student[] = [
   {
     id: "1",
     name: "류지원",
@@ -210,7 +210,7 @@ const students: Student[] = [
     major: "벤처중소기업학",
     bio: "서비스의 비즈니스 모델 검증과 발표를 담당하겠습니다!",
     tags: ["#창업", "#비즈니스모델", "#발표", "#마케팅", "#데이터분석 취미입니다", "#두자루지"],
-    image: imgKangDongwon,
+    avatar: "강",
   },
   {
     id: "8",
@@ -297,10 +297,12 @@ function TemperatureBar({ value }: { value: number }) {
 
 function StudentProfileModal({
   student,
+  studentExtras,
   onClose,
   onEditClick,
 }: {
   student: Student;
+  studentExtras: Record<string, StudentExtra>;
   onClose: () => void;
   onEditClick?: () => void;
 }) {
@@ -785,6 +787,9 @@ export default function StudentsNetworkPage() {
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRandomTeamModal, setShowRandomTeamModal] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentExtras, setStudentExtras] = useState<Record<string, StudentExtra>>({});
+  const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState<EditForm>({
     major: "벤처중소기업학 / 글로벌미디어 복수전공",
     mbti: "intp, 꼼꼼함, 완벽주의자",
@@ -796,8 +801,45 @@ export default function StudentsNetworkPage() {
 
   const { isProfessor, isStudent, user } = useAuth();
   const professor = isProfessor ? (user as ProfessorProfile) : null;
-  const selfStudent = students.find((s) => s.isSelf)!;
+  const selfStudent = students.find((s) => s.isSelf) ?? students[0];
   const otherStudents = students.filter((s) => !s.isSelf);
+
+  useEffect(() => {
+    Promise.all([
+      api.studentNetwork.getStudents(),
+      api.studentNetwork.getExtras(),
+      api.studentNetwork.getEditForm(),
+    ])
+      .then(([studentData, extraData, formData]) => {
+        setStudents(studentData.length > 0 ? studentData : fallbackStudents);
+        setStudentExtras(Object.keys(extraData).length > 0 ? extraData : fallbackStudentExtras);
+        setEditForm({
+          major: formData.major,
+          mbti: formData.mbti,
+          careerInterest: formData.careerInterest,
+          hobbies: formData.hobbies,
+          bio: formData.bio,
+          portfolioFileName: formData.portfolioFileName,
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center">
+        <p className="text-[#4a5565] font-medium">수강자 정보를 불러오는 중입니다...</p>
+      </div>
+    );
+  }
+
+  if (!selfStudent) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center">
+        <p className="text-[#4a5565] font-medium">이 수업에 등록된 학생이 없습니다.</p>
+      </div>
+    );
+  }
 
   const filteredOthers = otherStudents.filter((s) => {
     if (!searchQuery.trim()) return true;
@@ -939,12 +981,17 @@ export default function StudentsNetworkPage() {
       <Footer />
 
       {selectedStudent && (
-        <StudentProfileModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+        <StudentProfileModal
+          student={selectedStudent}
+          studentExtras={studentExtras}
+          onClose={() => setSelectedStudent(null)}
+        />
       )}
 
       {showMyProfileModal && (
         <StudentProfileModal
           student={selfStudent}
+          studentExtras={studentExtras}
           onClose={() => setShowMyProfileModal(false)}
           onEditClick={() => setShowEditModal(true)}
         />

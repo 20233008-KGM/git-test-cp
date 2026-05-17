@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Team, TeamMember } from "../types";
+// api.students.getAll은 Supabase의 ai_students 테이블에서 학생 목록을 가져옵니다.
 import { api } from "../api/mock-data";
 
 export default function RandomTeamPage() {
@@ -8,6 +9,7 @@ export default function RandomTeamPage() {
   const [students, setStudents] = useState<TeamMember[]>([]);
 
   useEffect(() => {
+    // Supabase에서 가져온 학생 목록을 팀원 형태로 바꾸는 코드입니다.
     api.students.getAll().then((data) => {
       const members: TeamMember[] = data.map((s) => ({
         id: s.id,

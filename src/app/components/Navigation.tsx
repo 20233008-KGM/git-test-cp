@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { useState } from "react";
@@ -9,21 +10,18 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "수업", path: "/app/courses" },
-  { label: "수강자들", path: "/app/students" },
-  { label: "팀", path: "/app/teams" },
 ];
 
 export default function Navigation() {
   const location = useLocation();
-  const { user, isProfessor, isStudent, setUserRole } = useAuth();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const isCourseListPage = location.pathname === "/app/courses";
+  const shouldShowTopNav = !isCourseListPage;
 
   const isActive = (path: string) => {
-    if (path === "/app/teams") {
-      return location.pathname.startsWith("/app/teams");
-    }
-    if (path === "/app/students") {
-      return location.pathname.startsWith("/app/students") || location.pathname === "/app/profile";
+    if (path === "/app/courses") {
+      return location.pathname.startsWith("/app/courses");
     }
     return location.pathname === path;
   };
@@ -43,48 +41,26 @@ export default function Navigation() {
       {/* /*flex-col md:flex-row gap-8ㄱgap-4*/}
       <div className={`flex flex-col md:flex-row items-center gap-4 md:gap-0 ${isOpen ? "block" : "hidden md:flex"}`}>
         {/* /*flex-col md:flex-row gap-1 md:gap-8 items-center */}
-        <nav className="flex flex-col md:flex-row gap-1 md:gap-8 items-center ">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`relative transition-colors font-semibold ${isActive(item.path) ? "text-[#3676ff]" : "text-gray-400 hover:text-white"
-                }`}
-            >
-              <span>{item.label}</span>
-              {isActive(item.path) && (
-                /*hidden md:block*/
-                <div className="hidden md:block absolute -bottom-5 left-0 right-0 h-0.5 bg-[#3676ff]" />
-              )}
-            </Link>
-          ))}
-        </nav>
+        {shouldShowTopNav && (
+          <nav className="flex flex-col md:flex-row gap-1 md:gap-8 items-center ">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`relative transition-colors font-semibold ${isActive(item.path) ? "text-[#3676ff]" : "text-gray-400 hover:text-white"
+                  }`}
+              >
+                <span>{item.label}</span>
+                {isActive(item.path) && (
+                  /*hidden md:block*/
+                  <div className="hidden md:block absolute -bottom-5 left-0 right-0 h-0.5 bg-[#3676ff]" />
+                )}
+              </Link>
+            ))}
+          </nav>
+        )}
 /* flex-col md:flex-row */
         <div className="flex flex-col md:flex-row items-center gap-4">
-          {/* 개발용 역할 전환 버튼 */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setUserRole("student")}
-              className={`px-3 py-1 text-xs rounded ${isStudent
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              title="학생 모드로 전환"
-            >
-              학생
-            </button>
-            <button
-              onClick={() => setUserRole("professor")}
-              className={`px-3 py-1 text-xs rounded ${isProfessor
-                ? "bg-blue-600 text-white"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }`}
-              title="교수 모드로 전환"
-            >
-              교수
-            </button>
-          </div>
-
           <Link to="/app/mypage" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-[#2f67df] rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">

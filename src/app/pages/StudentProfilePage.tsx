@@ -1,4 +1,5 @@
-import { useAuth } from "../hooks/useAuth";
+import React from "react";
+import { useAuth } from "../contexts/AuthContext";
 import type { StudentProfile } from "../types";
 
 export default function StudentProfilePage() {
@@ -23,8 +24,8 @@ export default function StudentProfilePage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{profile.name}</h1>
-            <p className="text-gray-600">{profile.studentId}</p>
-            <p className="text-gray-600">{profile.major}</p>
+            <p className="text-gray-600">{profile.studentId ?? ""}</p>
+            <p className="text-gray-600">{profile.major ?? ""}</p>
           </div>
         </div>
 
@@ -42,7 +43,7 @@ export default function StudentProfilePage() {
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">기술 스택</h2>
             <div className="flex flex-wrap gap-2">
-              {profile.skills.map((skill) => (
+              {(profile.skills ?? []).map((skill) => (
                 <span
                   key={skill}
                   className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"

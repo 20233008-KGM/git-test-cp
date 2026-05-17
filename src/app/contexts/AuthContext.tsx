@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import type { AdminProfile, StudentProfile, ProfessorProfile, UserRole } from "../types";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { supabase } from "../supabase";
 
 export type Signupinput = {
+  name: string;
   email: string;
   password: string;
   role: UserRole;
@@ -22,7 +23,6 @@ interface AuthContextType {
   signInWithEmail: (input: Signupinput) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  setUserRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,52 +39,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = role === "admin";
 
   useEffect(() => {
-    // Supabase 세션 확인, 새로고침할시도 동작, 로그인 상태 유지
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // 로그인된 사용자면 정보 로드
+    // Firebase Auth 상태를 기준으로 로그인 유지 여부를 확인합니다.
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Firebase로 로그인된 사용자라면 Supabase ai_users에서 서비스 프로필을 가져옵니다.
         const { data: userData } = await supabase
-          .from("users")
+          .from("ai_users")
           .select("*")
-          .eq("uid", session.user.id)
+          .eq("firebase_uid", firebaseUser.uid)
           .single();
 
         if (userData) setUser(userData);
         setIsAuthenticated(true);
+      } else {
+        setUser(null);
+        setIsAuthenticated(false);
       }
+
       setIsLoading(false);
-    };
+    });
 
-    checkSession();
+    return () => unsubscribe();
   }, []);
-
-  // 구버전 회원가입 코드 (Firebase + Supabase)
-  // const handleSignIn = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   createUserWithEmailAndPassword(auth, form.email, form.password)
-  //     .then((userCredential) => {
-  //       const user = userCredential.user;
-
-  //       const userData = {
-  //         email: user.email,
-  //         uid: user.uid,
-  //         role: form.role
-  //       };
-
-  //       return supabase.from("users").insert([userData]);
-  //     })
-  //     .then(() => {
-  //       alert("회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.");
-  //       navigate("/");
-  //     })
-  //     .catch((error) => {
-  //       const errorCode = error.code;
-  //       const errorMessage = error.message;
-  //       alert(`회원가입 실패: ${errorMessage}`);
-  //     });
-  // }
-
 
   const signInWithEmail = async (input: Signupinput) => {
     // 회원가입 요청이 시작됐다는 표시입니다.
@@ -92,29 +68,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // input은 회원가입할 때 필요한 정보 묶음입니다.
-      // 예: { email: "...", password: "...", role: "student" }
+      // 예: { name: "...", email: "...", password: "...", role: "student" }
       // 이렇게 객체 하나로 받으면 나중에 name, major 같은 값이 추가돼도 함수 인자를 계속 늘리지 않아도 됩니다.
-      const { email, password, role } = input;
+      const { name, email, password, role } = input;
 
-      // Firebase Auth에 이메일과 비밀번호를 넘겨서 실제 계정을 만듭니다.
-      // 여기서 만들어지는 계정은 "로그인할 수 있는 계정"입니다.
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Firebase Auth에 계정을 만들고, Firebase uid를 Supabase에 저장합니다.
+      const firebaseUid = (await createUserWithEmailAndPassword(auth, email, password)).user.uid;
 
-      // Firebase가 만들어준 사용자 정보입니다.
-      // user.uid는 Firebase가 자동으로 만들어주는 고유한 사용자 ID입니다.
-      const user = userCredential.user;
-
-      // Supabase users 테이블에 저장할 사용자 정보입니다.
+      // Supabase ai_users 테이블에 저장할 사용자 정보입니다.
       // Firebase는 로그인 담당, Supabase는 우리 서비스에서 필요한 유저 정보 저장 담당이라고 생각하면 됩니다.
+      // 비밀번호 원문은 절대 Supabase에 저장하지 않습니다. 비밀번호는 Firebase Auth가 안전하게 관리합니다.
       const userData = {
-        email: user.email,
-        uid: user.uid,
-        role: role,
+        email,
+        firebase_uid: firebaseUid,
+        name,
+        role,
       };
 
-      // 위에서 만든 userData를 Supabase의 users 테이블에 한 줄 추가합니다.
+      // 위에서 만든 userData를 Supabase의 ai_users 테이블에 한 줄 추가합니다.
       // 나중에 name, major, studentId 같은 값도 여기에 같이 넣으면 됩니다.
-      await supabase.from("User").insert([userData]);
+      await supabase.from("ai_users").upsert([userData], { onConflict: "firebase_uid" });
       alert("회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.");
 
     } catch (error) {
@@ -133,11 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Firebase로 실제 로그인
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      // Supabase users 테이블에서 해당 uid의 사용자 정보 가져오기
+      // Supabase ai_users 테이블에서 해당 uid의 사용자 정보 가져오기
       const { data: userData } = await supabase
-        .from("users")
+        .from("ai_users")
         .select("*")
-        .eq("uid", userCredential.user.uid)
+        .eq("firebase_uid", userCredential.user.uid)
         .single();
 
       if (userData) {
@@ -153,38 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    signOut(auth);
     setUser(null);
     setIsAuthenticated(false);
-  };
-
-  const setUserRole = (newRole: UserRole) => {
-    if (user) {
-      if (newRole === "professor") {
-        const mockProfessor: ProfessorProfile = {
-          id: "prof1",
-          name: "김교수",
-          email: "prof@example.com",
-          role: "professor",
-          department: "컴퓨터공학부",
-          office: "공학관 301호",
-          researchAreas: ["웹 기술", "소프트웨어 공학"],
-          officeHours: "화, 목 15:00-17:00",
-        };
-        setUser(mockProfessor);
-      } else if (newRole === "student") {
-        const mockStudent: StudentProfile = {
-          id: "1",
-          name: "류지원",
-          email: "student@example.com",
-          role: "student",
-          studentId: "2021123456",
-          major: "컴퓨터공학과",
-          skills: ["React", "TypeScript", "Node.js"],
-          bio: "웹 개발에 관심이 많은 학생입니다.",
-        };
-        setUser(mockStudent);
-      }
-    }
   };
 
   return (
@@ -201,7 +145,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         login,
         logout,
-        setUserRole,
       }}
     >
       {children}
