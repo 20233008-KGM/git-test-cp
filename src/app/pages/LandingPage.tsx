@@ -39,10 +39,10 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col" style={{
+    <div className="min-h-screen w-full overflow-x-hidden flex flex-col" style={{
       backgroundImage: "linear-gradient(141.655deg, rgb(239, 246, 255) 0%, rgb(238, 242, 255) 50%, rgb(250, 245, 255) 100%)",
     }}>
-      <div className="flex-1 relative">
+      <div className="flex-1 relative grid place-items-center overflow-hidden px-4 py-10">
         <div className="absolute inset-0 opacity-5">
           <div
             className="w-full h-full"
@@ -53,15 +53,15 @@ export default function LandingPage() {
           />
         </div>
 
-        <div className="absolute top-8 left-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
+        <div className="hidden sm:block absolute top-8 left-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
           WELCOME
         </div>
 
-        <div className="absolute bottom-20 right-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
+        <div className="hidden sm:block absolute bottom-20 right-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
           환영합니다
         </div>
 
-        <div className="absolute top-12 left-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
+        <div className="hidden sm:block absolute top-12 left-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
           <div className="text-center">
             <div className="text-2xl mb-2">👥</div>
             <p className="text-xs font-bold text-gray-900 mb-1">수강인원</p>
@@ -71,7 +71,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="absolute top-12 right-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
+        <div className="hidden sm:block absolute top-12 right-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
           <div className="text-center">
             <div className="text-2xl mb-2">💬</div>
             <p className="text-xs font-bold text-gray-900 mb-1">Q&A 게시판</p>
@@ -79,7 +79,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[380px]">
+        <div className="relative z-10 w-full max-w-[380px]">
           <div className="text-center mb-6">
             <h1 className="text-3xl sm:text-4xl font-black text-gray-900 mb-1">
               CampusConnect

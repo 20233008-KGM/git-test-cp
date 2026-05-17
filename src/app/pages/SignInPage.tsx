@@ -68,11 +68,11 @@ export default function SignInPage() {
   return (
     // 이 페이지 전체를 감싸는 가장 바깥 영역입니다.
     // min-h-screen은 화면 높이를 꽉 채우라는 뜻입니다.
-    <div className="min-h-screen w-full flex flex-col" style={{
+    <div className="min-h-screen w-full overflow-x-hidden flex flex-col" style={{
       backgroundImage: "linear-gradient(141.655deg, rgb(239, 246, 255) 0%, rgb(238, 242, 255) 50%, rgb(250, 245, 255) 100%)",
     }}>
       {/* 메인 컨텐츠 영역 */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative overflow-hidden">
         {/* 배경 그리드 */}
         <div className="absolute inset-0 opacity-5">
           <div
@@ -85,17 +85,17 @@ export default function SignInPage() {
         </div>
 
         {/* 배경 텍스트 - WELCOME */}
-        <div className="absolute top-8 left-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
+        <div className="hidden sm:block absolute top-8 left-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
           WELCOME
         </div>
 
         {/* 배경 텍스트 - 환영합니다 (오른쪽 하단) */}
-        <div className="absolute bottom-20 right-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
+        <div className="hidden sm:block absolute bottom-20 right-4 text-[100px] sm:text-[120px] lg:text-[128px] font-black text-gray-400 opacity-30 select-none">
           환영합니다
         </div>
 
         {/* 왼쪽 상단 카드 - 수강인원 */}
-        <div className="absolute top-12 left-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
+        <div className="hidden sm:block absolute top-12 left-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
           <div className="text-center">
             <div className="text-2xl mb-2">👥</div>
             <p className="text-xs font-bold text-gray-900 mb-1">수강인원</p>
@@ -104,7 +104,7 @@ export default function SignInPage() {
         </div>
 
         {/* 오른쪽 상단 카드 - Q&A 게시판 */}
-        <div className="absolute top-12 right-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
+        <div className="hidden sm:block absolute top-12 right-8 bg-white rounded-xl shadow-lg p-4 w-32 sm:w-40">
           <div className="text-center">
             <div className="text-2xl mb-2">💬</div>
             <p className="text-xs font-bold text-gray-900 mb-1">Q&A 게시판</p>
