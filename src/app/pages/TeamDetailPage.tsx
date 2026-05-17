@@ -215,29 +215,20 @@ export default function TeamDetailPage() {
 
             {/* 프로젝트 스크린샷 */}
             <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="relative rounded-[10px] shadow-md overflow-hidden h-[137px]">
-                <div className="h-full w-full bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe]" />
-                <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] shadow-md">
                   <div className="bg-white px-4 py-1 rounded-[10px]">
                     <p className="text-lg font-semibold text-black">1조 - FIGMA</p>
                   </div>
-                </div>
               </div>
-              <div className="relative rounded-[10px] shadow-md overflow-hidden h-[137px]">
-                <div className="h-full w-full bg-gradient-to-br from-[#ede9fe] to-[#c4b5fd]" />
-                <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-gradient-to-br from-[#ede9fe] to-[#c4b5fd] shadow-md">
                   <div className="bg-white px-4 py-1 rounded-[10px]">
                     <p className="text-lg font-semibold text-black">1조 - 중간발표</p>
                   </div>
-                </div>
               </div>
-              <div className="relative rounded-[10px] shadow-md overflow-hidden">
-                <div className="bg-[#eee] h-[137px] w-full"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-[#eee] shadow-md">
                   <div className="bg-white px-4 py-1 rounded-[10px]">
                     <p className="text-lg font-semibold text-black">1조 - 기말발표</p>
                   </div>
-                </div>
               </div>
             </div>
 
@@ -501,7 +492,7 @@ export default function TeamDetailPage() {
       {/* 채팅 모달 */}
       {showChatModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.83)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
           onClick={() => setShowChatModal(false)}
         >
           <div
@@ -598,7 +589,7 @@ export default function TeamDetailPage() {
       {/* 평가 모달 (교수만) */}
       {isProfessor && showEvalModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.81)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
           onClick={() => setShowEvalModal(false)}
         >
           <div
@@ -697,7 +688,7 @@ export default function TeamDetailPage() {
       {/* 학생 평가 모달 (교수만) */}
       {isProfessor && showStudentEvalModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.81)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
           onClick={() => setShowStudentEvalModal(false)}
         >
           <div
@@ -799,7 +790,7 @@ export default function TeamDetailPage() {
       {/* 회고록 모달 (학생만) */}
       {isStudent && showRetrospectiveModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.83)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
           onClick={() => setShowRetrospectiveModal(false)}
         >
           <div
@@ -936,7 +927,7 @@ export default function TeamDetailPage() {
       {/* 조원 평가 모달 (학생만) */}
       {isStudent && showPeerReviewModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.83)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
           onClick={() => setShowPeerReviewModal(false)}
         >
           <div
@@ -1090,7 +1081,7 @@ export default function TeamDetailPage() {
       {/* 피드백 커스텀 모달 */}
       {showFeedbackCustomModal && (
         <div
-          className="fixed inset-0 bg-[rgba(79,79,79,0.83)] flex items-center justify-center z-50 p-4"
+          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
           onClick={() => setShowFeedbackCustomModal(false)}
         >
           <div

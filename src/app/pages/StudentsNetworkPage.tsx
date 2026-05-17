@@ -284,9 +284,9 @@ function TemperatureBar({ value }: { value: number }) {
         <span className="text-2xl">{emoji}</span>
       </div>
       <p className="text-[#155dfc] text-3xl font-black mb-3">{value}°C</p>
-      <div className="relative h-3 bg-gray-200 rounded-full overflow-hidden">
+      <div className="h-3 overflow-hidden rounded-full bg-gray-200">
         <div
-          className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-[#b0bfde] via-[#63bfed] to-[#155dfc]"
+          className="h-full rounded-full bg-gradient-to-r from-[#b0bfde] via-[#63bfed] to-[#155dfc]"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -312,7 +312,7 @@ function StudentProfileModal({
 
   return (
     <div
-      className="fixed inset-0 bg-[rgba(45,45,45,0.76)] flex items-center justify-center z-50 p-4"
+      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(45,45,45,0.76)] p-4"
       onClick={onClose}
     >
       <div
@@ -428,7 +428,7 @@ function MyInfoEditModal({
 
   return (
     <div
-      className="fixed inset-0 bg-[rgba(79,79,79,0.72)] flex items-center justify-center z-50 p-4"
+      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.72)] p-4"
       onClick={onClose}
     >
       <div
@@ -601,7 +601,7 @@ function RandomTeamModal({ allStudents, onClose }: { allStudents: Student[]; onC
 
   return (
     <div
-      className="fixed inset-0 bg-[rgba(45,45,45,0.76)] flex items-center justify-center z-50 p-4"
+      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(45,45,45,0.76)] p-4"
       onClick={onClose}
     >
       <div
@@ -909,14 +909,14 @@ export default function StudentsNetworkPage() {
             <Shuffle className="w-4 h-4" />
             랜덤 팀 생성 +
           </button>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 sm:w-72">
+            <Search className="h-4 w-4 shrink-0 text-gray-400" />
             <input
               type="text"
               placeholder="키워드를 입력하세요"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
             />
           </div>
         </div>

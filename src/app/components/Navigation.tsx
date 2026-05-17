@@ -48,14 +48,10 @@ export default function Navigation() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`relative rounded-lg px-3 py-2 text-center font-semibold transition-colors md:px-0 md:py-0 ${isActive(item.path) ? "bg-white/10 text-[#3676ff] md:bg-transparent" : "text-gray-400 hover:bg-white/10 hover:text-white md:hover:bg-transparent"
+                className={`rounded-lg border-b-2 px-3 py-2 text-center font-semibold transition-colors md:px-0 md:py-0 ${isActive(item.path) ? "border-[#3676ff] bg-white/10 text-[#3676ff] md:bg-transparent" : "border-transparent text-gray-400 hover:bg-white/10 hover:text-white md:hover:bg-transparent"
                   }`}
               >
                 <span>{item.label}</span>
-                {isActive(item.path) && (
-                  /*hidden md:block*/
-                  <div className="hidden md:block absolute -bottom-5 left-0 right-0 h-0.5 bg-[#3676ff]" />
-                )}
               </Link>
             ))}
           </nav>
@@ -67,16 +63,13 @@ export default function Navigation() {
                 {user?.name.charAt(0) || "U"}
               </span>
             </div>
-            <div className="relative">
+            <div className="border-b border-transparent">
               <span
                 className={`text-sm font-medium ${location.pathname === "/app/mypage" ? "text-[#1862ff]" : "text-white"
                   }`}
               >
                 {user?.name || "사용자"}
               </span>
-              {location.pathname === "/app/mypage" && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-[#1862ff]" />
-              )}
             </div>
           </Link>
         </div>

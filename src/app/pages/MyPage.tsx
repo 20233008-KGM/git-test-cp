@@ -188,12 +188,13 @@ export default function MyPage() {
         <h1 className="text-[30px] font-bold text-black mb-10">마이페이지</h1>
 
         {/* 프로필 섹션 */}
-        <div className="items-center flex flex-col md:flex-row bg-[rgba(255,255,255,0.9)] rounded-[14px] p-8 mb-8 shadow-md relative min-h-[400px]">
+        <div className="mb-8 flex min-h-[400px] flex-col items-center gap-8 rounded-[14px] bg-[rgba(255,255,255,0.9)] p-8 shadow-md md:flex-row">
           {/* 프로필 아바타 */}
-          <div className="md:absolute md:left-[95px] md:top-[40px]">
-            <div className="bg-[#1862ff] rounded-full w-[170px] h-[171px] flex items-center justify-center text-[35px] font-bold text-white relative">
+          <div className="flex shrink-0 flex-col items-center gap-3 md:w-[240px]">
+            <div className="flex h-[171px] w-[170px] items-center justify-center rounded-full bg-[#1862ff] text-[35px] font-bold text-white">
               {profileInitial}
-              <button className="absolute bottom-0 right-0 bg-black border border-black rounded-[6px] w-[33px] h-[33px] flex items-center justify-center">
+            </div>
+              <button className="flex h-[33px] w-[33px] items-center justify-center rounded-[6px] border border-black bg-black">
                 <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24.1667 22.9233">
                   <path
                     d={svgPaths.p38455680}
@@ -204,11 +205,10 @@ export default function MyPage() {
                   />
                 </svg>
               </button>
-            </div>
           </div>
 
           {/* 프로필 정보 */}
-          <div className="w-full md:ml-[318px] space-y-6 pt-2">
+          <div className="w-full space-y-6 pt-2">
             {/* 이름과 이메일 행 */}
             <div className="flex flex-col md:flex-row gap-8">
               {/* 이름 */}
@@ -537,13 +537,13 @@ export default function MyPage() {
       {/* 프로젝트 상세 모달 */}
       {selectedProject && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="mx-auto my-6 flex w-full items-center justify-center rounded-2xl p-4"
           style={{ backgroundColor: "rgba(82,82,82,0.67)" }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedProject(null);
           }}
         >
-          <div className="bg-white rounded-[10px] w-[min(1302px,95vw)] max-h-[90vh] overflow-y-auto relative">
+          <div className="bg-white rounded-[10px] w-[min(1302px,95vw)] max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
             <div className="flex items-start justify-between px-8 pt-7 pb-4 border-b border-[#e5e7eb]">
               <h2 className="text-[20px] font-bold text-[#101828]">프로젝트 상세 경력</h2>
