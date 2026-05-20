@@ -7,9 +7,7 @@ import type {
   ChatMessage,
   Course,
   PeerReviewStudent,
-  PeerReviewTeammate,
   TeamDeliverable,
-  TeamRetrospectiveSections,
   TeamSubmissionFeedbackItem,
   TeamSubmissionRetrospectiveItem,
   TeamSubmissionPeerReviewItem,
@@ -23,8 +21,6 @@ export default function TeamDetailPage() {
   const [showEvalModal, setShowEvalModal] = useState(false);
   const [showStudentEvalModal, setShowStudentEvalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
-  const [showRetrospectiveModal, setShowRetrospectiveModal] = useState(false);
-  const [showPeerReviewModal, setShowPeerReviewModal] = useState(false);
   const [problemInput, setProblemInput] = useState("");
   const [planInput, setPlanInput] = useState("");
   const [course, setCourse] = useState<Course | null>(null);
@@ -170,9 +166,6 @@ export default function TeamDetailPage() {
   >([]);
 
   const [allStudents, setAllStudents] = useState<PeerReviewStudent[]>([]);
-  const [goodKeywords, setGoodKeywords] = useState<string[]>([]);
-  const [badKeywords, setBadKeywords] = useState<string[]>([]);
-  const [teammates, setTeammates] = useState<PeerReviewTeammate[]>([]);
   const [troubleshootingLogs, setTroubleshootingLogs] = useState<TroubleshootingLog[]>([]);
   const [solutionInput, setSolutionInput] = useState("");
   const [submittingLog, setSubmittingLog] = useState(false);
@@ -363,48 +356,7 @@ export default function TeamDetailPage() {
     }
   };
 
-  const [peerReviews, setPeerReviews] = useState<
-    Record<string, { good: string[]; bad: string[]; comment: string; submitted: boolean }>
-  >({});
-  const [submittingPeerReviewId, setSubmittingPeerReviewId] = useState<string | null>(null);
-
-  const emptyRetrospectiveSections = (): TeamRetrospectiveSections => ({
-    role: { auto: "", custom: "" },
-    strengths: { auto: "", custom: "" },
-    regrets: { auto: "", custom: "" },
-    growth: { auto: "", custom: "" },
-  });
-  const [retrospectiveSections, setRetrospectiveSections] = useState<TeamRetrospectiveSections>(
-    emptyRetrospectiveSections
-  );
   const [retrospectiveSubmitted, setRetrospectiveSubmitted] = useState(false);
-  const [submittingRetrospective, setSubmittingRetrospective] = useState(false);
-
-  const handleSubmitRetrospective = async () => {
-    if (!selectedTeamId || submittingRetrospective || isArchived) return;
-
-    setSubmittingRetrospective(true);
-    try {
-      await api.teamDetail.submitRetrospective(selectedTeamId, retrospectiveSections);
-      setRetrospectiveSubmitted(true);
-      setShowRetrospectiveModal(false);
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "회고록 저장에 실패했습니다.");
-    } finally {
-      setSubmittingRetrospective(false);
-    }
-  };
-
-  const updateRetrospectiveCustom = (
-    key: keyof TeamRetrospectiveSections,
-    custom: string
-  ) => {
-    setRetrospectiveSections((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], custom },
-    }));
-  };
 
   const handleSubmitFeedback = async () => {
     if (!selectedTeamId || submittingFeedback || isArchived) return;
@@ -425,81 +377,56 @@ export default function TeamDetailPage() {
     }
   };
 
-  const handleSubmitPeerReview = async (memberId: string) => {
-    if (!selectedTeamId || submittingPeerReviewId) return;
-    const review = peerReviews[memberId];
-    if (!review) return;
-
-    setSubmittingPeerReviewId(memberId);
-    try {
-      await api.teamDetail.submitPeerReview(selectedTeamId, memberId, {
-        goodKeywords: review.good,
-        badKeywords: review.bad,
-        comment: review.comment,
-      });
-      setPeerReviews((prev) => ({
-        ...prev,
-        [memberId]: { ...prev[memberId], submitted: true },
-      }));
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "동료평가 저장에 실패했습니다.");
-    } finally {
-      setSubmittingPeerReviewId(null);
-    }
-  };
-
-  const toggleKeyword = (memberId: string, type: "good" | "bad", keyword: string) => {
-    setPeerReviews((prev) => {
-      const arr = prev[memberId][type];
-      return {
-        ...prev,
-        [memberId]: {
-          ...prev[memberId],
-          [type]: arr.includes(keyword) ? arr.filter((k) => k !== keyword) : [...arr, keyword],
-        },
-      };
-    });
-  };
-
   useEffect(() => {
     if (!selectedTeamId) return;
+    let isCancelled = false;
 
-    Promise.all([
-      api.teamDetail.getFeedbackOptions(selectedTeamId),
-      api.teamDetail.getMyFeedback(selectedTeamId),
-      api.teamDetail.getChatMessages(selectedTeamId),
-      api.teamDetail.getPeerReviewStudents(selectedTeamId),
-      api.teamDetail.getMyPeerReviews(selectedTeamId),
-      api.teamDetail.getReviewKeywords(selectedTeamId),
-      api.teamDetail.getTeammates(selectedTeamId),
-      api.teamDetail.getTroubleshootingLogs(selectedTeamId),
-      api.teamDetail.getDeliverables(selectedTeamId),
-      api.teamDetail.getRetrospectiveDraft(selectedTeamId),
-    ]).then(
-      ([
-        feedbackData,
-        myFeedback,
-        chatData,
-        reviewStudents,
-        myPeerReviews,
-        reviewKeywords,
-        teammateData,
-        logData,
-        deliverableData,
-        retrospectiveDraft,
-      ]) => {
+    const loadTeamDetailData = async () => {
+      const [
+        feedbackOptionsResult,
+        myFeedbackResult,
+        chatMessagesResult,
+        reviewStudentsResult,
+        troubleshootingLogsResult,
+        deliverablesResult,
+        retrospectiveDraftResult,
+      ] = await Promise.allSettled([
+        api.teamDetail.getFeedbackOptions(selectedTeamId),
+        api.teamDetail.getMyFeedback(selectedTeamId),
+        api.teamDetail.getChatMessages(selectedTeamId),
+        api.teamDetail.getPeerReviewStudents(selectedTeamId),
+        api.teamDetail.getTroubleshootingLogs(selectedTeamId),
+        api.teamDetail.getDeliverables(selectedTeamId),
+        api.teamDetail.getRetrospectiveDraft(selectedTeamId),
+      ]);
+
+      if (isCancelled) return;
+
+      if (feedbackOptionsResult.status === "fulfilled") {
+        const feedbackData = feedbackOptionsResult.value;
         setFeedbackOptions(feedbackData);
-        if (myFeedback) {
-          setSelectedFeedbacks(myFeedback.selectedOptions);
-          setCustomFeedbackText(myFeedback.customText ?? "");
+
+        if (myFeedbackResult.status === "fulfilled" && myFeedbackResult.value) {
+          setSelectedFeedbacks(myFeedbackResult.value.selectedOptions);
+          setCustomFeedbackText(myFeedbackResult.value.customText ?? "");
           setFeedbackSubmitted(true);
         } else {
           setSelectedFeedbacks(feedbackData.slice(0, 2));
           setCustomFeedbackText("");
           setFeedbackSubmitted(false);
         }
-        setChatMessages(chatData);
+      } else {
+        console.warn("피드백 옵션 로드 실패:", feedbackOptionsResult.reason);
+      }
+
+      if (chatMessagesResult.status === "fulfilled") {
+        setChatMessages(chatMessagesResult.value);
+      } else {
+        console.warn("채팅 기록 로드 실패:", chatMessagesResult.reason);
+      }
+
+      if (reviewStudentsResult.status === "fulfilled") {
+        const reviewStudents = reviewStudentsResult.value;
         setAllStudents(reviewStudents);
         setStudentEvalInputs((prev) => {
           const next = { ...prev };
@@ -508,26 +435,34 @@ export default function TeamDetailPage() {
           }
           return next;
         });
-        setGoodKeywords(reviewKeywords.good);
-        setBadKeywords(reviewKeywords.bad);
-        setTeammates(teammateData);
-        setTroubleshootingLogs(logData);
-        setDeliverables(deliverableData);
-        setRetrospectiveSections(retrospectiveDraft.sections);
-        setRetrospectiveSubmitted(retrospectiveDraft.submitted);
-        const reviewerName = user?.name ?? "";
-        setPeerReviews(
-          Object.fromEntries(
-            teammateData
-              .filter((member) => member.name !== reviewerName)
-              .map((member) => [
-                member.id,
-                myPeerReviews[member.id] ?? { good: [], bad: [], comment: "", submitted: false },
-              ])
-          )
-        );
+      } else {
+        console.warn("평가 대상 학생 로드 실패:", reviewStudentsResult.reason);
       }
-    );
+
+      if (troubleshootingLogsResult.status === "fulfilled") {
+        setTroubleshootingLogs(troubleshootingLogsResult.value);
+      } else {
+        console.warn("트러블슈팅 로그 로드 실패:", troubleshootingLogsResult.reason);
+      }
+
+      if (deliverablesResult.status === "fulfilled") {
+        setDeliverables(deliverablesResult.value);
+      } else {
+        console.warn("산출물 로드 실패:", deliverablesResult.reason);
+      }
+
+      if (retrospectiveDraftResult.status === "fulfilled") {
+        setRetrospectiveSubmitted(retrospectiveDraftResult.value.submitted);
+      } else {
+        console.warn("회고록 초안 로드 실패:", retrospectiveDraftResult.reason);
+      }
+    };
+
+    void loadTeamDetailData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedTeamId, user?.name]);
 
   useEffect(() => {
@@ -590,18 +525,13 @@ export default function TeamDetailPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => setShowPeerReviewModal(true)}
-                  className="bg-white border-2 border-[#155dfc] text-[#155dfc] px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-50 transition-colors"
-                >
-                  조원 평가
-                </button>
-                <button
-                  onClick={() => setShowRetrospectiveModal(true)}
+                <Link
+                  to={courseId ? `/app/courses/${courseId}/teams/${selectedTeamId}/retrospective` : "#"}
+                  data-testid="team-retrospective-page-link"
                   className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors"
                 >
                   {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
-                </button>
+                </Link>
               </div>
             )}
           </div>
@@ -876,6 +806,7 @@ export default function TeamDetailPage() {
                   <textarea
                     value={problemInput}
                     onChange={(e) => setProblemInput(e.target.value)}
+                    data-testid="team-trouble-problem-input"
                     placeholder="발견한 문제를 입력하세요."
                     rows={2}
                     className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
@@ -884,6 +815,7 @@ export default function TeamDetailPage() {
                     type="text"
                     value={planInput}
                     onChange={(e) => setPlanInput(e.target.value)}
+                    data-testid="team-trouble-plan-input"
                     placeholder="해결 계획 (선택)"
                     className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
                   />
@@ -891,6 +823,7 @@ export default function TeamDetailPage() {
                     type="text"
                     value={solutionInput}
                     onChange={(e) => setSolutionInput(e.target.value)}
+                    data-testid="team-trouble-solution-input"
                     placeholder="해결 방법 (입력 시 해결 완료로 저장)"
                     className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
                   />
@@ -898,6 +831,7 @@ export default function TeamDetailPage() {
                     type="button"
                     onClick={handleCreateTroubleshootingLog}
                     disabled={submittingLog}
+                    data-testid="team-trouble-submit"
                     className="w-full rounded-[5px] bg-[#155dfc] py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                   >
                     {submittingLog ? "등록 중..." : "기록 등록"}
@@ -912,6 +846,7 @@ export default function TeamDetailPage() {
                   return (
                   <div
                     key={log.id}
+                    data-testid={`team-trouble-item-${log.id}`}
                     className={`bg-white rounded-[10px] shadow-sm p-4 ${
                       log.status === "in-progress"
                         ? "border border-[#fff085]"
@@ -1462,236 +1397,6 @@ export default function TeamDetailPage() {
                   className="bg-[#155dfc] text-white px-16 py-2.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors shadow-md disabled:opacity-60"
                 >
                   {savingProfessorEval ? "저장 중…" : "다음"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 회고록 모달 (학생만) */}
-      {isStudent && !isArchived && showRetrospectiveModal && (
-        <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
-          onClick={() => setShowRetrospectiveModal(false)}
-        >
-          <div
-            className="bg-white rounded-[10px] shadow-2xl max-w-[1191px] w-full max-h-[90vh] overflow-y-auto relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[10px] z-10">
-              <h2 className="text-[25px] font-bold text-black">회고록</h2>
-              <button
-                onClick={() => setShowRetrospectiveModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800 text-xl font-bold"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-16 py-6 space-y-8">
-              {(
-                [
-                  { key: "role" as const, title: "본인이 한 역할" },
-                  { key: "strengths" as const, title: "잘한점" },
-                  { key: "regrets" as const, title: "아쉬운 점" },
-                  { key: "growth" as const, title: "발전한 점" },
-                ] as const
-              ).map(({ key, title }) => (
-                <div key={key} className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
-                  <p className="text-[20px] font-medium text-black text-center mb-4">{title}</p>
-                  <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
-                    <p className="text-[17px] font-medium text-black mb-3">자동연동</p>
-                    <p className="text-[17px] text-black whitespace-pre-wrap">
-                      {retrospectiveSections[key].auto || "—"}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
-                    <p className="text-[17px] font-medium text-black mb-3">직접입력</p>
-                    <input
-                      type="text"
-                      value={retrospectiveSections[key].custom}
-                      onChange={(e) => updateRetrospectiveCustom(key, e.target.value)}
-                      placeholder="직접 입력하세요."
-                      disabled={isArchived}
-                      data-testid={`retrospective-custom-${key}`}
-                      className="w-full text-[17px] text-black placeholder:text-[#9d9d9d] outline-none disabled:opacity-60"
-                    />
-                  </div>
-                </div>
-              ))}
-
-              <div className="flex justify-center pt-6">
-                <button
-                  type="button"
-                  data-testid="retrospective-submit"
-                  disabled={submittingRetrospective || isArchived}
-                  onClick={() => void handleSubmitRetrospective()}
-                  className="bg-[#155dfc] text-white px-16 py-2 rounded-[10px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] text-[17px] font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
-                >
-                  {submittingRetrospective ? "저장 중…" : retrospectiveSubmitted ? "수정 저장" : "완료"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 조원 평가 모달 (학생만) */}
-      {isStudent && !isArchived && showPeerReviewModal && (
-        <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
-          onClick={() => setShowPeerReviewModal(false)}
-        >
-          <div
-            className="bg-white rounded-[10px] shadow-2xl max-w-[780px] w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 헤더 */}
-            <div className="sticky top-0 bg-white flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[10px] z-10">
-              <h2 className="text-lg font-bold text-black">동료평가</h2>
-              <button
-                onClick={() => setShowPeerReviewModal(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800 text-xl font-bold"
-                aria-label="닫기"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="px-6 py-5 space-y-6">
-              {/* 본인 정보 (읽기 전용) */}
-              <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-base font-medium text-black">
-                  {myName}
-                  <span className="text-[#6a7282] text-sm ml-1">(본인)</span>
-                </span>
-                <span className="text-base font-medium text-black">
-                  기여도 :{" "}
-                  <span className="text-[#155dfc] font-bold">
-                    {teammates.find((m) => m.name === myName)?.contribution ?? 0}%
-                  </span>
-                </span>
-              </div>
-
-              {/* 각 팀원 평가 */}
-              {teammates.filter((member) => member.name !== myName).map((member) => {
-                const review = peerReviews[member.id];
-                return (
-                  <div key={member.id} className="space-y-3">
-                    {/* 팀원 이름 + 기여도 */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-medium text-black">{member.name}</span>
-                      <span className="text-base font-medium text-black">
-                        기여도 :{" "}
-                        <span className="text-[#155dfc] font-bold">{member.contribution}%</span>
-                      </span>
-                    </div>
-
-                    {/* 키워드 등록 카드 */}
-                    <div className="bg-[#eff6ff] rounded-[10px] shadow-sm p-4 space-y-3">
-                      <p className="text-sm font-medium text-black">키워드 등록</p>
-
-                      {/* 키워드 그리드 */}
-                      <div className="bg-white border-2 border-[rgba(59,128,255,0.32)] rounded-[10px] p-3">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {/* 좋아요 */}
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium text-black">좋아요</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {goodKeywords.map((kw) => {
-                                const selected = review.good.includes(kw);
-                                return (
-                                  <button
-                                    key={kw}
-                                    onClick={() => toggleKeyword(member.id, "good", kw)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                                      selected
-                                        ? "bg-[#155dfc] text-white border-[#155dfc]"
-                                        : "bg-white text-[#364153] border-gray-300 hover:border-[#155dfc]"
-                                    }`}
-                                  >
-                                    {kw}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 아쉬워요 */}
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium text-black">아쉬워요</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {badKeywords.map((kw) => {
-                                const selected = review.bad.includes(kw);
-                                return (
-                                  <button
-                                    key={kw}
-                                    onClick={() => toggleKeyword(member.id, "bad", kw)}
-                                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                                      selected
-                                        ? "bg-[#155dfc] text-white border-[#155dfc]"
-                                        : "bg-white text-[#364153] border-gray-300 hover:border-[#155dfc]"
-                                    }`}
-                                  >
-                                    {kw}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 등록 완료 버튼 */}
-                      <div className="flex justify-center">
-                        <button
-                          type="button"
-                          data-testid={`peer-review-submit-${member.id}`}
-                          onClick={() => void handleSubmitPeerReview(member.id)}
-                          disabled={submittingPeerReviewId === member.id}
-                          className={`px-8 py-2 rounded-full text-sm font-bold transition-colors disabled:opacity-60 ${
-                            review.submitted
-                              ? "bg-green-500 text-white"
-                              : "bg-[#155dfc] text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          {submittingPeerReviewId === member.id
-                            ? "저장 중…"
-                            : review.submitted
-                              ? "✓ 등록됨"
-                              : "등록 완료"}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 한줄 코멘트 */}
-                    <div className="bg-white border border-gray-200 rounded-[10px] px-4 py-3">
-                      <input
-                        type="text"
-                        value={review.comment}
-                        onChange={(e) =>
-                          setPeerReviews((prev) => ({
-                            ...prev,
-                            [member.id]: { ...prev[member.id], comment: e.target.value },
-                          }))
-                        }
-                        placeholder="한줄 코멘트를 작성하세요"
-                        className="w-full text-sm text-[#364153] placeholder:text-[#9d9d9d] outline-none bg-transparent"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* 다음 버튼 */}
-              <div className="flex justify-center pt-2 pb-2">
-                <button
-                  onClick={() => setShowPeerReviewModal(false)}
-                  className="bg-[#155dfc] text-white px-16 py-2.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors shadow-md"
-                >
-                  다음
                 </button>
               </div>
             </div>

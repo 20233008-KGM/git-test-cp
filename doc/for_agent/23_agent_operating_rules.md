@@ -18,7 +18,7 @@
 1. `vision.md` 읽기 (수정 금지) + `vision_snapshot.md`와 대조해 신규 "추가요청사항" 탐지
 2. `doc/starter.txt` 읽기 — **§0 계획 문서 제출 후 착수**
 3. `02_current_state.md` · `05_todo.md` · `17_handoff.md` 확인
-4. **`for_human/28_human_action_items.md` 확인** — 미완료 항목 점검·완료 반영 (`28_human_action_items.md` §세션 시작)
+4. **`for_human/28_human_action_items.md` 확인** — 미완료 항목 점검·완료 반영 (`28_human_action_items.md` §세션 시작, `체크=[o]` 우선 검증)
 5. **`doc/for_agent/plans/YYMMDD-N.md` 새 파일에 계획 작성** (기존 계획 파일 덮어쓰기 금지; 상단에 생성 시각 시분초) → `current_session_plan.md` 인덱스 갱신 → 채팅에는 경로·한 줄 요약만 (승인 전 구현 금지, "바로 해줘" 예외)
 6. 담당 영역 문서 확인 (`24_multi_agent_roles.md`에서 역할 매칭)
 
@@ -29,7 +29,7 @@
 1. **12가지 트리거** → `28` **미완료**에 추가 (해당 기능만 미룸).
 2. **다른 AI 가능 작업은 계속** (전체 세션 중단 금지).
 3. 세션 말미: 미완료 **높음** 항목 채팅 1~2줄 요약 (선택).
-4. 인간 “완료” / `H-00x 완료` → `28` 완료 표로 이동 후 블로커 TODO 재개.
+4. 인간 “완료” / `H-00x 완료` 또는 `체크=[o]` 확인 → `28`의 「완료 확인 방법」으로 검증 후 완료 표로 이동, 블로커 TODO 재개.
 
 ## 전체 개발 생명주기 (문서화 대상)
 

@@ -90,33 +90,31 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await page.getByRole("link", { name: "팀", exact: true }).click();
     await page.getByRole("button", { name: "입장하기" }).first().click();
 
-    const retroBtn = page.getByRole("button", { name: /회고록/ });
+    const retroBtn = page.getByTestId("team-retrospective-page-link");
     const canRetro = await retroBtn.isVisible().catch(() => false);
     test.skip(!canRetro, "학생 계정·진행 중 수업에서만 회고록 버튼이 보입니다.");
 
     await retroBtn.click();
-    await expect(page.getByRole("heading", { name: "회고록" })).toBeVisible();
+    await expect(page.getByTestId("team-retrospective-page-title")).toBeVisible();
 
     await page.getByTestId("retrospective-custom-role").fill(`e2e-retro-${Date.now()}`);
     await page.getByTestId("retrospective-submit").click();
 
-    await expect(page.getByRole("button", { name: "회고록 수정" })).toBeVisible({
+    await expect(page.getByTestId("retrospective-submit")).toBeVisible({
       timeout: 15_000,
     });
   });
 
-  test("10. 팀 상세 동료평가 제출", async ({ page }) => {
+  test("10. 수업 상세 사이드바 조원평가 제출", async ({ page }) => {
     await loginViaLanding(page);
     await openFirstCourse(page);
-    await page.getByRole("link", { name: "팀", exact: true }).click();
-    await page.getByRole("button", { name: "입장하기" }).first().click();
 
-    const peerReviewBtn = page.getByRole("button", { name: "조원 평가" });
+    const peerReviewBtn = page.getByTestId("course-detail-side-peer-review");
     const canPeerReview = await peerReviewBtn.isVisible().catch(() => false);
-    test.skip(!canPeerReview, "학생 계정·진행 중 수업에서만 조원 평가 버튼이 보입니다.");
+    test.skip(!canPeerReview, "학생 계정·팀 배정 상태에서만 조원평가 버튼이 보입니다.");
 
     await peerReviewBtn.click();
-    await expect(page.getByRole("heading", { name: "동료평가" })).toBeVisible();
+    await expect(page.getByTestId("team-peer-review-page-title")).toBeVisible();
 
     const submitBtn = page.locator('[data-testid^="peer-review-submit-"]').first();
     const alreadySubmitted = await submitBtn.getByText("✓ 등록됨").isVisible().catch(() => false);
@@ -298,6 +296,94 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });
     await expect(row).toContainText("example.com/path");
+  });
+
+  test("24. 팀 상세 트러블슈팅 새로고침 유지", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+    await page.getByRole("button", { name: "입장하기" }).first().click();
+
+    const uniqueProblem = `e2e-trouble-persist-${Date.now()}`;
+    await page.getByTestId("team-trouble-problem-input").fill(uniqueProblem);
+    await page.getByTestId("team-trouble-plan-input").fill("persist-check-plan");
+    await page.getByTestId("team-trouble-submit").click();
+
+    await expect(page.getByText(uniqueProblem).first()).toBeVisible({ timeout: 15_000 });
+    await page.reload();
+    await expect(page.getByText(uniqueProblem).first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("25. 수업 상세 사이드바 조원평가 페이지 이동", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+
+    await page.getByTestId("course-detail-side-peer-review").click();
+    await expect(page).toHaveURL(/\/app\/courses\/.+\/teams\/.+\/peer-review$/);
+    await expect(page.getByTestId("team-peer-review-page-title")).toBeVisible();
+  });
+
+  test("26. 팀 상세 회고록 전용 페이지 이동", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+    await page.getByRole("button", { name: "입장하기" }).first().click();
+
+    await page.getByTestId("team-retrospective-page-link").click();
+    await expect(page).toHaveURL(/\/app\/courses\/.+\/teams\/.+\/retrospective$/);
+    await expect(page.getByTestId("team-retrospective-page-title")).toBeVisible();
+  });
+
+  test("27. 수업 상세 나의팀멤버 탭 조회", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByTestId("course-detail-side-my-team-members").click();
+    await expect(page.getByTestId("course-detail-my-team-members-title")).toBeVisible();
+  });
+
+  test("28. 수강생 카드 클릭 상세 프로필 모달 조회", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "수강자들", exact: true }).click();
+    await expect(page).toHaveURL(/\/students/);
+
+    await page.locator('[data-testid^="student-network-card-"]').first().click();
+    await expect(page.getByTestId("student-profile-modal")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("student-profile-modal-detailed-bio")).not.toBeEmpty();
+    await page.getByTestId("student-profile-modal-overlay").click();
+    await expect(page.getByTestId("student-profile-modal")).toHaveCount(0);
+  });
+
+  test("29. 팀 목록에서 내가 속한 팀 강조 UI 노출", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+    await expect(page).toHaveURL(/\/teams/);
+    await expect(page.getByTestId("team-card-my-team-badge").first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("30. 수업 상세 네비 중복 제거 확인", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await expect(page.getByText("수업 메뉴")).toHaveCount(1);
+    await page.getByTestId("course-detail-side-my-team-members").click();
+    await expect(page.getByTestId("course-detail-my-team-members-title")).toBeVisible();
+  });
+
+  test("31. 마이페이지 PAGE02 실데이터 카드 기준 확인", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await expect(page).toHaveURL("/app/mypage");
+
+    await page.getByRole("button", { name: "다음 페이지" }).click();
+    await expect(page.getByText("PAGE 02 PROJECT DETAIL")).toBeVisible();
+
+    const dbCards = page.getByTestId("mypage-team-card-db");
+    const hasDbCard = (await dbCards.count()) > 0;
+    test.skip(!hasDbCard, "종료 팀플 실데이터가 없는 계정에서는 DB 카드가 없습니다.");
+
+    await expect(page.getByText("Supabase 팀 멤버십 기준 카드입니다.")).toBeVisible();
+    await expect(page.getByText("각 카드를 클릭하면 상세 리포트를 확인할 수 있습니다.")).toHaveCount(0);
   });
 
   test("7. 마이페이지 리포트 페이지 전환", async ({ page }) => {

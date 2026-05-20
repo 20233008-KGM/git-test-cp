@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
+import { useAuth } from "../contexts/AuthContext";
 
 import type { Activity, Announcement, Course, TeamCard } from "../types";
 
@@ -78,17 +79,21 @@ function ActivityCard({ activity }: { activity: Activity }) {
 function TeamCardComponent({
   team,
   stages,
+  isMyTeam,
   onClick,
 }: {
   team: TeamCard;
   stages: string[];
+  isMyTeam: boolean;
   onClick: () => void;
 }) {
   return (
     <div
       // 카드 아무 곳이나 눌러도 해당 팀 상세 페이지로 이동하게 합니다.
       onClick={onClick}
-      className="bg-white rounded-[14px] border border-gray-200 shadow-[2px_4px_4px_2px_rgba(224,224,224,0.28)] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col"
+      className={`bg-white rounded-[14px] border shadow-[2px_4px_4px_2px_rgba(224,224,224,0.28)] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col ${
+        isMyTeam ? "border-[#155dfc] ring-2 ring-[#bfdbfe]" : "border-gray-200"
+      }`}
     >
       {/* 카드 상단의 파란 그라데이션 영역입니다. 팀 이름과 뱃지를 보여줍니다. */}
       <div className="bg-gradient-to-r from-[#3676ff] to-[#003ecc] px-5 py-5 border-b border-black/10 flex-shrink-0">
@@ -102,6 +107,14 @@ function TeamCardComponent({
           </p>
         )}
         {!team.badge && <div className="h-4" />}
+        {isMyTeam && (
+          <span
+            data-testid="team-card-my-team-badge"
+            className="mt-2 inline-block rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-[#155dfc]"
+          >
+            내가 속한 팀
+          </span>
+        )}
       </div>
 
       {/* 카드 본문 영역입니다. 프로젝트명, 입장 버튼, 진행률, 단계, 활동 기록이 들어갑니다. */}
@@ -187,6 +200,7 @@ export default function TeamsPage() {
   // navigate("/주소")를 호출하면 해당 주소의 페이지로 이동합니다.
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId?: string }>();
+  const { user } = useAuth();
   const [teams, setTeams] = useState<TeamCard[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stages, setStages] = useState<string[]>([]);
@@ -241,6 +255,7 @@ export default function TeamsPage() {
               key={team.id}
               team={team}
               stages={stages}
+              isMyTeam={Boolean(user?.id && team.members.some((member) => member.id === user.id))}
               // 팀 카드를 누르면 /app/teams/팀id 주소로 이동합니다.
               onClick={() => navigate(courseId ? `/app/courses/${courseId}/teams/${team.id}` : `/app/teams/${team.id}`)}
             />

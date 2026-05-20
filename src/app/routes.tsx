@@ -14,6 +14,8 @@ import QnAPage from "./pages/QnAPage";
 import QnADetailPage from "./pages/QnADetailPage";
 import TeamsPage from "./pages/TeamsPage";
 import TeamDetailPage from "./pages/TeamDetailPage";
+import TeamPeerReviewPage from "./pages/TeamPeerReviewPage";
+import TeamRetrospectivePage from "./pages/TeamRetrospectivePage";
 import MyPage from "./pages/MyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import StudentsNetworkPage from "./pages/StudentsNetworkPage";
@@ -54,6 +56,14 @@ export const router = createBrowserRouter([
           {
             path: "courses/:courseId/teams/:teamId",
             Component: TeamDetailPage,
+          },
+          {
+            path: "courses/:courseId/teams/:teamId/peer-review",
+            Component: TeamPeerReviewPage,
+          },
+          {
+            path: "courses/:courseId/teams/:teamId/retrospective",
+            Component: TeamRetrospectivePage,
           },
           {
             path: "profile",

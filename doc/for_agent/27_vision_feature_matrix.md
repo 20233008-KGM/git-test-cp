@@ -24,6 +24,14 @@
 | 교수(김교수)에게 학생용 팀플 리포트 노출 차단 | ✅ | T-025 | `MyPage` role 가드 + 교수 안내 블록 + E2E #14 |
 | 수업 생성 코드 자동 생성(해시형) | ✅ | T-026 | `CC-XXXX-XXXX` 자동 생성 + 재생성 버튼 |
 | 일정 입력 캘린더 선택 | ✅ | T-027 | `CoursesPage` 일정 입력 `type=\"date\"` 전환 |
+| 트러블슈팅 로그 새로고침 시 유실 | 🔶 | T-050 | TeamDetail 초기 로드 실패 내성 강화 + 새로고침 유지 E2E |
+| 조원평가·회고록 별도 페이지 전환 작성 | ✅ | T-051 | TeamDetail 모달 → 전용 route/page 분리 + 전용 작성 페이지 |
+| 수업 상세 사이드바에 나의팀멤버 추가 + 조원평가 이동 | ✅ | T-052 | `CourseDetailPage` 좌측 네비 + 나의팀멤버 조회 + 조원평가 이동 |
+| 수강생 카드 클릭 시 상세 프로필 모달 조회 | ✅ | T-053 | StudentsNetwork 카드 클릭 상세 모달 조회 + E2E #28 |
+| 팀리스트에서 내가 속한 팀 직관적 표시 | ✅ | T-054 | `TeamsPage` 내 팀 뱃지/강조 스타일 (멤버십 기반) |
+| 마이페이지 리포트 팀플 정보가 실제 참여 종료 팀플 기반인지 검증 | ✅ | T-055 | `gatherAiReportContext` 종료 수업(`archived`) 팀플만 집계 + 더미 폴백 제거 |
+| CourseDetail 내부 네비 제거 + 메인 레이아웃 네비로 이관 | ✅ | T-056 | `MainLayout` 좌측 네비 확장 + `CourseDetailPage` 내부 네비 제거 |
+| human_action_items 완료 체크칸 + AI 체크 기반 검증 규칙 | ✅ | T-058 | `for_human/28_human_action_items.md` 체크 열 + `23/28` 규칙에 `[o]` 검증 절차 추가 |
 
 ---
 
@@ -32,8 +40,8 @@
 | 관점 | 점수(체감) | 메모 |
 |------|------------|------|
 | 기존 vision 3축 | ~75% | 핵심 흐름은 동작, RLS/배포는 인간 블로커 |
-| 신규 추가요청 4건 | 100% | T-024~T-027 완료 |
-| 전체 vision 기준 | ~63% | vision 상단 추가요청 반영 완료 |
+| 신규 추가요청 12건 | 100% | 1~12 완료 |
+| 전체 vision 기준 | ~69% | 인간 블로커(RLS·배포·키) 제외 기능 요청 완료 |
 
 ---
 
@@ -62,8 +70,8 @@
 | Q&A CRUD | QnA pages | ✅ | CRUD | `answers` jsonb |
 | 종료 수업 | `CoursesPage` filter | ✅ | archived | 읽기 전용 배너 |
 | 팀 피드백 제출 | TeamDetail | ✅ | Supabase | `ai_team_detail_feedbacks` (H-007) |
-| 동료평가 제출 | TeamDetail 모달 | ✅ | Supabase | `ai_team_detail_peer_reviews` (H-008) |
-| 회고록 작성 | TeamDetail 모달 | ✅ | Supabase | `ai_team_detail_retrospectives` (H-009) |
+| 동료평가 제출 | TeamPeerReviewPage | ✅ | Supabase | `ai_team_detail_peer_reviews` (H-008) |
+| 회고록 작성 | TeamRetrospectivePage | ✅ | Supabase | `ai_team_detail_retrospectives` (H-009) |
 | 교수 작업물·평가 | TeamDetail (교수) | ✅ | Supabase | 산출물·제출 현황·평가 DB (H-010) |
 
 **달성도:** UI ~70% · 읽기 ~55% · 쓰기 ~50%

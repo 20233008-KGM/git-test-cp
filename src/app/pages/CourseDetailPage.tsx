@@ -1,27 +1,47 @@
-import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router";
 import { api } from "../api/supabase-api";
 import { useAuth } from "../contexts/AuthContext";
-import type { Course } from "../types";
+import type { Course, TeamMember } from "../types";
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "students" | "teams">("overview");
   const [archiving, setArchiving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [myTeamId, setMyTeamId] = useState<string | null>(null);
+  const [myTeamMembers, setMyTeamMembers] = useState<TeamMember[]>([]);
   const { isProfessor, isAdmin, user } = useAuth();
-  const canArchiveCourse = Boolean(course && course.status === "active" && (isAdmin || (isProfessor && course.professorId === user?.id)));
+  const canArchiveCourse = Boolean(
+    course && course.status === "active" && (isAdmin || (isProfessor && course.professorId === user?.id))
+  );
 
   useEffect(() => {
     if (!id) return;
 
-    api.courses.getById(id).then((data) => {
-      setCourse(data || null);
+    void Promise.all([api.courses.getById(id), api.teamCards.getAll(id)]).then(([courseData, teamCards]) => {
+      setCourse(courseData || null);
+      const myTeam = teamCards.find((team) => team.members.some((member) => member.id === user?.id));
+      setMyTeamId(myTeam?.id ?? null);
+      setMyTeamMembers(myTeam?.members ?? []);
       setLoading(false);
     });
-  }, [id]);
+  }, [id, user?.id]);
+
+  const myTeamPeerReviewPath = useMemo(() => {
+    if (!id || !myTeamId) return null;
+    return `/app/courses/${id}/teams/${myTeamId}/peer-review`;
+  }, [id, myTeamId]);
+
+  const activeTab = useMemo(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "my-team-members") return "my-team-members";
+    if (tab === "students") return "students";
+    if (tab === "teams") return "teams";
+    return "overview";
+  }, [searchParams]);
 
   const handleArchiveCourse = async () => {
     if (!course || !window.confirm(`'${course.name}' 수업을 종료하고 아카이브로 전환할까요?`)) return;
@@ -130,41 +150,6 @@ export default function CourseDetailPage() {
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200">
-          <div className="flex overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`px-6 py-3 font-medium ${
-                activeTab === "overview"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {"\uAC1C\uC694"}
-            </button>
-            <button
-              onClick={() => setActiveTab("students")}
-              className={`px-6 py-3 font-medium ${
-                activeTab === "students"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {"\uC218\uAC15\uC0DD"}
-            </button>
-            <button
-              onClick={() => setActiveTab("teams")}
-              className={`px-6 py-3 font-medium ${
-                activeTab === "teams"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              {"\uD300 \uBAA9\uB85D"}
-            </button>
-          </div>
-        </div>
-
         <div className="p-6">
           {activeTab === "overview" && (
             <div>
@@ -200,6 +185,37 @@ export default function CourseDetailPage() {
             <div>
               <h2 className="text-xl font-bold mb-4">{"\uD300 \uBAA9\uB85D"}</h2>
               <p className="text-gray-600">{"\uC88C\uCE21 \uB124\uBE44\uAC8C\uC774\uC158\uC758 \uD300 \uBA54\uB274\uC5D0\uC11C \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."}</p>
+            </div>
+          )}
+
+          {activeTab === "my-team-members" && (
+            <div>
+              <h2 className="text-xl font-bold mb-4" data-testid="course-detail-my-team-members-title">
+                나의 팀 멤버
+              </h2>
+              {myTeamMembers.length === 0 ? (
+                <p className="text-sm text-gray-600">
+                  현재 배정된 팀이 없거나 팀 멤버 정보를 찾을 수 없습니다.
+                </p>
+              ) : (
+                <div className="space-y-2" data-testid="course-detail-my-team-members-list">
+                  {myTeamMembers.map((member) => (
+                    <div key={member.id} className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                      <span className="font-semibold text-gray-900">{member.name ?? "이름 없음"}</span>
+                      {member.studentId && <span className="ml-2 text-gray-500">({member.studentId})</span>}
+                      {member.role && <span className="ml-2 text-blue-700">[{member.role}]</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {myTeamPeerReviewPath && (
+                <Link
+                  to={myTeamPeerReviewPath}
+                  className="mt-4 inline-block rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                >
+                  조원평가 페이지로 이동
+                </Link>
+              )}
             </div>
           )}
         </div>

@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-05-20T05:59:40.769Z",
+  "parseFailed": false,
+  "overallOk": true,
+  "humanVerify": {
+    "exitCode": 0,
+    "shouldFail": null,
+    "checkedCount": 0,
+    "passCount": 0,
+    "failCount": 0,
+    "manualCount": 0,
+    "parseError": null
+  },
+  "smokePlan": {
+    "exitCode": 0,
+    "mode": "public-only",
+    "scriptName": "test:e2e:smoke:public",
+    "hasStudentCreds": false,
+    "hasProfessorCreds": false,
+    "parseError": null
+  },
+  "humanSyncPreview": {
+    "exitCode": 0,
+    "movedCount": 0,
+    "revertedCount": 0,
+    "manualCount": 0,
+    "memoAddedCount": 0,
+    "parseError": null
+  },
+  "savedFiles": [
+    "C:\\Users\\rlarb\\문서\\code\\git-test\\doc\\for_agent\\verification_report_latest.json",
+    "C:\\Users\\rlarb\\문서\\code\\git-test\\doc\\for_agent\\verification_reports\\verification_report_20260520-145940.json"
+  ],
+  "prunedFiles": [],
+  "retentionPolicy": {
+    "keepLatest": 5,
+    "keepDays": 14
+  }
+}

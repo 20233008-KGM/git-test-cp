@@ -322,15 +322,11 @@ export default function MyPage() {
   useEffect(() => {
     if (!reportContextReady || projectsLoading) return;
 
-    if (reportContext && reportContext.teams.length > 0) {
+    if (reportContext) {
       setProjects(api.aiReport.mapToMyPageProjects(reportContext));
       return;
     }
-
-    if (projects.length === 0) {
-      setProjects(DEMO_PROJECTS);
-    }
-  }, [reportContext, reportContextReady, projectsLoading, projects.length]);
+  }, [reportContext, reportContextReady, projectsLoading]);
 
   const sideNavItems = ["요약 리포트", "상세 리포트", "내 정보 조회", "내 정보 수정"];
   const reportPageTitles = ["역량 및 활동 요약", "주요 팀플 상세", "문제해결 경험"];
@@ -845,7 +841,8 @@ export default function MyPage() {
                           </div>
                         </div>
                       ))
-                    : projects.map((project, index) => (
+                    : projects.length > 0
+                      ? projects.map((project, index) => (
                         <button
                           key={`${project.title}-${index}`}
                           onClick={() => setSelectedProject(project)}
@@ -887,7 +884,12 @@ export default function MyPage() {
                             ))}
                           </div>
                         </button>
-                      ))}
+                      ))
+                      : (
+                        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm font-semibold text-gray-500 lg:col-span-2">
+                          실제 참여한 종료 팀플 기록이 아직 없습니다.
+                        </div>
+                      )}
                 </div>
               </div>
             )}

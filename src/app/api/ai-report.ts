@@ -216,18 +216,53 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   ) as string[];
 
   let courseNameById = new Map<string, string>();
+  let archivedCourseIds = new Set<string>();
   if (courseIds.length > 0) {
     const { data: courses, error: courseError } = await supabase
       .from("ai_courses")
-      .select("id, name")
+      .select("id, name, status")
       .in("id", courseIds);
     if (courseError) throw courseError;
     courseNameById = new Map((courses ?? []).map((c) => [c.id, c.name]));
+    archivedCourseIds = new Set(
+      (courses ?? [])
+        .filter((course) => course.status === "archived")
+        .map((course) => course.id)
+    );
   }
 
-  const logs = logsResult.data ?? [];
-  const deliverables = deliverablesResult.data ?? [];
-  const feedbackRows = feedbacksResult.error ? [] : (feedbacksResult.data ?? []);
+  const teamRows = (teamsResult.data ?? []).filter((team) =>
+    archivedCourseIds.has(team.course_id)
+  );
+  const includedTeamIds = new Set(teamRows.map((team) => team.id));
+  if (teamRows.length === 0) {
+    return {
+      userId,
+      userName: user.name,
+      email: user.email,
+      major: user.major ?? undefined,
+      skills: asArray<string>(user.skills),
+      generatedAt: new Date().toISOString(),
+      teams: [],
+      troubleshootingCases: [],
+      totalTroubleshootingLogs: 0,
+      totalDeliverables: 0,
+      totalFeedbacksSubmitted: 0,
+      totalRetrospectivesSubmitted: 0,
+      totalPeerReviewsSubmitted: 0,
+      totalProfessorStudentEvalsReceived: 0,
+      totalProfessorProjectEvalsReceived: 0,
+      deliverableFileNames: [],
+    };
+  }
+
+  const logs = (logsResult.data ?? []).filter((log) => includedTeamIds.has(log.team_id));
+  const deliverables = (deliverablesResult.data ?? []).filter((row) =>
+    includedTeamIds.has(row.team_id)
+  );
+  const feedbackRows = (feedbacksResult.error ? [] : (feedbacksResult.data ?? [])).filter((row) =>
+    includedTeamIds.has(row.team_id)
+  );
   const feedbackSnippetByTeam = new Map<string, string>();
   const feedbackTeamIds = new Set<string>();
   for (const row of feedbackRows) {
@@ -236,7 +271,9 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     feedbackTeamIds.add(tid);
     if (snippet) feedbackSnippetByTeam.set(tid, snippet);
   }
-  const retroRows = retrosResult.error ? [] : (retrosResult.data ?? []);
+  const retroRows = (retrosResult.error ? [] : (retrosResult.data ?? [])).filter((row) =>
+    includedTeamIds.has(row.team_id)
+  );
   const retroSnippetByTeam = new Map<string, string>();
   const retroTeamIds = new Set<string>();
   for (const row of retroRows) {
@@ -249,7 +286,9 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       retroTeamIds.add(tid);
     }
   }
-  const peerRows = peerResult.error ? [] : (peerResult.data ?? []);
+  const peerRows = (peerResult.error ? [] : (peerResult.data ?? [])).filter((row) =>
+    includedTeamIds.has(row.team_id)
+  );
   const peerCountByTeam = new Map<string, number>();
   const peerRowsByTeam = new Map<string, typeof peerRows>();
   for (const row of peerRows) {
@@ -265,14 +304,18 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     if (snippet) peerSnippetByTeam.set(tid, snippet);
   }
 
-  const profStudentRows = profStudentResult.error ? [] : (profStudentResult.data ?? []);
+  const profStudentRows = (profStudentResult.error ? [] : (profStudentResult.data ?? [])).filter(
+    (row) => includedTeamIds.has(row.team_id)
+  );
   const profStudentCommentByTeam = new Map<string, string>();
   for (const row of profStudentRows) {
     const comment = (row.comment as string)?.trim();
     if (comment) profStudentCommentByTeam.set(row.team_id as string, comment);
   }
 
-  const profProjectRows = profProjectResult.error ? [] : (profProjectResult.data ?? []);
+  const profProjectRows = (profProjectResult.error ? [] : (profProjectResult.data ?? [])).filter(
+    (row) => includedTeamIds.has(row.team_id)
+  );
   const profProjectByTeam = new Map<
     string,
     {
@@ -288,10 +331,11 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   }
 
   const roleByTeam = new Map(
-    (memberships ?? []).map((m) => [m.team_id, m.role ?? "팀원"])
+    (memberships ?? [])
+      .filter((m) => includedTeamIds.has(m.team_id))
+      .map((m) => [m.team_id, m.role ?? "팀원"])
   );
 
-  const teamRows = teamsResult.data ?? [];
   const teamById = new Map(teamRows.map((team) => [team.id, team]));
 
   const troubleshootingCases: AiReportTroubleshootingCase[] = logs

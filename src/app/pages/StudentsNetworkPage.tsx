@@ -314,10 +314,12 @@ function StudentProfileModal({
     <div
       className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(45,45,45,0.76)] p-4"
       onClick={onClose}
+      data-testid="student-profile-modal-overlay"
     >
       <div
         className="bg-white rounded-[14px] shadow-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        data-testid="student-profile-modal"
       >
         <div className="sticky top-0 bg-white rounded-t-[14px] px-6 pt-5 pb-4 border-b border-gray-100 z-10">
           <div className="flex items-start justify-between">
@@ -368,7 +370,9 @@ function StudentProfileModal({
           <div>
             <p className="text-base font-bold text-black mb-2">자기소개</p>
             <div className="border border-gray-200 rounded-[10px] px-4 py-3">
-              <p className="text-sm text-[#364153] leading-relaxed">{extra.detailedBio}</p>
+              <p className="text-sm text-[#364153] leading-relaxed" data-testid="student-profile-modal-detailed-bio">
+                {extra.detailedBio}
+              </p>
             </div>
           </div>
 
@@ -767,6 +771,7 @@ function StudentCard({ student, onClick }: { student: Student; onClick?: () => v
   return (
     <button
       onClick={onClick}
+      data-testid={`student-network-card-${student.id}`}
       className={`rounded-[14px] border-2 p-6 flex flex-col gap-3 hover:shadow-md transition-all cursor-pointer text-left w-full ${isSelf
         ? "bg-white border-[#2b7fff] hover:border-[#155dfc]"
         : "bg-white border-[#e5e7eb] hover:border-[#bedbff]"

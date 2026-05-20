@@ -860,9 +860,6 @@ async function getMyPageProjectsFromDb(): Promise<MyPageProject[]> {
 
 /** ai_my_page_projects → 없으면 참여 팀 활동 집계 */
 async function getMyPageProjectsForUserFromDb(): Promise<MyPageProject[]> {
-  const fromTable = await getMyPageProjectsFromDb();
-  if (fromTable.length > 0) return fromTable;
-
   const currentUser = await getCurrentAiUser();
   if (!currentUser) return [];
 

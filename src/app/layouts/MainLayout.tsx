@@ -1,36 +1,86 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router";
+import { api } from "../api/supabase-api";
+import { useAuth } from "../contexts/AuthContext";
 import Footer from "../components/Footer";
 import Navigation from "../components/Navigation";
 
 function CourseSideNavigation() {
   const location = useLocation();
+  const { user } = useAuth();
   const courseMatch = location.pathname.match(/^\/app\/courses\/([^/]+)/);
   const courseId = courseMatch?.[1];
+  const [myTeamId, setMyTeamId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!courseId || !user?.id) {
+      setMyTeamId(null);
+      return;
+    }
+
+    let isCancelled = false;
+    void api.teamCards.getAll(courseId).then((teams) => {
+      if (isCancelled) return;
+      const myTeam = teams.find((team) => team.members.some((member) => member.id === user.id));
+      setMyTeamId(myTeam?.id ?? null);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courseId, user?.id]);
+
+  const courseTab = new URLSearchParams(location.search).get("tab") ?? "overview";
+  const myTeamPeerReviewPath = useMemo(() => {
+    if (!courseId || !myTeamId) return "";
+    return `/app/courses/${courseId}/teams/${myTeamId}/peer-review`;
+  }, [courseId, myTeamId]);
+
   const sideNavItems = [
     {
-      label: "수강자들",
-      path: courseId ? `/app/courses/${courseId}/students` : "/app/students",
-      legacyPath: "/app/students",
+      key: "overview",
+      label: "강의개요",
+      path: courseId ? `/app/courses/${courseId}?tab=overview` : "/app/courses",
+      active: Boolean(courseId) && location.pathname === `/app/courses/${courseId}` && courseTab === "overview",
+      disabled: !courseId,
+      testId: "course-detail-side-overview",
     },
     {
+      key: "my-team-members",
+      label: "나의팀멤버",
+      path: courseId ? `/app/courses/${courseId}?tab=my-team-members` : "/app/courses",
+      active:
+        Boolean(courseId) &&
+        location.pathname === `/app/courses/${courseId}` &&
+        courseTab === "my-team-members",
+      disabled: !courseId,
+      testId: "course-detail-side-my-team-members",
+    },
+    {
+      key: "students",
+      label: "수강자들",
+      path: courseId ? `/app/courses/${courseId}/students` : "/app/students",
+      active: location.pathname.startsWith(courseId ? `/app/courses/${courseId}/students` : "/app/students"),
+      disabled: !courseId,
+      testId: "course-detail-side-students",
+    },
+    {
+      key: "teams",
       label: "팀",
       path: courseId ? `/app/courses/${courseId}/teams` : "/app/teams",
-      legacyPath: "/app/teams",
+      active: location.pathname.startsWith(courseId ? `/app/courses/${courseId}/teams` : "/app/teams"),
+      disabled: !courseId,
+      testId: "course-detail-side-teams",
     },
-  ];
-
-  const isActive = (item: (typeof sideNavItems)[number]) => {
-    if (item.legacyPath === "/app/students") {
-      return location.pathname.startsWith(item.path) || location.pathname.startsWith("/app/students");
-    }
-
-    if (item.legacyPath === "/app/teams") {
-      return location.pathname.startsWith(item.path) || location.pathname.startsWith("/app/teams");
-    }
-
-    return location.pathname === item.path;
-  };
+    {
+      key: "peer-review",
+      label: "조원평가",
+      path: myTeamPeerReviewPath,
+      active: Boolean(myTeamPeerReviewPath) && location.pathname.startsWith(myTeamPeerReviewPath),
+      disabled: !myTeamPeerReviewPath,
+      testId: "course-detail-side-peer-review",
+    },
+  ] as const;
 
   return (
     <aside className="w-full lg:w-[220px] lg:shrink-0">
@@ -39,12 +89,18 @@ function CourseSideNavigation() {
         <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
           {sideNavItems.map((item) => (
             <Link
-              key={item.path}
-              to={item.path}
+              key={item.key}
+              to={item.path || "#"}
+              data-testid={item.testId}
+              onClick={(e) => {
+                if (item.disabled) e.preventDefault();
+              }}
               className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                isActive(item)
+                item.active
                   ? "bg-[#155dfc] text-white shadow-sm"
-                  : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]"
+                  : item.disabled
+                    ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                    : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]"
               }`}
             >
               {item.label}

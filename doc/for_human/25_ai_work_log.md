@@ -34,11 +34,321 @@
 
 ## 동료 보고 체크포인트
 
-- 2026-05-20 12:48:58 — **여기까지 동료에게 보고함:** `2026-05-20 12:31:17 — T-024 링크 제목 fallback E2E 추가`
+- 2026-05-20 13:04:45 — **여기까지 동료에게 보고함:** `2026-05-20 12:31:17 — T-024 링크 제목 fallback E2E 추가`
 
 ---
 
 ## 최근 작업 로그 (최신 → 과거)
+
+### 2026-05-20 16:10:02 — 통합 검증 리포트 실행 파이프라인 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-81.md`](doc/for_agent/plans/260520-81.md) |
+| **한 일** | `run-verify-bundle-pipeline.mjs`와 `verify:bundle:pipeline`를 추가해 `preflight:selftest` 통과 후 `save:archive:env`를 순차 실행하도록 자동화. 단일 명령으로 회귀+저장까지 완료 가능하게 정리. |
+| **당신이 할 일** | 한 번에 점검/저장하려면 `npm run verify:bundle:pipeline` 실행 |
+
+---
+
+### 2026-05-20 16:04:40 — 통합 검증 리포트 preflight strict self-test 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-80.md`](doc/for_agent/plans/260520-80.md) |
+| **한 일** | strict preflight의 정상/실패 경로를 자동 검증하는 `preflight-strict-selftest.mjs`와 `verify:bundle:preflight:selftest`를 추가. 실행 결과 pass 케이스(exit 0), fail 케이스(exit 1) 모두 기대값으로 확인. |
+| **당신이 할 일** | strict preflight 회귀 점검은 `npm run verify:bundle:preflight:selftest` 실행 |
+
+---
+
+### 2026-05-20 16:02:27 — 통합 검증 리포트 preflight strict 모드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-79.md`](doc/for_agent/plans/260520-79.md) |
+| **한 일** | `collect-verification-report.mjs`에 `--preflight --strict`를 추가해 경고가 있을 때 즉시 실패(exit 1)하도록 강화. `verify:bundle:preflight:strict` 커맨드 추가 및 동작 확인 완료. |
+| **당신이 할 일** | stricter 점검이 필요하면 `npm run verify:bundle:preflight:strict` 실행 |
+
+---
+
+### 2026-05-20 16:00:17 — 통합 검증 리포트 preflight 점검 커맨드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-78.md`](doc/for_agent/plans/260520-78.md) |
+| **한 일** | `collect-verification-report.mjs`에 `--preflight`를 추가해 실제 검증/파일저장 없이 정책·경로·경고를 JSON으로 사전 점검 가능하게 개선. `verify:bundle:preflight` 커맨드와 테스트 문서 반영 완료. |
+| **당신이 할 일** | 실행 전 설정 점검이 필요하면 `npm run verify:bundle:preflight` 실행 |
+
+---
+
+### 2026-05-20 15:41:08 — 통합 검증 리포트 보관 정책 .env 외부화
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-77.md`](doc/for_agent/plans/260520-77.md) |
+| **한 일** | `collect-verification-report.mjs`가 `VERIFY_BUNDLE_KEEP_LATEST`, `VERIFY_BUNDLE_KEEP_DAYS`를 `.env`에서 읽어 보관 정책을 적용하도록 확장. `retentionPolicy.source`(arg/env) 표시와 `verify:bundle:save:archive:env` 커맨드 추가. |
+| **당신이 할 일** | `.env`에 정책값을 넣고 `npm run verify:bundle:save:archive:env` 실행하면 정책이 자동 반영됨 |
+
+---
+
+### 2026-05-20 14:59:45 — 통합 검증 리포트 아카이브 일수 기준 정책 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-77.md`](doc/for_agent/plans/260520-77.md) |
+| **한 일** | `collect-verification-report.mjs`에 `--keep-days`를 추가해 아카이브를 개수(최신 5개) + 일수(최근 14일) 기준으로 함께 정리 가능하게 확장. `verify:bundle:save:archive:policy` 커맨드와 `retentionPolicy` 출력까지 반영. |
+| **당신이 할 일** | 정책 기반 저장/정리를 쓰려면 `npm run verify:bundle:save:archive:policy` 실행 |
+
+---
+
+### 2026-05-20 14:56:56 — 통합 검증 리포트 아카이브 최신 N개 유지 옵션 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-76.md`](doc/for_agent/plans/260520-76.md) |
+| **한 일** | `collect-verification-report.mjs`에 `--keep-latest`를 추가하고 `verify:bundle:save:archive:trim` 커맨드로 아카이브를 최신 5개만 유지하도록 확장. 리포트에 `prunedFiles`도 함께 출력. |
+| **당신이 할 일** | 아카이브 정리까지 포함하려면 `npm run verify:bundle:save:archive:trim` 실행 |
+
+---
+
+### 2026-05-20 14:47:31 — 통합 검증 리포트 latest+archive 동시 저장 확장
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-75.md`](doc/for_agent/plans/260520-75.md) |
+| **한 일** | `verify:bundle:save:archive`를 추가해 최신 리포트(`verification_report_latest.json`) 갱신과 timestamp 아카이브 파일 생성을 동시에 수행. 출력 JSON과 저장 파일 JSON의 `savedFiles` 일관성도 함께 보정. |
+| **당신이 할 일** | 리포트 기록까지 남기려면 `npm run verify:bundle:save:archive` 실행 |
+
+---
+
+### 2026-05-20 14:41:34 — 통합 검증 리포트 latest 파일 저장 커맨드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-74.md`](doc/for_agent/plans/260520-74.md) |
+| **한 일** | `verify:bundle:save` 커맨드를 추가해 통합 검증 JSON 리포트를 `doc/for_agent/verification_report_latest.json`에 자동 저장하도록 구성. 실행 및 파일 생성/내용 확인 완료. |
+| **당신이 할 일** | 최신 리포트를 파일로 남기려면 `npm run verify:bundle:save` 실행 |
+
+---
+
+### 2026-05-20 14:38:52 — 통합 검증 리포트에 human:sync preview 결합
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-73.md`](doc/for_agent/plans/260520-73.md) |
+| **한 일** | `verify:bundle:json` 리포트에 `human:sync --json` preview를 추가해 `moved/reverted/manual/memoAdded` 상태를 함께 출력. `overallOk` 판정에 `revertedCount`까지 반영해 건강도 판정 정확도 향상. |
+| **당신이 할 일** | 통합 상태 점검은 계속 `npm run verify:bundle:json` 한 번으로 확인 가능 |
+
+---
+
+### 2026-05-20 14:33:14 — 통합 검증 JSON 리포트 커맨드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-72.md`](doc/for_agent/plans/260520-72.md) |
+| **한 일** | `verify:bundle:json` 커맨드를 추가해 `human:verify:json` 결과와 E2E 스모크 dry-run JSON을 한 번에 수집/요약하도록 구현. 실행 결과 `overallOk=true`, 파싱 오류 없음 확인. |
+| **당신이 할 일** | 검증 상태를 한 번에 확인하려면 `npm run verify:bundle:json` 실행 |
+
+---
+
+### 2026-05-20 14:28:24 — E2E 스모크 dry-run/JSON 실행 계획 출력 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-71.md`](doc/for_agent/plans/260520-71.md) |
+| **한 일** | `run-e2e-smoke.mjs`에 `--dry-run`/`--json` 옵션을 추가해 실제 테스트 실행 전 분기 모드와 실행 스크립트를 구조화(JSON)로 확인 가능하게 개선. `14_testing.md`도 auto/force/full + dry-run 사용법으로 갱신. |
+| **당신이 할 일** | 실행 계획 점검이 필요하면 `npm run test:e2e:smoke -- --dry-run --json` 사용 |
+
+---
+
+### 2026-05-20 14:26:04 — E2E 스모크 수동 강제 모드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-70.md`](doc/for_agent/plans/260520-70.md) |
+| **한 일** | `run-e2e-smoke.mjs`에 `--full`/`--public` 옵션을 추가하고 `test:e2e:smoke:auto`, `test:e2e:smoke:force-public`, `test:e2e:smoke:force-full` 스크립트를 연결. 자동 분기와 수동 강제 실행 경로를 모두 검증 완료. |
+| **당신이 할 일** | 평소에는 `npm run test:e2e:smoke`, 모드 강제 확인이 필요하면 `...:force-public` 또는 `...:force-full` 사용 |
+
+---
+
+### 2026-05-20 14:22:17 — E2E 스모크 full 분기 기준 보정
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-69.md`](doc/for_agent/plans/260520-69.md) |
+| **한 일** | `run-e2e-smoke.mjs`에서 full 실행 기준을 `E2E_TEST_EMAIL`+`E2E_TEST_PASSWORD`(학생 자격증명)로 보정. 교수 계정만 있는 경우 public-only로 실행되도록 안내 문구를 추가해 불필요한 full 실행/skip을 줄임. |
+| **당신이 할 일** | 학생 테스트 계정 준비 전에는 `npm run test:e2e:smoke`로 인증 가드만 점검, 준비 후에는 자동으로 full 경로 실행됨 |
+
+---
+
+### 2026-05-20 14:18:04 — E2E 스모크 자격증명 자동 분기 실행
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-68.md`](doc/for_agent/plans/260520-68.md) |
+| **한 일** | `scripts/run-e2e-smoke.mjs`를 추가해 `.env` 자격증명 유무에 따라 스모크를 자동 분기(`test:e2e:smoke:public`/`test:e2e:smoke:full`)하도록 개선. 자격증명이 없을 때는 인증 가드만 실행해 skip 없이 통과하도록 정리. |
+| **당신이 할 일** | 일반 점검은 `npm run test:e2e:smoke`, 자격증명 준비 후 전체 스모크는 `npm run test:e2e:smoke:full` 실행 |
+
+---
+
+### 2026-05-20 14:14:41 — vision 추가요청 회귀 스모크 범위 확장
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-67.md`](doc/for_agent/plans/260520-67.md) |
+| **한 일** | `test:e2e:smoke` 대상에 E2E #25/#26/#27/#28(수업상세 네비·조원평가/회고록 전용 페이지 이동·수강생 상세 모달)을 추가해 vision 추가요청 회귀를 기본 스모크에서 함께 검증하도록 보강. 실행 결과는 자격증명 의존 11개 skip, 인증 가드 1개 pass 확인. |
+| **당신이 할 일** | `.env`에 E2E 계정이 준비되면 `npm run test:e2e:smoke`를 주기적으로 실행해 확장된 회귀 범위를 확인 |
+
+---
+
+### 2026-05-20 13:53:36 — human_action_items 자동 검증 메모 로그 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-66.md`](doc/for_agent/plans/260520-66.md) |
+| **한 일** | `28_human_action_items.md`에 「자동 검증 메모(최신 20건)」 섹션을 추가하고, `human:sync:apply`가 pass/fail/manual 결과를 메모 표에 누적 기록하도록 확장. |
+| **당신이 할 일** | 체크 후 `npm run human:sync:apply` 실행하면 검증 이력이 메모 표에 자동 남음 |
+
+---
+
+### 2026-05-20 13:48:17 — human_action_items 반자동 동기화 루프 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-65.md`](doc/for_agent/plans/260520-65.md) |
+| **한 일** | `sync-human-actions.mjs` 추가. `human:sync`(preview), `human:sync:json`, `human:sync:apply`로 `[o]` 항목을 자동 검증해 pass는 완료표 이동, fail은 `[ ]` 복귀하는 반자동 루프 제공. |
+| **당신이 할 일** | 체크 후 적용하려면 `npm run human:sync:apply` 실행 |
+
+---
+
+### 2026-05-20 13:45:39 — human_action_items JSON/CI 검증 모드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-64.md`](doc/for_agent/plans/260520-64.md) |
+| **한 일** | `human:verify`에 `--json`, `--fail-on-manual` 옵션을 추가하고 `npm run human:verify:json`, `npm run human:verify:ci` 커맨드를 연결. 자동화/CI에서 바로 활용 가능한 구조화 결과 및 게이트 모드 제공. |
+| **당신이 할 일** | 자동화 결과 공유가 필요하면 `npm run human:verify:json`, CI 게이트는 `npm run human:verify:ci` 사용 |
+
+---
+
+### 2026-05-20 13:43:37 — human_action_items 엄격 검증 모드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-63.md`](doc/for_agent/plans/260520-63.md) |
+| **한 일** | `verify-human-actions`를 기본/엄격 모드로 확장하고 `npm run human:verify:strict`를 추가. 엄격 모드에서는 (해당 시) H-003 검증에 스모크 테스트를 연동하도록 구성. |
+| **당신이 할 일** | 필요 시 `npm run human:verify:strict`로 더 강한 검증 실행 |
+
+---
+
+### 2026-05-20 13:41:17 — human_action_items 체크 자동 검증 커맨드 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-62.md`](doc/for_agent/plans/260520-62.md) |
+| **한 일** | `scripts/verify-human-actions.mjs`를 추가해 `[o]` 체크된 H-항목을 자동 검증 가능한 범위(H-003 등)에서 `pass/fail/manual`로 판정하도록 구현. `npm run human:verify` 커맨드와 사용법 문서를 반영. |
+| **당신이 할 일** | 체크한 항목이 있으면 `npm run human:verify` 실행 후 결과 확인 |
+
+---
+
+### 2026-05-20 13:38:41 — human_action_items 체크 추출 보조 스크립트 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-61.md`](doc/for_agent/plans/260520-61.md) |
+| **한 일** | `scripts/check-human-actions.mjs`를 추가해 `28_human_action_items.md`에서 `[o]` 체크된 H-항목만 추출하도록 구현. `npm run human:checked` 커맨드 연결 및 human/agent 문서에 사용법 반영. |
+| **당신이 할 일** | 체크한 항목이 있으면 `npm run human:checked`로 즉시 확인 가능 |
+
+---
+
+### 2026-05-20 13:36:45 — vision 요청 12 반영 (human_action_items 체크칸 + AI 검증 규칙)
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-60.md`](doc/for_agent/plans/260520-60.md) |
+| **한 일** | `for_human/28_human_action_items.md` 미완료 표에 `체크` 열(`[ ]/[o]`)을 추가하고, `for_agent/28_human_action_items.md`·`23_agent_operating_rules.md`에 체크가 `[o]`인 항목을 AI가 다음 세션에서 실제 검증 후 완료 처리하는 규칙을 명시. vision 추적 문서(T-058) 동기화. |
+| **당신이 할 일** | `28_human_action_items.md`에서 완료한 항목 체크를 `[o]`로 바꾸면 됨 (AI가 다음 세션에 검증 수행) |
+
+---
+
+### 2026-05-20 13:33:38 — E2E 스모크 회귀 자동화 + MyPage 실데이터 회귀 시나리오 추가
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-59.md`](doc/for_agent/plans/260520-59.md) |
+| **한 일** | `package.json`에 `test:e2e:smoke` 추가, 핵심 회귀(#1/#3/#6/#24/#29/#30/#31 + 인증가드)만 빠르게 실행 가능하도록 구성. `core-flows.spec.ts`에 #31(MyPage PAGE02 실데이터 카드 기준) 추가. smoke 실행 결과 자격증명 기반 시나리오 skip, 인증가드 pass 확인. |
+| **당신이 할 일** | 로컬 `.env` 자격증명 준비 후 `npm run test:e2e:smoke`로 핵심 회귀 정기 실행 |
+
+---
+
+### 2026-05-20 13:30:36 — vision 요청 10(MyPage 리포트 실데이터 기준) 보정
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-58.md`](doc/for_agent/plans/260520-58.md) |
+| **한 일** | `gatherAiReportContext`를 종료 수업(`archived`)에 참여한 팀플만 집계하도록 수정. `getProjectsForUser`의 더미 테이블 폴백 제거. 종료 팀플이 없으면 MyPage에 빈 상태 안내를 표시하도록 보정. |
+| **당신이 할 일** | 마이페이지 리포트에서 실제 참여·종료 팀플만 보이는지 확인 |
+
+---
+
+### 2026-05-20 13:28:36 — vision 신규요청 9·11 반영 (팀 강조 UI + 네비 중복 해소)
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-57.md`](doc/for_agent/plans/260520-57.md) |
+| **한 일** | `TeamsPage`에서 멤버십 기반으로 내 팀을 강조(`내가 속한 팀` 배지)하고, `CourseDetailPage` 내부 네비를 제거한 뒤 `MainLayout` 좌측 네비로 강의개요/나의팀멤버/조원평가를 이관해 네비 중복을 해소. 신규 E2E #29/#30 추가. |
+| **당신이 할 일** | 팀 목록에서 내 팀 강조 배지와 수업 상세에서 네비 중복이 사라졌는지 확인 |
+
+---
+
+### 2026-05-20 13:24:03 — TeamDetail 미사용 모달 코드 정리
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-56.md`](doc/for_agent/plans/260520-56.md) |
+| **한 일** | 조원평가/회고록 전용 페이지 전환 이후 `TeamDetailPage`에 남아 있던 미사용 모달 상태·핸들러·렌더링 코드를 제거해 유지보수성과 안정성을 개선. |
+| **당신이 할 일** | 팀 상세에서 회고록 버튼으로 전용 페이지 이동이 기존과 동일하게 동작하는지 확인 |
+
+---
+
+### 2026-05-20 13:21:24 — T-053 수강생 카드 상세 프로필 모달 조회 안정화
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-55.md`](doc/for_agent/plans/260520-55.md) |
+| **한 일** | `StudentsNetworkPage` 학생 카드 클릭 시 상세 프로필 모달 조회 흐름을 testid 기준으로 안정화하고, E2E #28(카드 클릭→모달 노출→닫기)을 추가해 회귀를 보강. |
+| **당신이 할 일** | 수강자들 페이지에서 학생 카드 클릭 시 상세 프로필 모달이 뜨는지 확인 |
+
+---
+
+### 2026-05-20 13:18:06 — T-052 수업 상세 좌측 네비 개편
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-54.md`](doc/for_agent/plans/260520-54.md) |
+| **한 일** | 수업 상세에 좌측 사이드 네비를 도입하고 `나의팀멤버` 탭으로 현재 사용자 팀원을 조회할 수 있게 구현. 조원평가 버튼을 수업 상세 사이드바로 이동하고, 관련 E2E(#10/#25/#27)를 갱신. |
+| **당신이 할 일** | 수업 상세에서 `나의팀멤버` 클릭 시 팀원 목록이 보이고 `조원평가` 버튼으로 페이지 이동되는지 확인 |
+
+---
+
+### 2026-05-20 13:14:05 — T-051 조원평가·회고록 전용 페이지 전환
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-53.md`](doc/for_agent/plans/260520-53.md) |
+| **한 일** | 팀 상세의 조원평가/회고록 버튼을 전용 페이지(`peer-review`, `retrospective`) 이동으로 전환하고, 각 페이지에서 기존 제출 API를 그대로 연동해 작성/저장을 수행하도록 구현. E2E #25/#26(페이지 이동) 추가. |
+| **당신이 할 일** | 팀 상세에서 조원평가·회고록 버튼 클릭 시 전용 페이지로 이동하는지 확인 |
+
+---
+
+### 2026-05-20 13:06:18 — vision 요청 5~8 반영 + 트러블슈팅 새로고침 안정화 착수
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260520-52.md`](doc/for_agent/plans/260520-52.md) |
+| **한 일** | `vision.md` 신규 요청 5~8을 상태 문서에 반영하고(T-050~053 등록), 팀 상세 초기 로드를 실패 내성 방식(`Promise.allSettled`)으로 전환해 트러블슈팅 로그가 일부 API 실패 시에도 유지되게 보강. E2E #24(새로고침 유지) 추가. |
+| **당신이 할 일** | 로컬 E2E에서 #24(트러블슈팅 새로고침 유지) 통과 확인 |
+
+---
 
 ### 2026-05-20 12:31:17 — T-024 링크 제목 fallback E2E 추가
 
