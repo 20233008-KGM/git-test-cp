@@ -14,12 +14,11 @@
 | K-007 | ~~medium~~ | ~~Protected route 없음~~ | **해결** — `ProtectedRoute` (T-010) |
 | K-008 | medium | RLS 정책 미검증 | T-011 |
 | K-009 | ~~medium~~ | ~~`mock-data.ts` 파일명 혼동~~ | **해결** — `supabase-api.ts`로 rename (2026-05-19) |
-| K-010 | low | 채팅 UI 데이터는 DB 정적 row, 실시간 아님 | |
+| K-010 | ~~low~~ | ~~채팅 정적 조회만~~ | **해결** — DB 저장 + Realtime (2026-05-20) |
 | K-011 | ~~low~~ | ~~Storage 미연동~~ | **해결** — T-021 |
 
 ## 재현 / 수정 예정
 
 - K-008 → T-011, H-001
-- K-010 → 실시간 채팅 (미착수)
 
 이슈 발견 시: ID 부여, 이 표 + `05_todo.md` 반영

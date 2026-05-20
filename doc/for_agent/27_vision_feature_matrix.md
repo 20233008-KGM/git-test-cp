@@ -23,7 +23,7 @@
 | 전체 수강생 프로필 조회 | `StudentsNetworkPage` | ✅ | Supabase | |
 | 기술 스택 태그 | 프로필·네트워크 | ✅ | Supabase | `saveProfile` |
 | 상세 프로필 | `OtherStudentProfilePage` | ✅ | Supabase | |
-| 1:1 채팅 | TeamDetail 모달 | 🔶 | 정적 조회 | Realtime ❌ |
+| 1:1 채팅 | TeamDetail 모달 | ✅ | Supabase CRUD + Realtime | 팀 스코프; RLS T-011 |
 | 내 정보 수정·저장 | 네트워크 모달 | ✅ | Supabase | |
 
 **달성도:** UI ~80% · 읽기 ~55% · 쓰기 ~45%
@@ -40,7 +40,10 @@
 | 트러블슈팅 CRUD | TeamDetail | ✅ | CRUD | |
 | Q&A CRUD | QnA pages | ✅ | CRUD | `answers` jsonb |
 | 종료 수업 | `CoursesPage` filter | ✅ | archived | 읽기 전용 배너 |
-| 교수 작업물 접근 | Professor | 🔶 | Supabase | |
+| 팀 피드백 제출 | TeamDetail | ✅ | Supabase | `ai_team_detail_feedbacks` (H-007) |
+| 동료평가 제출 | TeamDetail 모달 | ✅ | Supabase | `ai_team_detail_peer_reviews` (H-008) |
+| 회고록 작성 | TeamDetail 모달 | ✅ | Supabase | `ai_team_detail_retrospectives` (H-009) |
+| 교수 작업물·평가 | TeamDetail (교수) | ✅ | Supabase | 산출물·제출 현황·평가 DB (H-010) |
 
 **달성도:** UI ~70% · 읽기 ~55% · 쓰기 ~50%
 
@@ -53,9 +56,10 @@
 | 종료·진행 프로젝트 표시 | `MyPage` | ✅ | Supabase | 팀 집계·시드 |
 | 리포트 3페이지 | `MyPage` | ✅ | `gatherContext` | DB |
 | A4 인쇄 | `AiReportPrintView` | ✅ | draft | LLM ❌ |
-| AI 문단 생성 | MyPage 버튼 | 🔶 | Edge stub | H-002 |
+| AI 문단 생성 | MyPage 버튼 | 🔶 | Edge=클라 집계 | deploy·H-002 |
+| 교수 평가 → 리포트 | `gatherContext` | ✅ | 번들 v2 | 스니펫·건수 |
 
-**달성도:** UI ~75% · 읽기 ~55% · AI ~35% (DB만)
+**달성도:** UI ~75% · 읽기 ~60% · AI ~60% (DB+Edge 코드, deploy 대기)
 
 ---
 

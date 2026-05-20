@@ -1,6 +1,7 @@
 ﻿# 07 — 백엔드
 
-> **관련:** `09_database.md` · `11_api_spec.md` · `src/app/contexts/AuthContext.tsx`
+> **관련:** `09_database.md` · `11_api_spec.md` · `06_decision_log.md` (ADR-012)  
+> **마지막 갱신:** 2026-05-20
 
 ## 현재 상태
 
@@ -8,11 +9,17 @@
 |----------|------|
 | Express + swagger-jsdoc | package.json에만 존재, 서버 미구현 |
 | Firebase Auth | `src/app/firebase.ts` (`VITE_*`) |
-| Supabase Client | `src/app/supabase.ts` |
+| Supabase Client | `src/app/supabase.ts` (anon key) |
 | 데이터 facade | `supabase-api.ts`, `ai-report.ts` → Supabase `ai_*` |
-| Edge Function | `generate-report` (501 스텁) |
+| Edge Function | `supabase/functions/generate-report` (코드 완료, deploy·OPENAI → H-002) |
 
-## 인증 플로우 (구현됨)
+## Firebase → Supabase JWT (RLS Beta, 2026-05-20)
+
+- `src/app/supabase-firebase-auth.ts` — `signInWithIdToken({ provider: "firebase" })`  
+- `.env`: `VITE_ENABLE_SUPABASE_FIREBASE_JWT=true` (Dashboard Firebase provider 후)  
+- 가이드: `for_human/33_firebase_supabase_jwt_setup.md`
+
+## 인증 플로우
 
 ```
 Client → Firebase signIn/signUp
@@ -23,16 +30,30 @@ Client → Firebase signIn/signUp
 
 `/app/*` → `ProtectedRoute` → 미로그인 시 `/signin`
 
+### Beta RLS 연동 (계획, ADR-012)
+
+프로덕션 전 **Supabase Third-Party Auth (Firebase)** 로 JWT에 `firebase_uid` 클레임 → RLS에서 `ai_users` 매칭.  
+상세: `rls_review_packet.md` · `22_security_notes.md` · H-001
+
 ## API 레이어
 
 **현재:** Supabase PostgREST 직접 호출 (facade 경유)  
-**계획:** AI 리포트용 Edge Function 또는 Express BFF
+**AI:** `supabase.functions.invoke('generate-report')` — 키는 Edge Secret만
+
+### teamDetail 쓰기 (2026-05-20)
+
+| API | 저장소 |
+|-----|--------|
+| `sendChatMessage` | `ai_team_detail_chat_messages` |
+| `submitFeedback` | `ai_team_detail_feedbacks` (H-007 SQL) |
+| `submitPeerReview` | `ai_team_detail_peer_reviews` (H-008 SQL) |
+| 트러블슈팅·산출물 | 기존 `ai_team_detail_*` · Storage |
 
 ## 다음 작업
 
-1. RLS 검증·적용 (`22_security_notes.md`, H-001)
-2. Edge `generate-report` LLM (H-002)
-3. (선택) Express — AI 프록시만
+1. 번들 SQL 실행 (`migrations/20260520095400_team_detail_writes_bundle.sql`)
+2. RLS + Third-Party Auth (H-001, T-011)
+3. Edge deploy + `OPENAI_API_KEY` (H-002)
 
 ## 주의
 

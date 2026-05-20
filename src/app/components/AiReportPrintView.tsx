@@ -64,7 +64,12 @@ export default function AiReportPrintView({ context, report }: Props) {
 
       <section className="mb-4">
         <h2 className="text-[13px] font-black text-[#155dfc] mb-2">성장 회고</h2>
-        <p className="text-[11px] leading-relaxed whitespace-pre-wrap">{report.growth_reflection}</p>
+        <p
+          className="text-[11px] leading-relaxed whitespace-pre-wrap"
+          data-testid="report-growth-reflection"
+        >
+          {report.growth_reflection}
+        </p>
       </section>
 
       <footer className="border-t border-gray-200 pt-3 text-[9px] text-[#94a3b8]">

@@ -36,6 +36,7 @@ export default function MyPage() {
   const [reportPage, setReportPage] = useState(1);
   const [aiReportLoading, setAiReportLoading] = useState(false);
   const [aiReportMessage, setAiReportMessage] = useState<string | null>(null);
+  const [reportActivitySummary, setReportActivitySummary] = useState<string | null>(null);
   const [reportPreview, setReportPreview] = useState<{
     context: AiReportContext;
     report: AiReportGenerateResponse;
@@ -52,6 +53,9 @@ export default function MyPage() {
     try {
       const context = await api.aiReport.gatherContext(user.id);
       const report = api.aiReport.buildDraftFromContext(context);
+      setReportActivitySummary(
+        `집계: 트러블슈팅 ${context.totalTroubleshootingLogs}건 · 산출물 ${context.totalDeliverables}건 · 피드백 ${context.totalFeedbacksSubmitted} · 회고 ${context.totalRetrospectivesSubmitted} · 동료평가 ${context.totalPeerReviewsSubmitted} · 교수평가 ${context.totalProfessorStudentEvalsReceived}/${context.totalProfessorProjectEvalsReceived}팀`
+      );
       setReportPreview({ context, report });
     } catch (err) {
       const msg =
@@ -76,7 +80,9 @@ export default function MyPage() {
       setReportPreview({ context, report: result });
     } catch (err) {
       if (err instanceof Error && err.name === "AiReportNotReady") {
-        setAiReportMessage(`${err.message} DB 미리보기를 엽니다.`);
+        setAiReportMessage(
+          `${err.message} Edge·OpenAI 설정(H-002) 전까지 DB 미리보기를 엽니다.`
+        );
         await openDbReportPreview();
         return;
       }
@@ -765,8 +771,14 @@ export default function MyPage() {
 
             <div className="border-t border-gray-200 pt-4 text-center space-y-3">
               <p className="text-[9px] font-bold leading-4 text-[#64748b]">
-                1·2·3페이지 요약은 Supabase 집계를 반영합니다. AI 문단 생성은 Edge Function 배포(H-002) 후 이용할 수 있습니다.
+                1·2·3페이지 요약은 Supabase 집계(트러블슈팅·산출물·피드백·회고·동료평가·교수평가)를 반영합니다.
+                AI 문단은 Edge 배포(H-002) 후 생성됩니다.
               </p>
+              {reportActivitySummary && (
+                <p className="text-[9px] text-[#155dfc]" data-testid="report-activity-summary">
+                  {reportActivitySummary}
+                </p>
+              )}
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"

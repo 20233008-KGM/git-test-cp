@@ -7,16 +7,35 @@
 
 ---
 
+## 오늘 가장 먼저
+
+| 순서 | 문서 |
+|------|------|
+| 전체 순서 | **[00_pre_launch_order.md](./00_pre_launch_order.md)** |
+| SQL 5분 | **[29_supabase_bundle_sql.md](./29_supabase_bundle_sql.md)** |
+| AI 리포트 10분 | **[30_edge_ai_report.md](./30_edge_ai_report.md)** |
+| RLS 결정 3분 | **[31_rls_beta_decision.md](./31_rls_beta_decision.md)** |
+| 회고록 SQL 3분 | **[32_retrospective_sql.md](./32_retrospective_sql.md)** |
+| CI 시크릿 10분 | **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** |
+| SQL 후 확인 5분 | **[35_smoke_test_after_bundle.md](./35_smoke_test_after_bundle.md)** |
+| 리포트 집계 3분 | **[37_verify_ai_report.md](./37_verify_ai_report.md)** |
+
+---
+
 ## 지금 막혀 있는 일 (미완료)
 
 | ID | 우선순위 | 할 일 | 왜 필요한지 | 완료 확인 방법 |
 |----|----------|------|-------------|----------------|
-| H-001 | 높음 | [`rls_review_packet.md`](../for_agent/rls_review_packet.md) 읽고 RLS 강화 **적용 여부** 결정 | DB가 지금은 누구나 수정 가능에 가까움 | “RLS 적용 승인” 또는 “보류” 답변 |
-| H-002 | 높음 | **OpenAI** API Key 발급 → Supabase Edge **Secret** 등록 → `generate-report` 배포 | 마이페이지 AI 리포트 실제 생성 | 마이페이지에서 리포트 생성 시 성공(또는 501 아님) |
-| H-003 | 중간 | 로컬 `.env`에 `E2E_TEST_EMAIL`, `E2E_TEST_PASSWORD` (Firebase 테스트 계정) | 로컬 자동 테스트 7플로우 | `npm run test:e2e` 전체 통과 |
-| H-004 | 중간 | GitHub **Settings → Secrets**에 `E2E_TEST_*`, `VITE_*` 등록 | PR마다 CI E2E | Actions 탭에서 E2E job green |
-| H-005 | 낮음 | **프로덕션 배포** GO/NO-GO (호스팅·도메인) | 실제 서비스 공개 | 배포 URL 공유 |
+| H-001 | 높음 | RLS Beta 결정 — **[31](./31_rls_beta_decision.md)** · 승인 후 **[33 JWT](./33_firebase_supabase_jwt_setup.md)** | DB 행 단위 보안 | “RLS 적용 승인” 또는 “RLS 보류” |
+| H-002 | 높음 | AI 리포트 Edge 배포 — **[30_edge_ai_report.md](./30_edge_ai_report.md)** | 마이페이지 AI 문단 생성 | 「AI 리포트 생성」 501 아님 |
+| H-003 | 중간 | 로컬 `.env`에 `E2E_TEST_EMAIL`, `E2E_TEST_PASSWORD` (Firebase **학생** 테스트 계정 권장) | 로컬 E2E 10플로우 | `npm run test:e2e` 전체 통과 (번들 SQL 후) |
+| H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
+| H-005 | 낮음 | **프로덕션 배포** GO/NO-GO — [`deploy_vercel_checklist.md`](../for_agent/deploy_vercel_checklist.md) 따라 Vercel 연결·`VITE_*` 설정 | 실제 서비스 공개 | 배포 URL 공유 |
 | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
+| H-007 | 중간 | Supabase **번들 v2** 실행 — `20260520102000_team_detail_writes_bundle_v2.sql` (H-008·009·010 포함) · 가이드 [29](./29_supabase_bundle_sql.md) | 팀 상세 쓰기 테이블 일괄 | 「번들 v2 실행함」 |
+| H-008 | 중간 | 동료평가 테이블 SQL — 번들 파일에 포함됨. 개별만 필요 시 `20260520094800_ai_team_detail_peer_reviews.sql` | 팀 동료평가 DB 저장 | 동료평가 「등록 완료」 후 새로고침 유지 |
+| H-009 | 중간 | 회고록 — **번들 v2에 포함** · 개별만: [32](./32_retrospective_sql.md) | 회고록 DB | v2 실행 시 생략 가능 |
+| H-010 | 중간 | 교수 평가 — **번들 v2에 포함** · 개별: `20260520101500_ai_team_detail_professor_evals.sql` | 교수 학생·프로젝트 평가 | v2 실행 시 생략 가능 |
 
 ---
 

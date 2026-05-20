@@ -12,7 +12,7 @@
 | `ai_*` 쓰기 정책 | 대부분 `USING (true)` / `WITH CHECK (true)` → **사실상 공개** |
 | 앱 레벨 보호 | `supabase-api.ts`에서 `getAccessibleCourseIds()`, 작성자 체크 등 |
 
-프로덕션(Beta) 전에는 **Firebase JWT → Supabase Custom JWT** 또는 **Supabase Auth 통합** 중 하나를 선택한 뒤 RLS를 강화해야 합니다.
+프로덕션(Beta) 전에는 JWT 연동 후 RLS를 강화해야 합니다. **권장:** ADR-012 — [Supabase Third-Party Auth (Firebase)](https://supabase.com/docs/guides/auth/third-party/firebase-auth). 대안: Supabase Auth 전면 이전 · Custom JWT 서버.
 
 ## Supabase Security Advisor (WARN, `ai_*` 관련)
 
@@ -25,6 +25,12 @@
 | `ai_team_*` | INSERT/DELETE permissive |
 | `ai_team_deliverables` | INSERT/DELETE permissive |
 | `ai_team_detail_troubleshooting_logs` | INSERT/UPDATE/DELETE permissive |
+| `ai_team_detail_chat_messages` | INSERT permissive (2026-05-20 앱 저장) |
+| `ai_team_detail_feedbacks` | 신규 테이블 — H-007 SQL 실행 후 Alpha 정책 |
+| `ai_team_detail_peer_reviews` | 신규 — 번들 v2 / H-008 |
+| `ai_team_detail_retrospectives` | 신규 — 번들 v2 / H-009 |
+| `ai_team_detail_professor_student_evals` | 신규 — 번들 v2 / H-010 |
+| `ai_team_detail_professor_project_evals` | 신규 — 번들 v2 / H-010 |
 | Storage `ai_team_deliverables` | public bucket listing |
 
 레거시 `User`, `problems`, `source_posts` 테이블에도 WARN/INFO — 앱 미사용.
@@ -41,6 +47,12 @@
 | `ai_team_members` | public read | insert | — | delete |
 | `ai_team_deliverables` | select | insert | — | delete |
 | `ai_team_detail_troubleshooting_logs` | read | insert | update | delete |
+| `ai_team_detail_chat_messages` | read | insert | — | — |
+| `ai_team_detail_feedbacks` | read | insert | update (upsert) | — |
+| `ai_team_detail_peer_reviews` | read | insert | update (upsert) | — |
+| `ai_team_detail_retrospectives` | read | insert | update (upsert) | — |
+| `ai_team_detail_professor_student_evals` | read | insert | update (upsert) | — |
+| `ai_team_detail_professor_project_evals` | read | insert | update (upsert) | — |
 | 기타 `ai_*` (read-only UI) | public read | — | — | — |
 
 `ai_user_learning_profiles`: **SELECT만** — `saveProfile`은 `ai_users` UPDATE 사용.
@@ -62,6 +74,7 @@
 - `questions.*` — accessible course, author checks
 - `saveProfile` — `firebase_uid` 매칭
 - `teamDetail` troubleshooting — 팀·작성자 검증 (클라이언트)
+- `teamDetail` chat·feedback — course 접근·archived 차단 (클라이언트)
 
 → **anon 키로 PostgREST 직접 호출 시 우회 가능** — RLS 강화 필수.
 

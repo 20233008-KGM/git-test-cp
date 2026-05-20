@@ -26,13 +26,15 @@
 
 ## 대략적 순서
 
-1. Supabase 프로덕션 DB 준비  
-2. `.env`에 키 넣기 (GitHub에 올리지 않음)  
-3. `pnpm build` 성공 확인  
-4. Vercel에 GitHub 연결 → 환경변수(`VITE_*`) 입력 → Deploy  
-5. 파일럿 수업에서 테스트  
+1. Supabase: RLS(H-001), 피드백 SQL(H-007), (선택) Edge AI(H-002)  
+2. Firebase: 로그인 도메인에 Vercel URL 추가  
+3. 로컬 `npm run build` 성공  
+4. Vercel: GitHub 연결 → **Environment Variables**에 `VITE_*` 8~9개  
+5. Deploy → 스모크(로그인·수업·팀·마이페이지)  
+6. 파일럿 수업 테스트  
 
-> 공개 GO는 `doc/for_human/28_human_action_items.md` **H-005**
+> 상세 체크리스트: `doc/for_agent/deploy_vercel_checklist.md`  
+> 공개 GO: `28_human_action_items.md` **H-005**
 
 ## AI에게 맡기면
 

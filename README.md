@@ -2,6 +2,9 @@
 
 웹개발 수업 협업을 위한 올인원 플랫폼
 
+> **개발 상태 (2026-05-20):** Alpha → Beta 진입 · 진행률 ~58%  
+> 인간: [`doc/for_human/00_pre_launch_order.md`](doc/for_human/00_pre_launch_order.md) · 리포트 확인: [`37_verify_ai_report.md`](doc/for_human/37_verify_ai_report.md) · AI: [`doc/starter.txt`](doc/starter.txt)
+
 ## 🎯 프로젝트 개요
 
 CampusConnect는 학생들이 팀 프로젝트를 효율적으로 진행할 수 있도록 돕는 협업 플랫폼입니다.

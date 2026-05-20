@@ -1,13 +1,18 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-import { api } from "../api/supabase-api";
+import { api, buildTeamProgressSummary } from "../api/supabase-api";
+import { supabase } from "../supabase";
 import type {
   ChatMessage,
   Course,
   PeerReviewStudent,
   PeerReviewTeammate,
   TeamDeliverable,
+  TeamRetrospectiveSections,
+  TeamSubmissionFeedbackItem,
+  TeamSubmissionRetrospectiveItem,
+  TeamSubmissionPeerReviewItem,
   TroubleshootingLog,
 } from "../types";
 
@@ -28,6 +33,7 @@ export default function TeamDetailPage() {
   const [feedbackOptions, setFeedbackOptions] = useState<string[]>([]);
   const [selectedFeedbacks, setSelectedFeedbacks] = useState<string[]>([]);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [showFeedbackCustomModal, setShowFeedbackCustomModal] = useState(false);
   const [customFeedbackText, setCustomFeedbackText] = useState("");
   const [customFeedbackDraft, setCustomFeedbackDraft] = useState("");
@@ -42,6 +48,7 @@ export default function TeamDetailPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatAnon, setChatAnon] = useState(false);
+  const [sendingChat, setSendingChat] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,29 +85,89 @@ export default function TeamDetailPage() {
     }
   };
 
-  const sendChat = () => {
+  const sendChat = async () => {
     const text = chatInput.trim();
-    if (!text) return;
-    const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        id: `c${Date.now()}`,
-        sender: chatAnon ? "익명" : myName,
+    if (!text || !selectedTeamId || sendingChat || isArchived) return;
+
+    setSendingChat(true);
+    try {
+      const created = await api.teamDetail.sendChatMessage(selectedTeamId, {
         text,
-        time: timeStr,
-        isMine: true,
         isAnon: chatAnon,
-      },
-    ]);
-    setChatInput("");
+      });
+      setChatMessages((prev) => (prev.some((msg) => msg.id === created.id) ? prev : [...prev, created]));
+      setChatInput("");
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "메시지 전송에 실패했습니다.");
+    } finally {
+      setSendingChat(false);
+    }
   };
 
-  // 학생 평가용 교수 입력 상태
-  const [studentEvalInputs, setStudentEvalInputs] = useState<Record<string, string>>({
-    s1: "", s2: "", s3: "", s4: "",
+  useEffect(() => {
+    if (!showChatModal || !selectedTeamId) return;
+
+    const channel = supabase
+      .channel(`team-chat-${selectedTeamId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ai_team_detail_chat_messages",
+          filter: `team_id=eq.${selectedTeamId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            id: string;
+            sender: string;
+            text: string;
+            display_time: string;
+            is_anon: boolean;
+          };
+          const isAnon = row.is_anon;
+          const isMine = !isAnon && row.sender === myName;
+
+          setChatMessages((prev) => {
+            if (prev.some((msg) => msg.id === row.id)) return prev;
+            return [
+              ...prev,
+              {
+                id: row.id,
+                sender: row.sender,
+                text: row.text,
+                time: row.display_time,
+                isMine,
+                isAnon,
+              },
+            ];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [showChatModal, selectedTeamId, myName]);
+
+  const [studentEvalInputs, setStudentEvalInputs] = useState<Record<string, string>>({});
+  const [projectEval, setProjectEval] = useState({
+    completionComment: "",
+    problemSolvingComment: "",
+    holisticComment: "",
   });
+  const [savingProfessorEval, setSavingProfessorEval] = useState(false);
+  const [teamSubmissionFeedbacks, setTeamSubmissionFeedbacks] = useState<
+    TeamSubmissionFeedbackItem[]
+  >([]);
+  const [teamSubmissionRetrospectives, setTeamSubmissionRetrospectives] = useState<
+    TeamSubmissionRetrospectiveItem[]
+  >([]);
+  const [teamSubmissionPeerReviews, setTeamSubmissionPeerReviews] = useState<
+    TeamSubmissionPeerReviewItem[]
+  >([]);
 
   const [allStudents, setAllStudents] = useState<PeerReviewStudent[]>([]);
   const [goodKeywords, setGoodKeywords] = useState<string[]>([]);
@@ -122,6 +189,57 @@ export default function TeamDetailPage() {
     (log.author === myName || isProfessor || isAdmin);
 
   const canUploadDeliverable = !isArchived && (isStudent || isProfessor || isAdmin);
+
+  const teamProgressSummary = useMemo(
+    () => buildTeamProgressSummary(deliverables, troubleshootingLogs),
+    [deliverables, troubleshootingLogs]
+  );
+
+  const projectEvalAutoHints = useMemo(() => {
+    const fileList =
+      deliverables.length > 0
+        ? deliverables.map((item) => item.fileName).join(", ")
+        : "업로드된 산출물 없음";
+    const solvedList =
+      troubleshootingLogs
+        .filter((log) => log.status === "resolved")
+        .map((log) => log.problem)
+        .filter(Boolean)
+        .join(" / ") || "해결 완료된 트러블슈팅 없음";
+    return { files: fileList, solved: solvedList };
+  }, [deliverables, troubleshootingLogs]);
+
+  const handleSaveStudentEvals = async () => {
+    if (!selectedTeamId || savingProfessorEval) return;
+    setSavingProfessorEval(true);
+    try {
+      await Promise.all(
+        Object.entries(studentEvalInputs).map(([studentRowId, comment]) =>
+          api.teamDetail.saveProfessorStudentEval(selectedTeamId, studentRowId, comment)
+        )
+      );
+      setShowStudentEvalModal(false);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "학생 평가 저장에 실패했습니다.");
+    } finally {
+      setSavingProfessorEval(false);
+    }
+  };
+
+  const handleSaveProjectEval = async () => {
+    if (!selectedTeamId || savingProfessorEval) return;
+    setSavingProfessorEval(true);
+    try {
+      await api.teamDetail.saveProfessorProjectEval(selectedTeamId, projectEval);
+      setShowEvalModal(false);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "프로젝트 평가 저장에 실패했습니다.");
+    } finally {
+      setSavingProfessorEval(false);
+    }
+  };
 
   const handleDeliverableUpload = async (fileList: FileList | null) => {
     if (!selectedTeamId || !fileList?.[0]) return;
@@ -227,6 +345,88 @@ export default function TeamDetailPage() {
   const [peerReviews, setPeerReviews] = useState<
     Record<string, { good: string[]; bad: string[]; comment: string; submitted: boolean }>
   >({});
+  const [submittingPeerReviewId, setSubmittingPeerReviewId] = useState<string | null>(null);
+
+  const emptyRetrospectiveSections = (): TeamRetrospectiveSections => ({
+    role: { auto: "", custom: "" },
+    strengths: { auto: "", custom: "" },
+    regrets: { auto: "", custom: "" },
+    growth: { auto: "", custom: "" },
+  });
+  const [retrospectiveSections, setRetrospectiveSections] = useState<TeamRetrospectiveSections>(
+    emptyRetrospectiveSections
+  );
+  const [retrospectiveSubmitted, setRetrospectiveSubmitted] = useState(false);
+  const [submittingRetrospective, setSubmittingRetrospective] = useState(false);
+
+  const handleSubmitRetrospective = async () => {
+    if (!selectedTeamId || submittingRetrospective || isArchived) return;
+
+    setSubmittingRetrospective(true);
+    try {
+      await api.teamDetail.submitRetrospective(selectedTeamId, retrospectiveSections);
+      setRetrospectiveSubmitted(true);
+      setShowRetrospectiveModal(false);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "회고록 저장에 실패했습니다.");
+    } finally {
+      setSubmittingRetrospective(false);
+    }
+  };
+
+  const updateRetrospectiveCustom = (
+    key: keyof TeamRetrospectiveSections,
+    custom: string
+  ) => {
+    setRetrospectiveSections((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], custom },
+    }));
+  };
+
+  const handleSubmitFeedback = async () => {
+    if (!selectedTeamId || submittingFeedback || isArchived) return;
+    if (selectedFeedbacks.length === 0 && !customFeedbackText.trim()) return;
+
+    setSubmittingFeedback(true);
+    try {
+      await api.teamDetail.submitFeedback(selectedTeamId, {
+        selectedOptions: selectedFeedbacks,
+        customText: customFeedbackText,
+      });
+      setFeedbackSubmitted(true);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "피드백 저장에 실패했습니다.");
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleSubmitPeerReview = async (memberId: string) => {
+    if (!selectedTeamId || submittingPeerReviewId) return;
+    const review = peerReviews[memberId];
+    if (!review) return;
+
+    setSubmittingPeerReviewId(memberId);
+    try {
+      await api.teamDetail.submitPeerReview(selectedTeamId, memberId, {
+        goodKeywords: review.good,
+        badKeywords: review.bad,
+        comment: review.comment,
+      });
+      setPeerReviews((prev) => ({
+        ...prev,
+        [memberId]: { ...prev[memberId], submitted: true },
+      }));
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "동료평가 저장에 실패했습니다.");
+    } finally {
+      setSubmittingPeerReviewId(null);
+    }
+  };
 
   const toggleKeyword = (memberId: string, type: "good" | "bad", keyword: string) => {
     setPeerReviews((prev) => {
@@ -246,29 +446,68 @@ export default function TeamDetailPage() {
 
     Promise.all([
       api.teamDetail.getFeedbackOptions(selectedTeamId),
+      api.teamDetail.getMyFeedback(selectedTeamId),
       api.teamDetail.getChatMessages(selectedTeamId),
       api.teamDetail.getPeerReviewStudents(selectedTeamId),
+      api.teamDetail.getMyPeerReviews(selectedTeamId),
       api.teamDetail.getReviewKeywords(selectedTeamId),
       api.teamDetail.getTeammates(selectedTeamId),
       api.teamDetail.getTroubleshootingLogs(selectedTeamId),
       api.teamDetail.getDeliverables(selectedTeamId),
-    ]).then(([feedbackData, chatData, reviewStudents, reviewKeywords, teammateData, logData, deliverableData]) => {
-      setFeedbackOptions(feedbackData);
-      setSelectedFeedbacks(feedbackData.slice(0, 2));
-      setChatMessages(chatData);
-      setAllStudents(reviewStudents);
-      setGoodKeywords(reviewKeywords.good);
-      setBadKeywords(reviewKeywords.bad);
-      setTeammates(teammateData);
-      setTroubleshootingLogs(logData);
-      setDeliverables(deliverableData);
-      setPeerReviews(
-        Object.fromEntries(
-          teammateData.map((member) => [member.id, { good: [], bad: [], comment: "", submitted: false }])
-        )
-      );
-    });
-  }, [selectedTeamId]);
+      api.teamDetail.getRetrospectiveDraft(selectedTeamId),
+    ]).then(
+      ([
+        feedbackData,
+        myFeedback,
+        chatData,
+        reviewStudents,
+        myPeerReviews,
+        reviewKeywords,
+        teammateData,
+        logData,
+        deliverableData,
+        retrospectiveDraft,
+      ]) => {
+        setFeedbackOptions(feedbackData);
+        if (myFeedback) {
+          setSelectedFeedbacks(myFeedback.selectedOptions);
+          setCustomFeedbackText(myFeedback.customText ?? "");
+          setFeedbackSubmitted(true);
+        } else {
+          setSelectedFeedbacks(feedbackData.slice(0, 2));
+          setCustomFeedbackText("");
+          setFeedbackSubmitted(false);
+        }
+        setChatMessages(chatData);
+        setAllStudents(reviewStudents);
+        setStudentEvalInputs((prev) => {
+          const next = { ...prev };
+          for (const student of reviewStudents) {
+            if (!(student.id in next)) next[student.id] = "";
+          }
+          return next;
+        });
+        setGoodKeywords(reviewKeywords.good);
+        setBadKeywords(reviewKeywords.bad);
+        setTeammates(teammateData);
+        setTroubleshootingLogs(logData);
+        setDeliverables(deliverableData);
+        setRetrospectiveSections(retrospectiveDraft.sections);
+        setRetrospectiveSubmitted(retrospectiveDraft.submitted);
+        const reviewerName = user?.name ?? "";
+        setPeerReviews(
+          Object.fromEntries(
+            teammateData
+              .filter((member) => member.name !== reviewerName)
+              .map((member) => [
+                member.id,
+                myPeerReviews[member.id] ?? { good: [], bad: [], comment: "", submitted: false },
+              ])
+          )
+        );
+      }
+    );
+  }, [selectedTeamId, user?.name]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -277,6 +516,24 @@ export default function TeamDetailPage() {
       setCourse(courseData ?? null);
     });
   }, [courseId]);
+
+  useEffect(() => {
+    if (!selectedTeamId || (!isProfessor && !isAdmin)) return;
+
+    void Promise.all([
+      api.teamDetail.getProfessorStudentEvals(selectedTeamId),
+      api.teamDetail.getProfessorProjectEval(selectedTeamId),
+      api.teamDetail.getTeamSubmissionFeedbacks(selectedTeamId),
+      api.teamDetail.getTeamSubmissionRetrospectives(selectedTeamId),
+      api.teamDetail.getTeamSubmissionPeerReviews(selectedTeamId),
+    ]).then(([studentEvals, savedProjectEval, feedbacks, retrospectives, peerReviews]) => {
+      setStudentEvalInputs((prev) => ({ ...prev, ...studentEvals }));
+      setProjectEval(savedProjectEval);
+      setTeamSubmissionFeedbacks(feedbacks);
+      setTeamSubmissionRetrospectives(retrospectives);
+      setTeamSubmissionPeerReviews(peerReviews);
+    });
+  }, [selectedTeamId, isProfessor, isAdmin]);
 
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
@@ -322,7 +579,7 @@ export default function TeamDetailPage() {
                   onClick={() => setShowRetrospectiveModal(true)}
                   className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors"
                 >
-                  회고록 작성
+                  {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
                 </button>
               </div>
             )}
@@ -340,15 +597,81 @@ export default function TeamDetailPage() {
           <h3 className="text-lg font-bold text-[#312c85] mb-2">
             ✨ AI 통합 진행상황 요약
           </h3>
-          <p className="text-sm text-[#372aac] leading-relaxed">
-            현재 배포된 <span className="font-bold">[웹페이지 v1.0]</span>과
-            교수님께 전달한{" "}
-            <span className="font-bold">[구현 애로사항]</span>을 종합한 결과:
-            <br />팀은 프론트엔드 UI 퍼블리싱은 90% 이상 완료했으나, 백엔드 DB와의
-            연결에서 CORS 에러 문제를 겪고 있습니다. ~~한 방법으로 문제를
-            해결해볼 계획이며, 전체 프로젝트 진행률은 약 70%로 추정됩니다.
-          </p>
+          <p className="text-sm text-[#372aac] leading-relaxed">{teamProgressSummary}</p>
         </div>
+
+        {(isProfessor || isAdmin) && (
+          <div
+            className="mb-6 rounded-[14px] border border-[#c6d2ff] bg-white p-5 shadow-sm"
+            data-testid="professor-team-submissions"
+          >
+            <h3 className="text-base font-bold text-[#1e3a6e] mb-3">팀 제출 현황</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              피드백 {teamSubmissionFeedbacks.length}건 · 동료평가{" "}
+              {teamSubmissionPeerReviews.length}건 · 회고록 {teamSubmissionRetrospectives.length}건
+              {teamSubmissionFeedbacks.length === 0 &&
+                teamSubmissionPeerReviews.length === 0 &&
+                teamSubmissionRetrospectives.length === 0 &&
+                " (번들 v2 SQL 미실행 시 비어 있을 수 있습니다)"}
+            </p>
+            {teamSubmissionFeedbacks.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-bold text-gray-500 uppercase">피드백</p>
+                {teamSubmissionFeedbacks.map((item) => (
+                  <div
+                    key={`fb-${item.authorName}`}
+                    className="rounded-lg border border-gray-100 bg-[#f8fafc] px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-[#155dfc]">{item.authorName}</span>
+                    {item.selectedOptions.length > 0 && (
+                      <span className="text-gray-700"> — {item.selectedOptions.join(", ")}</span>
+                    )}
+                    {item.customText && (
+                      <p className="mt-1 text-gray-600">{item.customText}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {teamSubmissionPeerReviews.length > 0 && (
+              <div className="mb-4 space-y-2">
+                <p className="text-xs font-bold text-gray-500 uppercase">동료평가</p>
+                {teamSubmissionPeerReviews.map((item) => (
+                  <div
+                    key={`pr-${item.teammateId}-${item.goodKeywords.join("-")}`}
+                    className="rounded-lg border border-gray-100 bg-[#f8fafc] px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-[#155dfc]">{item.teammateName}</span>
+                    {item.goodKeywords.length > 0 && (
+                      <span className="text-gray-700"> · 👍 {item.goodKeywords.join(", ")}</span>
+                    )}
+                    {item.badKeywords.length > 0 && (
+                      <span className="text-gray-600"> · 👎 {item.badKeywords.join(", ")}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {teamSubmissionRetrospectives.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-gray-500 uppercase">회고록</p>
+                {teamSubmissionRetrospectives.map((item) => (
+                  <div
+                    key={`retro-${item.authorName}`}
+                    className="rounded-lg border border-gray-100 bg-[#f8fafc] px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium text-[#155dfc]">{item.authorName}</span>
+                    <p className="mt-1 text-gray-600 line-clamp-2">
+                      {item.sections.role.custom ||
+                        item.sections.role.auto ||
+                        "내용 없음"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 2열 레이아웃 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -741,11 +1064,16 @@ export default function TeamDetailPage() {
               </div>
               <div className="flex justify-center">
                 <button
-                  disabled={selectedFeedbacks.length === 0 && !customFeedbackText}
+                  type="button"
+                  data-testid="team-feedback-submit"
+                  disabled={
+                    submittingFeedback ||
+                    (selectedFeedbacks.length === 0 && !customFeedbackText)
+                  }
                   className="rounded-[14px] border border-[rgba(0,0,0,0.1)] bg-black px-6 py-2 font-medium text-white transition-colors hover:bg-gray-800 disabled:bg-gray-400 sm:px-8"
-                  onClick={() => setFeedbackSubmitted(true)}
+                  onClick={() => void handleSubmitFeedback()}
                 >
-                  완료
+                  {submittingFeedback ? "저장 중…" : "완료"}
                 </button>
               </div>
             </>
@@ -832,14 +1160,14 @@ export default function TeamDetailPage() {
                       type="text"
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendChat(); } }}
                       placeholder="메시지를 입력하세요."
                       className="flex-1 bg-transparent text-sm text-[#1e2939] placeholder:text-[#9d9d9d] outline-none"
                     />
                   </div>
                   <button
-                    onClick={sendChat}
-                    disabled={!chatInput.trim()}
+                    onClick={() => void sendChat()}
+                    disabled={!chatInput.trim() || sendingChat}
                     className="bg-[#155dfc] disabled:bg-[#c7d9f8] text-white w-9 h-9 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors flex-shrink-0 shadow-sm"
                     aria-label="전송"
                   >
@@ -887,14 +1215,22 @@ export default function TeamDetailPage() {
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
                   {/* 설명란 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4 mb-4">
-                    <p className="text-[17px] text-black">
-                      코드 및 웹 사이트 보러 가기
+                    <p className="text-[17px] text-black whitespace-pre-wrap">
+                      {projectEvalAutoHints.files}
                     </p>
                   </div>
                   {/* 평가 입력란 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4">
                     <textarea
+                      value={projectEval.completionComment}
+                      onChange={(e) =>
+                        setProjectEval((prev) => ({
+                          ...prev,
+                          completionComment: e.target.value,
+                        }))
+                      }
                       placeholder="평가를 입력하세요."
+                      data-testid="professor-eval-completion"
                       className="w-full h-[96px] text-[17px] text-[#595959] placeholder:text-[#595959] outline-none resize-none"
                     />
                   </div>
@@ -909,14 +1245,22 @@ export default function TeamDetailPage() {
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
                   {/* 문제 해결 목록 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4 mb-4">
-                    <p className="text-[17px] text-black">
-                      문제 해결 목록: DB문제 해결, 서버 구동 문제 해결
+                    <p className="text-[17px] text-black whitespace-pre-wrap">
+                      {projectEvalAutoHints.solved}
                     </p>
                   </div>
                   {/* 평가 입력란 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4">
                     <textarea
+                      value={projectEval.problemSolvingComment}
+                      onChange={(e) =>
+                        setProjectEval((prev) => ({
+                          ...prev,
+                          problemSolvingComment: e.target.value,
+                        }))
+                      }
                       placeholder="평가를 입력하세요."
+                      data-testid="professor-eval-problem-solving"
                       className="w-full h-[98px] text-[17px] text-[#595959] placeholder:text-[#595959] outline-none resize-none"
                     />
                   </div>
@@ -932,20 +1276,30 @@ export default function TeamDetailPage() {
                   {/* 평가 입력란 (큰 텍스트 영역) */}
                   <div className="bg-white rounded-[5px] shadow-md p-4">
                     <textarea
+                      value={projectEval.holisticComment}
+                      onChange={(e) =>
+                        setProjectEval((prev) => ({
+                          ...prev,
+                          holisticComment: e.target.value,
+                        }))
+                      }
                       placeholder="평가를 입력하세요."
+                      data-testid="professor-eval-holistic"
                       className="w-full h-[333px] text-[17px] text-[#595959] placeholder:text-[#595959] outline-none resize-none"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* 완료 버튼 */}
               <div className="flex justify-center pt-6">
                 <button
-                  onClick={() => setShowEvalModal(false)}
-                  className="bg-[#155dfc] text-white px-8 py-2 rounded-[10px] text-[17px] font-bold hover:bg-blue-700 transition-colors"
+                  type="button"
+                  data-testid="professor-project-eval-submit"
+                  disabled={savingProfessorEval}
+                  onClick={() => void handleSaveProjectEval()}
+                  className="bg-[#155dfc] text-white px-8 py-2 rounded-[10px] text-[17px] font-bold hover:bg-blue-700 transition-colors disabled:opacity-60"
                 >
-                  완료
+                  {savingProfessorEval ? "저장 중…" : "완료"}
                 </button>
               </div>
             </div>
@@ -1044,10 +1398,13 @@ export default function TeamDetailPage() {
               {/* 다음 버튼 */}
               <div className="flex justify-center pt-2 pb-2">
                 <button
-                  onClick={() => setShowStudentEvalModal(false)}
-                  className="bg-[#155dfc] text-white px-16 py-2.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors shadow-md"
+                  type="button"
+                  data-testid="professor-student-eval-submit"
+                  disabled={savingProfessorEval}
+                  onClick={() => void handleSaveStudentEvals()}
+                  className="bg-[#155dfc] text-white px-16 py-2.5 rounded-full text-sm font-bold hover:bg-blue-700 transition-colors shadow-md disabled:opacity-60"
                 >
-                  다음
+                  {savingProfessorEval ? "저장 중…" : "다음"}
                 </button>
               </div>
             </div>
@@ -1065,7 +1422,6 @@ export default function TeamDetailPage() {
             className="bg-white rounded-[10px] shadow-2xl max-w-[1191px] w-full max-h-[90vh] overflow-y-auto relative"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 헤더 */}
             <div className="sticky top-0 bg-white flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[10px] z-10">
               <h2 className="text-[25px] font-bold text-black">회고록</h2>
               <button
@@ -1078,113 +1434,46 @@ export default function TeamDetailPage() {
             </div>
 
             <div className="px-16 py-6 space-y-8">
-              {/* 본인이 한 역할 */}
-              <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
-                <p className="text-[20px] font-medium text-black text-center mb-4">
-                  본인이 한 역할
-                </p>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    자동연동
-                  </p>
-                  <p className="text-[17px] text-black">
-                    백엔드 DB오류 해결/ 중간발표 초안 등록
-                  </p>
+              {(
+                [
+                  { key: "role" as const, title: "본인이 한 역할" },
+                  { key: "strengths" as const, title: "잘한점" },
+                  { key: "regrets" as const, title: "아쉬운 점" },
+                  { key: "growth" as const, title: "발전한 점" },
+                ] as const
+              ).map(({ key, title }) => (
+                <div key={key} className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
+                  <p className="text-[20px] font-medium text-black text-center mb-4">{title}</p>
+                  <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
+                    <p className="text-[17px] font-medium text-black mb-3">자동연동</p>
+                    <p className="text-[17px] text-black whitespace-pre-wrap">
+                      {retrospectiveSections[key].auto || "—"}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
+                    <p className="text-[17px] font-medium text-black mb-3">직접입력</p>
+                    <input
+                      type="text"
+                      value={retrospectiveSections[key].custom}
+                      onChange={(e) => updateRetrospectiveCustom(key, e.target.value)}
+                      placeholder="직접 입력하세요."
+                      disabled={isArchived}
+                      data-testid={`retrospective-custom-${key}`}
+                      className="w-full text-[17px] text-black placeholder:text-[#9d9d9d] outline-none disabled:opacity-60"
+                    />
+                  </div>
                 </div>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    직접입력
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="직접 입력하세요."
-                    className="w-full text-[17px] text-[#9d9d9d] placeholder:text-[#9d9d9d] outline-none"
-                  />
-                </div>
-              </div>
+              ))}
 
-              {/* 잘한점 */}
-              <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
-                <p className="text-[20px] font-medium text-black text-center mb-4">
-                  잘한점
-                </p>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    자동연동
-                  </p>
-                  <p className="text-[17px] text-black">
-                    어려운 오류를 스스로 해결함
-                  </p>
-                </div>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    직접입력
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="직접 입력하세요."
-                    className="w-full text-[17px] text-[#9d9d9d] placeholder:text-[#9d9d9d] outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* 아쉬운 점 */}
-              <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
-                <p className="text-[20px] font-medium text-black text-center mb-4">
-                  아쉬운 점
-                </p>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    자동연동
-                  </p>
-                  <p className="text-[17px] text-black">
-                    백엔드 문제 해결 미완료
-                  </p>
-                </div>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    직접입력
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="직접 입력하세요."
-                    className="w-full text-[17px] text-[#9d9d9d] placeholder:text-[#9d9d9d] outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* 발전한 점 */}
-              <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-6">
-                <p className="text-[20px] font-medium text-black text-center mb-4">
-                  발전한 점
-                </p>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4 mb-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    자동연동
-                  </p>
-                  <p className="text-[17px] text-black">
-                    데이터 연결에 능숙해짐
-                  </p>
-                </div>
-                <div className="bg-white rounded-[5px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] p-4">
-                  <p className="text-[17px] font-medium text-black mb-3">
-                    직접입력
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="직접 입력하세요."
-                    className="w-full text-[17px] text-[#9d9d9d] placeholder:text-[#9d9d9d] outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* 완료 버튼 */}
               <div className="flex justify-center pt-6">
                 <button
-                  onClick={() => setShowRetrospectiveModal(false)}
-                  className="bg-[#155dfc] text-white px-16 py-2 rounded-[10px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] text-[17px] font-medium hover:bg-blue-700 transition-colors"
+                  type="button"
+                  data-testid="retrospective-submit"
+                  disabled={submittingRetrospective || isArchived}
+                  onClick={() => void handleSubmitRetrospective()}
+                  className="bg-[#155dfc] text-white px-16 py-2 rounded-[10px] shadow-[2px_4px_4px_2px_rgba(0,0,0,0.15)] text-[17px] font-medium hover:bg-blue-700 transition-colors disabled:opacity-60"
                 >
-                  완료
+                  {submittingRetrospective ? "저장 중…" : retrospectiveSubmitted ? "수정 저장" : "완료"}
                 </button>
               </div>
             </div>
@@ -1217,15 +1506,20 @@ export default function TeamDetailPage() {
             <div className="px-6 py-5 space-y-6">
               {/* 본인 정보 (읽기 전용) */}
               <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                <span className="text-base font-medium text-black">류지원<span className="text-[#6a7282] text-sm ml-1">(본인)</span></span>
+                <span className="text-base font-medium text-black">
+                  {myName}
+                  <span className="text-[#6a7282] text-sm ml-1">(본인)</span>
+                </span>
                 <span className="text-base font-medium text-black">
                   기여도 :{" "}
-                  <span className="text-[#155dfc] font-bold">30%</span>
+                  <span className="text-[#155dfc] font-bold">
+                    {teammates.find((m) => m.name === myName)?.contribution ?? 0}%
+                  </span>
                 </span>
               </div>
 
               {/* 각 팀원 평가 */}
-              {teammates.map((member) => {
+              {teammates.filter((member) => member.name !== myName).map((member) => {
                 const review = peerReviews[member.id];
                 return (
                   <div key={member.id} className="space-y-3">
@@ -1296,19 +1590,21 @@ export default function TeamDetailPage() {
                       {/* 등록 완료 버튼 */}
                       <div className="flex justify-center">
                         <button
-                          onClick={() =>
-                            setPeerReviews((prev) => ({
-                              ...prev,
-                              [member.id]: { ...prev[member.id], submitted: true },
-                            }))
-                          }
-                          className={`px-8 py-2 rounded-full text-sm font-bold transition-colors ${
+                          type="button"
+                          data-testid={`peer-review-submit-${member.id}`}
+                          onClick={() => void handleSubmitPeerReview(member.id)}
+                          disabled={submittingPeerReviewId === member.id}
+                          className={`px-8 py-2 rounded-full text-sm font-bold transition-colors disabled:opacity-60 ${
                             review.submitted
                               ? "bg-green-500 text-white"
                               : "bg-[#155dfc] text-white hover:bg-blue-700"
                           }`}
                         >
-                          {review.submitted ? "✓ 등록됨" : "등록 완료"}
+                          {submittingPeerReviewId === member.id
+                            ? "저장 중…"
+                            : review.submitted
+                              ? "✓ 등록됨"
+                              : "등록 완료"}
                         </button>
                       </div>
                     </div>

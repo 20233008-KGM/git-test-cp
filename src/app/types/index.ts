@@ -206,6 +206,61 @@ export interface ChatMessage {
   isAnon: boolean;
 }
 
+export interface TeamFeedback {
+  id: string;
+  teamId: string;
+  authorName: string;
+  selectedOptions: string[];
+  customText?: string;
+  createdAt: Date;
+}
+
+export type RetrospectiveSectionContent = {
+  auto: string;
+  custom: string;
+};
+
+export type TeamRetrospectiveSections = {
+  role: RetrospectiveSectionContent;
+  strengths: RetrospectiveSectionContent;
+  regrets: RetrospectiveSectionContent;
+  growth: RetrospectiveSectionContent;
+};
+
+export interface TeamRetrospective {
+  id: string;
+  teamId: string;
+  authorName: string;
+  sections: TeamRetrospectiveSections;
+  createdAt: Date;
+}
+
+export interface ProfessorProjectEvaluation {
+  completionComment: string;
+  problemSolvingComment: string;
+  holisticComment: string;
+}
+
+/** 교수·관리자용 팀 제출 요약 (피드백·회고록 목록) */
+export type TeamSubmissionFeedbackItem = {
+  authorName: string;
+  selectedOptions: string[];
+  customText?: string;
+};
+
+export type TeamSubmissionRetrospectiveItem = {
+  authorName: string;
+  sections: TeamRetrospectiveSections;
+};
+
+export type TeamSubmissionPeerReviewItem = {
+  teammateId: string;
+  teammateName: string;
+  goodKeywords: string[];
+  badKeywords: string[];
+  comment?: string;
+};
+
 export interface PeerReviewStudent {
   id: string;
   name: string;
@@ -219,6 +274,16 @@ export interface PeerReviewTeammate {
   id: string;
   name: string;
   contribution: number;
+}
+
+/** 학생이 팀원에게 제출한 동료평가 (DB) */
+export interface PeerReviewSubmission {
+  id: string;
+  teamId: string;
+  teammateId: string;
+  goodKeywords: string[];
+  badKeywords: string[];
+  comment: string;
 }
 
 export interface TroubleshootingLog {

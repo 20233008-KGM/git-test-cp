@@ -16,7 +16,7 @@
 - [ ] `.env` / 호스팅 시크릿 (Firebase, Supabase, AI API)
 - [ ] Supabase RLS 전 테이블 검증
 - [ ] CORS·도메인 설정
-- [ ] 빌드 `pnpm build` 성공
+- [o] 빌드 `npm run build` 성공 (로컬·CI `build.yml`)
 - [ ] Lighthouse 성능 기준 협의 (인간)
 
 ### C. 보안·법무
@@ -41,7 +41,7 @@
 
 1. Supabase 프로덕션 프로젝트 + 마이그레이션
 2. Firebase 프로덕션 (또는 Supabase Auth 통합 검토)
-3. 프론트 정적 호스팅 + 환경변수
+3. 프론트 정적 호스팅 + 환경변수 (`deploy_vercel_checklist.md`)
 4. 스모크 테스트
 5. 파일럿 → 전체 오픈 (인간 승인)
 

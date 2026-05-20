@@ -22,6 +22,8 @@
 DB가 “이 학생은 이 수업만 본다”고 스스로 거릅니다.  
 설정 전에는 **민감한 실데이터 넣지 마세요**.
 
+**승인만 하시면 됩니다:** [`31_rls_beta_decision.md`](./31_rls_beta_decision.md) (H-001)
+
 ## 4. HTTPS
 
 배포 시 Vercel 등이 자동으로 HTTPS 제공합니다.

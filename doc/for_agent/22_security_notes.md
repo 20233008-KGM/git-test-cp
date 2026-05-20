@@ -21,11 +21,22 @@
 | `ai_questions` | public | public | public | UPDATE·DELETE 추가 (2026-05-19) |
 | `ai_course_memberships` | public | public | — | INSERT 추가 |
 | `ai_team_detail_troubleshooting_logs` | public | public | public | INSERT·UPDATE·DELETE 추가 (2026-05-19) |
+| `ai_team_detail_chat_messages` | public | public | — | INSERT (채팅 저장, 2026-05-20) |
+| `ai_team_detail_feedbacks` | public | public | public | H-007 SQL 후 (2026-05-20) |
+| `ai_team_detail_retrospectives` | public | public | public | H-009 SQL 후 (2026-05-20) |
+| `ai_team_detail_professor_*_evals` | public | public | public | H-010 / 번들 v2 (2026-05-20) |
 | `ai_team_deliverables` | public | public | — | Storage bucket public read (Alpha) |
 | Storage `ai_team_deliverables` | — | anon | — | SELECT/INSERT/DELETE on objects |
 | `ai_teams` / `ai_team_members` | public | public | — | INSERT·DELETE (자동배정, 2026-05-19) |
 
 > 앱은 Firebase Auth + anon key — `auth.uid()` 기반 RLS는 미적용. 프로덕션 전 인간 리뷰 필수 (T-011).
+
+## Beta RLS 경로 (ADR-012, 2026-05-20)
+
+1. 인간 결정 → [`for_human/31_rls_beta_decision.md`](../for_human/31_rls_beta_decision.md) (H-001)  
+2. Firebase **Third-Party Auth** 활성화 (Supabase Dashboard)  
+3. `20260519000000_rls_beta_draft.sql` 스테이징 검증  
+4. E2E·수동 회귀 후 프로덕션 적용 GO  
 
 ## 인간 리뷰 패키지
 

@@ -3,6 +3,10 @@ import type { AdminProfile, StudentProfile, ProfessorProfile, UserRole } from ".
 import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { supabase } from "../supabase";
+import {
+  clearSupabaseAuthSession,
+  syncFirebaseUserToSupabaseSession,
+} from "../supabase-firebase-auth";
 import { api } from "../api/supabase-api";
 
 export type Signupinput = {
@@ -110,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setIsAuthenticated(false);
         } else if (userData) {
+          await syncFirebaseUserToSupabaseSession(firebaseUser);
           setUser(toProfile(userData as AiUserRow));
           setIsAuthenticated(true);
         } else {
@@ -117,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(false);
         }
       } else {
+        await clearSupabaseAuthSession();
         setUser(null);
         setIsAuthenticated(false);
       }
@@ -163,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (saveError) throw saveError;
       if (savedUser) {
+        const fbUser = auth.currentUser;
+        if (fbUser) await syncFirebaseUserToSupabaseSession(fbUser);
         setUser(toProfile(savedUser as AiUserRow));
         setIsAuthenticated(true);
 
@@ -200,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("서비스 프로필이 없습니다. 회원가입을 먼저 완료해주세요.");
       }
 
+      await syncFirebaseUserToSupabaseSession(userCredential.user);
       setUser(toProfile(userData as AiUserRow));
       setIsAuthenticated(true);
     } catch (error) {
@@ -210,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void clearSupabaseAuthSession();
     signOut(auth);
     setUser(null);
     setIsAuthenticated(false);

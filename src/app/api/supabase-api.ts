@@ -16,6 +16,13 @@ import type {
   MyPageReportStat,
   AuthPageSummary,
   ChatMessage,
+  TeamFeedback,
+  TeamRetrospective,
+  TeamRetrospectiveSections,
+  ProfessorProjectEvaluation,
+  TeamSubmissionFeedbackItem,
+  TeamSubmissionRetrospectiveItem,
+  TeamSubmissionPeerReviewItem,
   PeerReviewStudent,
   PeerReviewTeammate,
   TroubleshootingLog,
@@ -898,8 +905,41 @@ async function getTeamDetailConfigFromDb(teamId?: string) {
   return data;
 }
 
+type TeamDetailChatMessageRow = {
+  id: string;
+  sender: string;
+  text: string;
+  display_time: string;
+  is_mine: boolean;
+  is_anon: boolean;
+};
+
+function mapTeamDetailChatMessageRow(
+  message: TeamDetailChatMessageRow,
+  currentUserName?: string
+): ChatMessage {
+  const isAnon = message.is_anon;
+  const isMine = !isAnon && Boolean(currentUserName) && message.sender === currentUserName;
+
+  return {
+    id: message.id,
+    sender: message.sender,
+    text: message.text,
+    time: message.display_time,
+    isMine,
+    isAnon,
+  };
+}
+
+function createTeamDetailChatMessageId(teamId: string): string {
+  const slug = teamId.replace(/[^a-z0-9]+/gi, "-").slice(0, 24);
+  return `chat-${slug}-${Date.now()}`;
+}
+
 async function getTeamDetailChatMessagesFromDb(teamId?: string): Promise<ChatMessage[]> {
   if (!teamId) return [];
+
+  const currentUser = await getCurrentAiUser();
 
   const { data, error } = await supabase
     .from("ai_team_detail_chat_messages")
@@ -909,14 +949,745 @@ async function getTeamDetailChatMessagesFromDb(teamId?: string): Promise<ChatMes
 
   if (error) throw error;
 
-  return (data ?? []).map((message) => ({
-    id: message.id,
-    sender: message.sender,
-    text: message.text,
-    time: message.display_time,
-    isMine: message.is_mine,
-    isAnon: message.is_anon,
+  return (data ?? []).map((message) =>
+    mapTeamDetailChatMessageRow(message as TeamDetailChatMessageRow, currentUser?.name)
+  );
+}
+
+async function sendTeamDetailChatMessageInDb(
+  teamId: string,
+  input: { text: string; isAnon: boolean }
+): Promise<ChatMessage> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!teamId) throw new Error("팀 정보가 없습니다.");
+
+  const text = input.text.trim();
+  if (!text) throw new Error("메시지를 입력해주세요.");
+
+  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const course = await getCourseByIdFromDb(courseId);
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 채팅을 새로 작성할 수 없습니다.");
+  }
+
+  const { data: lastMessage, error: sortError } = await supabase
+    .from("ai_team_detail_chat_messages")
+    .select("sort_order")
+    .eq("team_id", teamId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sortError) throw sortError;
+  const nextSortOrder = (lastMessage?.sort_order ?? 0) + 1;
+
+  const now = new Date();
+  const displayTime = `${now.getHours().toString().padStart(2, "0")}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, "0")}`;
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_chat_messages")
+    .insert({
+      id: createTeamDetailChatMessageId(teamId),
+      team_id: teamId,
+      sender: input.isAnon ? "익명" : currentUser.name,
+      text,
+      display_time: displayTime,
+      is_mine: true,
+      is_anon: input.isAnon,
+      sort_order: nextSortOrder,
+    })
+    .select("id, sender, text, display_time, is_mine, is_anon")
+    .single();
+
+  if (error) throw error;
+
+  return mapTeamDetailChatMessageRow(data as TeamDetailChatMessageRow, currentUser.name);
+}
+
+type TeamFeedbackRow = {
+  id: string;
+  team_id: string;
+  author_name: string;
+  selected_options: unknown;
+  custom_text: string | null;
+  created_at: string;
+};
+
+function mapTeamFeedbackRow(row: TeamFeedbackRow): TeamFeedback {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    authorName: row.author_name,
+    selectedOptions: asArray<string>(row.selected_options),
+    customText: row.custom_text ?? undefined,
+    createdAt: asDate(row.created_at),
+  };
+}
+
+function isMissingRelationError(error: { code?: string; message?: string }) {
+  return error.code === "42P01" || (error.message?.includes("does not exist") ?? false);
+}
+
+function createTeamFeedbackId(teamId: string, userId: string): string {
+  return `fb-${teamId.replace(/[^a-z0-9]+/gi, "-").slice(0, 16)}-${userId.slice(0, 8)}-${Date.now()}`;
+}
+
+async function getMyTeamFeedbackFromDb(teamId?: string): Promise<TeamFeedback | null> {
+  if (!teamId) return null;
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) return null;
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_feedbacks")
+    .select("id, team_id, author_name, selected_options, custom_text, created_at")
+    .eq("team_id", teamId)
+    .eq("author_user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRelationError(error)) return null;
+    throw error;
+  }
+  if (!data) return null;
+
+  return mapTeamFeedbackRow(data as TeamFeedbackRow);
+}
+
+async function submitTeamFeedbackInDb(
+  teamId: string,
+  input: { selectedOptions: string[]; customText?: string }
+): Promise<TeamFeedback> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!teamId) throw new Error("팀 정보가 없습니다.");
+
+  const selectedOptions = input.selectedOptions.filter(Boolean);
+  const customText = input.customText?.trim();
+  if (selectedOptions.length === 0 && !customText) {
+    throw new Error("피드백을 하나 이상 선택하거나 기타 의견을 입력해주세요.");
+  }
+
+  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const course = await getCourseByIdFromDb(courseId);
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 피드백을 새로 작성할 수 없습니다.");
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("ai_team_detail_feedbacks")
+    .upsert(
+      {
+        id: createTeamFeedbackId(teamId, currentUser.id),
+        team_id: teamId,
+        author_user_id: currentUser.id,
+        author_name: currentUser.name,
+        selected_options: selectedOptions,
+        custom_text: customText || null,
+        updated_at: now,
+      },
+      { onConflict: "team_id,author_user_id" }
+    )
+    .select("id, team_id, author_name, selected_options, custom_text, created_at")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "피드백 테이블이 아직 준비되지 않았습니다. Supabase에서 H-007 SQL을 실행해 주세요."
+      );
+    }
+    throw error;
+  }
+
+  return mapTeamFeedbackRow(data as TeamFeedbackRow);
+}
+
+type TeamRetrospectiveRow = {
+  id: string;
+  team_id: string;
+  author_name: string;
+  sections: unknown;
+  created_at: string;
+};
+
+const RETROSPECTIVE_SECTION_KEYS = ["role", "strengths", "regrets", "growth"] as const;
+
+function emptyRetrospectiveSections(): TeamRetrospectiveSections {
+  return {
+    role: { auto: "", custom: "" },
+    strengths: { auto: "", custom: "" },
+    regrets: { auto: "", custom: "" },
+    growth: { auto: "", custom: "" },
+  };
+}
+
+function parseRetrospectiveSections(raw: unknown): TeamRetrospectiveSections {
+  const base = emptyRetrospectiveSections();
+  if (!raw || typeof raw !== "object") return base;
+
+  const record = raw as Record<string, unknown>;
+  for (const key of RETROSPECTIVE_SECTION_KEYS) {
+    const section = record[key];
+    if (!section || typeof section !== "object") continue;
+    const content = section as Record<string, unknown>;
+    base[key] = {
+      auto: typeof content.auto === "string" ? content.auto : "",
+      custom: typeof content.custom === "string" ? content.custom : "",
+    };
+  }
+  return base;
+}
+
+export function buildRetrospectiveAutoHints(
+  logs: TroubleshootingLog[],
+  authorName: string
+): Record<(typeof RETROSPECTIVE_SECTION_KEYS)[number], string> {
+  const mine = logs.filter((log) => log.author === authorName);
+  const resolved = mine.filter((log) => log.status === "resolved");
+  const open = mine.filter((log) => log.status !== "resolved");
+
+  const roleFromResolved = resolved
+    .map((log) => log.problem)
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" / ");
+  const roleFromOpen = open
+    .map((log) => log.problem)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" / ");
+
+  return {
+    role: roleFromResolved || roleFromOpen || "등록한 트러블슈팅이 없습니다.",
+    strengths: resolved.length
+      ? resolved
+          .map((log) => log.solution || log.plan)
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(" / ")
+      : "—",
+    regrets: open.length
+      ? open
+          .map((log) => log.problem)
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(" / ")
+      : "—",
+    growth: resolved.length ? `문제 해결 완료 ${resolved.length}건` : "—",
+  };
+}
+
+function mapTeamRetrospectiveRow(row: TeamRetrospectiveRow): TeamRetrospective {
+  return {
+    id: row.id,
+    teamId: row.team_id,
+    authorName: row.author_name,
+    sections: parseRetrospectiveSections(row.sections),
+    createdAt: asDate(row.created_at),
+  };
+}
+
+function createTeamRetrospectiveId(teamId: string, userId: string): string {
+  return `retro-${teamId.replace(/[^a-z0-9]+/gi, "-").slice(0, 16)}-${userId.slice(0, 8)}-${Date.now()}`;
+}
+
+function sectionsFromAutoHints(
+  auto: Record<(typeof RETROSPECTIVE_SECTION_KEYS)[number], string>
+): TeamRetrospectiveSections {
+  return {
+    role: { auto: auto.role, custom: "" },
+    strengths: { auto: auto.strengths, custom: "" },
+    regrets: { auto: auto.regrets, custom: "" },
+    growth: { auto: auto.growth, custom: "" },
+  };
+}
+
+async function getTeamRetrospectiveDraftFromDb(
+  teamId?: string
+): Promise<{ sections: TeamRetrospectiveSections; submitted: boolean }> {
+  if (!teamId) return { sections: emptyRetrospectiveSections(), submitted: false };
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) return { sections: emptyRetrospectiveSections(), submitted: false };
+
+  const logs = await getTeamDetailTroubleshootingLogsFromDb(teamId);
+  const auto = buildRetrospectiveAutoHints(logs, currentUser.name);
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_retrospectives")
+    .select("id, team_id, author_name, sections, created_at")
+    .eq("team_id", teamId)
+    .eq("author_user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return { sections: sectionsFromAutoHints(auto), submitted: false };
+    }
+    throw error;
+  }
+
+  if (data) {
+    return {
+      sections: parseRetrospectiveSections((data as TeamRetrospectiveRow).sections),
+      submitted: true,
+    };
+  }
+
+  return { sections: sectionsFromAutoHints(auto), submitted: false };
+}
+
+async function submitTeamRetrospectiveInDb(
+  teamId: string,
+  sections: TeamRetrospectiveSections
+): Promise<TeamRetrospective> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!teamId) throw new Error("팀 정보가 없습니다.");
+
+  const hasContent = RETROSPECTIVE_SECTION_KEYS.some((key) => {
+    const section = sections[key];
+    const custom = section.custom.trim();
+    const auto = section.auto.trim();
+    return (
+      custom.length > 0 ||
+      (auto.length > 0 && auto !== "—" && auto !== "등록한 트러블슈팅이 없습니다.")
+    );
+  });
+  if (!hasContent) {
+    throw new Error("회고 내용을 하나 이상 입력하거나 자동 연동 항목을 확인해 주세요.");
+  }
+
+  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const course = await getCourseByIdFromDb(courseId);
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 회고록을 새로 작성할 수 없습니다.");
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("ai_team_detail_retrospectives")
+    .upsert(
+      {
+        id: createTeamRetrospectiveId(teamId, currentUser.id),
+        team_id: teamId,
+        author_user_id: currentUser.id,
+        author_name: currentUser.name,
+        sections,
+        updated_at: now,
+      },
+      { onConflict: "team_id,author_user_id" }
+    )
+    .select("id, team_id, author_name, sections, created_at")
+    .single();
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "회고록 테이블이 아직 준비되지 않았습니다. Supabase에서 H-009 SQL을 실행해 주세요."
+      );
+    }
+    throw error;
+  }
+
+  return mapTeamRetrospectiveRow(data as TeamRetrospectiveRow);
+}
+
+export function buildTeamProgressSummary(
+  deliverables: TeamDeliverable[],
+  logs: TroubleshootingLog[]
+): string {
+  const resolved = logs.filter((log) => log.status === "resolved");
+  const inProgress = logs.filter((log) => log.status !== "resolved");
+  const deliverableNames = deliverables
+    .slice(0, 3)
+    .map((item) => item.fileName)
+    .join(", ");
+  const solvedTopics = resolved
+    .map((log) => log.problem)
+    .filter(Boolean)
+    .slice(0, 2)
+    .join(" / ");
+
+  const parts: string[] = [];
+  parts.push(
+    `업로드된 산출물 ${deliverables.length}건${
+      deliverableNames ? ` (${deliverableNames}${deliverables.length > 3 ? " …" : ""})` : ""
+    }.`
+  );
+  parts.push(
+    `트러블슈팅 해결 ${resolved.length}건, 진행·보고 중 ${inProgress.length}건.`
+  );
+  if (solvedTopics) {
+    parts.push(`최근 해결 이슈: ${solvedTopics}.`);
+  }
+  parts.push("교수 평가·AI 리포트는 이 활동 데이터를 바탕으로 보완됩니다.");
+  return parts.join(" ");
+}
+
+const emptyProfessorProjectEvaluation = (): ProfessorProjectEvaluation => ({
+  completionComment: "",
+  problemSolvingComment: "",
+  holisticComment: "",
+});
+
+async function assertProfessorTeamAccess(teamId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) {
+    throw new Error("교수만 평가를 저장할 수 있습니다.");
+  }
+  await assertTeamDeliverableAccess(teamId);
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  const course = courseId ? await getCourseByIdFromDb(courseId) : null;
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 평가를 저장할 수 없습니다.");
+  }
+}
+
+function createProfessorStudentEvalId(
+  teamId: string,
+  professorId: string,
+  studentRowId: string
+): string {
+  return `pe-${teamId.slice(0, 12)}-${professorId.slice(0, 8)}-${studentRowId.slice(0, 8)}`;
+}
+
+function createProfessorProjectEvalId(teamId: string, professorId: string): string {
+  return `pp-${teamId.slice(0, 16)}-${professorId.slice(0, 8)}`;
+}
+
+async function getProfessorStudentEvalsFromDb(teamId?: string): Promise<Record<string, string>> {
+  if (!teamId) return {};
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) return {};
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_professor_student_evals")
+    .select("student_row_id, comment")
+    .eq("team_id", teamId)
+    .eq("professor_user_id", currentUser.id);
+
+  if (error) {
+    if (isMissingRelationError(error)) return {};
+    throw error;
+  }
+
+  return Object.fromEntries(
+    (data ?? []).map((row) => [row.student_row_id as string, (row.comment as string) ?? ""])
+  );
+}
+
+async function saveProfessorStudentEvalInDb(
+  teamId: string,
+  studentRowId: string,
+  comment: string
+): Promise<void> {
+  await assertProfessorTeamAccess(teamId);
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const trimmed = comment.trim();
+  if (!trimmed) return;
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("ai_team_detail_professor_student_evals").upsert(
+    {
+      id: createProfessorStudentEvalId(teamId, currentUser.id, studentRowId),
+      team_id: teamId,
+      student_row_id: studentRowId,
+      professor_user_id: currentUser.id,
+      comment: trimmed,
+      updated_at: now,
+    },
+    { onConflict: "team_id,professor_user_id,student_row_id" }
+  );
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "교수 평가 테이블이 아직 준비되지 않았습니다. Supabase에서 H-010 SQL을 실행해 주세요."
+      );
+    }
+    throw error;
+  }
+}
+
+async function getProfessorProjectEvalFromDb(
+  teamId?: string
+): Promise<ProfessorProjectEvaluation> {
+  if (!teamId) return emptyProfessorProjectEvaluation();
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) {
+    return emptyProfessorProjectEvaluation();
+  }
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_professor_project_evals")
+    .select("completion_comment, problem_solving_comment, holistic_comment")
+    .eq("team_id", teamId)
+    .eq("professor_user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingRelationError(error)) return emptyProfessorProjectEvaluation();
+    throw error;
+  }
+
+  if (!data) return emptyProfessorProjectEvaluation();
+
+  return {
+    completionComment: data.completion_comment ?? "",
+    problemSolvingComment: data.problem_solving_comment ?? "",
+    holisticComment: data.holistic_comment ?? "",
+  };
+}
+
+async function saveProfessorProjectEvalInDb(
+  teamId: string,
+  input: ProfessorProjectEvaluation
+): Promise<ProfessorProjectEvaluation> {
+  await assertProfessorTeamAccess(teamId);
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const payload = {
+    completionComment: input.completionComment.trim(),
+    problemSolvingComment: input.problemSolvingComment.trim(),
+    holisticComment: input.holisticComment.trim(),
+  };
+
+  if (
+    !payload.completionComment &&
+    !payload.problemSolvingComment &&
+    !payload.holisticComment
+  ) {
+    throw new Error("평가 내용을 하나 이상 입력해 주세요.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("ai_team_detail_professor_project_evals").upsert(
+    {
+      id: createProfessorProjectEvalId(teamId, currentUser.id),
+      team_id: teamId,
+      professor_user_id: currentUser.id,
+      completion_comment: payload.completionComment || null,
+      problem_solving_comment: payload.problemSolvingComment || null,
+      holistic_comment: payload.holisticComment || null,
+      updated_at: now,
+    },
+    { onConflict: "team_id,professor_user_id" }
+  );
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "교수 프로젝트 평가 테이블이 아직 준비되지 않았습니다. Supabase에서 H-010 SQL을 실행해 주세요."
+      );
+    }
+    throw error;
+  }
+
+  return payload;
+}
+
+async function getTeamSubmissionFeedbacksFromDb(
+  teamId?: string
+): Promise<TeamSubmissionFeedbackItem[]> {
+  if (!teamId) return [];
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) return [];
+
+  await assertTeamDeliverableAccess(teamId);
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_feedbacks")
+    .select("author_name, selected_options, custom_text")
+    .eq("team_id", teamId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    authorName: row.author_name as string,
+    selectedOptions: asArray<string>(row.selected_options),
+    customText: (row.custom_text as string) ?? undefined,
   }));
+}
+
+async function getTeamSubmissionPeerReviewsFromDb(
+  teamId?: string
+): Promise<TeamSubmissionPeerReviewItem[]> {
+  if (!teamId) return [];
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) return [];
+
+  await assertTeamDeliverableAccess(teamId);
+
+  const [reviewsResult, students] = await Promise.all([
+    supabase
+      .from("ai_team_detail_peer_reviews")
+      .select("teammate_id, good_keywords, bad_keywords, comment")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false }),
+    getTeamDetailPeerReviewStudentsFromDb(teamId),
+  ]);
+
+  const { data, error } = reviewsResult;
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  const nameById = Object.fromEntries(students.map((s) => [s.id, s.name]));
+
+  return (data ?? []).map((row) => ({
+    teammateId: row.teammate_id as string,
+    teammateName: nameById[row.teammate_id as string] ?? row.teammate_id,
+    goodKeywords: asArray<string>(row.good_keywords),
+    badKeywords: asArray<string>(row.bad_keywords),
+    comment: (row.comment as string) ?? undefined,
+  }));
+}
+
+async function getTeamSubmissionRetrospectivesFromDb(
+  teamId?: string
+): Promise<TeamSubmissionRetrospectiveItem[]> {
+  if (!teamId) return [];
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) return [];
+
+  await assertTeamDeliverableAccess(teamId);
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_retrospectives")
+    .select("author_name, sections")
+    .eq("team_id", teamId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    authorName: row.author_name as string,
+    sections: parseRetrospectiveSections(row.sections),
+  }));
+}
+
+export type PeerReviewDraft = {
+  good: string[];
+  bad: string[];
+  comment: string;
+  submitted: boolean;
+};
+
+type PeerReviewRow = {
+  id: string;
+  team_id: string;
+  teammate_id: string;
+  good_keywords: unknown;
+  bad_keywords: unknown;
+  comment: string | null;
+};
+
+function createPeerReviewId(teamId: string, reviewerId: string, teammateId: string): string {
+  return `pr-${teamId.slice(0, 12)}-${reviewerId.slice(0, 6)}-${teammateId.slice(0, 12)}-${Date.now()}`;
+}
+
+async function getMyPeerReviewsFromDb(
+  teamId?: string
+): Promise<Record<string, PeerReviewDraft>> {
+  if (!teamId) return {};
+
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) return {};
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_peer_reviews")
+    .select("id, team_id, teammate_id, good_keywords, bad_keywords, comment")
+    .eq("team_id", teamId)
+    .eq("reviewer_user_id", currentUser.id);
+
+  if (error) {
+    if (isMissingRelationError(error)) return {};
+    throw error;
+  }
+
+  const result: Record<string, PeerReviewDraft> = {};
+  for (const row of data ?? []) {
+    const good = asArray<string>(row.good_keywords);
+    const bad = asArray<string>(row.bad_keywords);
+    const comment = row.comment?.trim() ?? "";
+    result[row.teammate_id] = {
+      good,
+      bad,
+      comment,
+      submitted: good.length > 0 || bad.length > 0 || comment.length > 0,
+    };
+  }
+  return result;
+}
+
+async function submitPeerReviewInDb(
+  teamId: string,
+  teammateId: string,
+  input: { goodKeywords: string[]; badKeywords: string[]; comment?: string }
+): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!teamId || !teammateId) throw new Error("팀·팀원 정보가 없습니다.");
+
+  const goodKeywords = input.goodKeywords.filter(Boolean);
+  const badKeywords = input.badKeywords.filter(Boolean);
+  const comment = input.comment?.trim() ?? "";
+  if (goodKeywords.length === 0 && badKeywords.length === 0 && !comment) {
+    throw new Error("키워드 또는 코멘트를 입력해주세요.");
+  }
+
+  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const course = await getCourseByIdFromDb(courseId);
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 동료평가를 제출할 수 없습니다.");
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("ai_team_detail_peer_reviews").upsert(
+    {
+      id: createPeerReviewId(teamId, currentUser.id, teammateId),
+      team_id: teamId,
+      reviewer_user_id: currentUser.id,
+      teammate_id: teammateId,
+      good_keywords: goodKeywords,
+      bad_keywords: badKeywords,
+      comment: comment || null,
+      updated_at: now,
+    },
+    { onConflict: "team_id,reviewer_user_id,teammate_id" }
+  );
+
+  if (error) {
+    if (isMissingRelationError(error)) {
+      throw new Error(
+        "동료평가 테이블이 아직 준비되지 않았습니다. Supabase에서 H-008 SQL을 실행해 주세요."
+      );
+    }
+    throw error;
+  }
 }
 
 async function getTeamDetailPeerReviewStudentsFromDb(teamId?: string): Promise<PeerReviewStudent[]> {
@@ -1966,8 +2737,22 @@ export const api = {
   },
   teamDetail: {
     getFeedbackOptions: getTeamDetailFeedbackOptionsFromDb,
+    getMyFeedback: getMyTeamFeedbackFromDb,
+    submitFeedback: submitTeamFeedbackInDb,
+    getRetrospectiveDraft: getTeamRetrospectiveDraftFromDb,
+    submitRetrospective: submitTeamRetrospectiveInDb,
+    getProfessorStudentEvals: getProfessorStudentEvalsFromDb,
+    saveProfessorStudentEval: saveProfessorStudentEvalInDb,
+    getProfessorProjectEval: getProfessorProjectEvalFromDb,
+    saveProfessorProjectEval: saveProfessorProjectEvalInDb,
+    getTeamSubmissionFeedbacks: getTeamSubmissionFeedbacksFromDb,
+    getTeamSubmissionRetrospectives: getTeamSubmissionRetrospectivesFromDb,
+    getTeamSubmissionPeerReviews: getTeamSubmissionPeerReviewsFromDb,
     getChatMessages: getTeamDetailChatMessagesFromDb,
+    sendChatMessage: sendTeamDetailChatMessageInDb,
     getPeerReviewStudents: getTeamDetailPeerReviewStudentsFromDb,
+    getMyPeerReviews: getMyPeerReviewsFromDb,
+    submitPeerReview: submitPeerReviewInDb,
     getReviewKeywords: getTeamDetailReviewKeywordsFromDb,
     getTeammates: getTeamDetailTeammatesFromDb,
     getTroubleshootingLogs: getTeamDetailTroubleshootingLogsFromDb,

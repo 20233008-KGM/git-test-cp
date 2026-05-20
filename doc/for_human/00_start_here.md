@@ -29,11 +29,17 @@ AI에게 시킬 때: **「doc/starter.txt 읽고 이어서 해줘」**
 
 | 목적 | 읽을 문서 |
 |------|-----------|
+| **런칭 전 할 일 순서** | **`00_pre_launch_order`** |
 | 처음 | 본 문서 → `04_project_intro` |
 | vision 기능 됐나 | `26_vision_features_status` |
 | 진행률 | `01_project_status` |
 | AI가 뭘 했나 | `25_ai_work_log` |
-| **내가 해줘야 할 일** | **`28_human_action_items`** |
+| Supabase SQL 5분 | `29_supabase_bundle_sql` |
+| AI 리포트 켜기 | `30_edge_ai_report` |
+| 리포트 집계 확인 | **`37_verify_ai_report`** |
+| RLS 승인 (H-001) | **`31_rls_beta_decision`** · JWT **`33_firebase_supabase_jwt_setup`** |
+| **런칭 한 페이지** | **`36_launch_one_pager`** |
+| **막힌 일 체크리스트** | **`28_human_action_items`** |
 | 용어 모름 | `23_beginner_glossary` |
 | doc 읽는 법 | `24_how_to_read_docs` |
 

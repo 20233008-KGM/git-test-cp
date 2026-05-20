@@ -8,15 +8,15 @@
 2. 마이페이지 리포트 3페이지 + A4 HTML/인쇄
 3. (선택) LLM 요약 문단
 
-## 현재 상태 (~50%, 2026-05-20)
+## 현재 상태 (~58%, 2026-05-20)
 
 | 구성 | 상태 |
 |------|------|
-| `api.aiReport.gatherContext` | ✅ 팀·트러블슈팅 사례·산출물 |
+| `api.aiReport.gatherContext` | ✅ 트러블슈팅·산출물·피드백·회고·동료평가·교수 평가 (팀별 스니펫) |
 | `buildDraftFromContext` | ✅ LLM 없이 A4 JSON |
-| `MyPage` 리포트 1–3페이지 | ✅ DB 우선 |
+| `MyPage` 리포트 1–3페이지 | ✅ DB 우선 + 미리보기 후 집계 한 줄 |
 | `AiReportPrintView` | ✅ A4 `@page` |
-| `generate-report` Edge | 🔶 501 스텁 → H-002 |
+| `generate-report` Edge | 🔶 클라이언트와 동일 집계·LLM 페이로드 (2026-05-21) — **배포만** H-002 |
 
 ## 권장 아키텍처
 

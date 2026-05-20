@@ -43,6 +43,18 @@
 -- (course_id IN accessible courses) AND (author_user_id = current ai_users.id)
 
 -- ---------------------------------------------------------------------------
+-- ai_team_detail_chat_messages: course 멤버 INSERT; 본인·팀 SELECT
+-- ---------------------------------------------------------------------------
+-- CREATE POLICY "chat_select_team_members" ON public.ai_team_detail_chat_messages
+--   FOR SELECT USING (team_id IN (accessible teams for current user));
+
+-- ---------------------------------------------------------------------------
+-- ai_team_detail_feedbacks: 본인 1건 per team INSERT/UPDATE
+-- ---------------------------------------------------------------------------
+-- CREATE POLICY "feedback_upsert_own" ON public.ai_team_detail_feedbacks
+--   FOR ALL USING (author_user_id = current ai_users.id from firebase_uid);
+
+-- ---------------------------------------------------------------------------
 -- Storage ai_team_deliverables: 팀 멤버만 업로드, listing 제한
 -- ---------------------------------------------------------------------------
 -- signed URL + path convention: {teamId}/{userId}/{filename}
