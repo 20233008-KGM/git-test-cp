@@ -34,6 +34,10 @@
 | 추가요청 11: CourseDetail 내부 네비 제거·메인 네비 이관 | 구현 | `MainLayout` 좌측 네비 확장 + `CourseDetailPage` 내부 네비 제거(T-056) |
 | 추가요청 12: human_action_items 완료 체크칸 + AI 체크 기반 검증 | 구현 | `28_human_action_items` 체크 열 추가 + `[o]` 우선 검증 규칙 반영(T-058) |
 | 추가요청 13: 수강자 목록은 해당 수업 멤버만(빈 수업 데모 목록 금지) | 구현 | `StudentsNetworkPage`에서 `courseId`가 있으면 API 빈 배열 유지, 데모 폴백 제외(T-081) |
+| 추가요청 49: 다른 팀에서 트러블슈팅 작성 폼 비노출 | 구현 | `assertStudentOwnTeamWrite` + `TeamDetailPage` 멤버십 게이트 + E2E #42 (T-170) |
+| 추가요청 50: 수강생 프로필 fixed 모달 (#8·#18 별도) | 구현 | `StudentsNetworkPage` 프로필·수정·랜덤팀 모달 `fixed inset-0` + E2E #43 (T-171) |
+| 추가요청 18·25·38: 모달이 페이지 하단 인라인 | 구현 | `TeamDetailPage`·`MyPage` 프로젝트 상세 `fixed` 오버레이 (T-172) |
+| 추가요청 51: 팀 탈퇴 워크스페이스·소형 / 참여 숨김 | 구현 | 하단 muted 탈퇴·팀 소속 시 join 미노출 (T-173·T-174) |
 
 ## 구현 완료 (기능)
 

@@ -10,7 +10,7 @@
 - **인증:** Firebase + `ai_users` + ProtectedRoute + JWT 스캐폴드 (`VITE_ENABLE_SUPABASE_FIREBASE_JWT`, **기본 off**)
 - **팀 상세:** 채팅·Realtime, 피드백·동료평가·회고록 DB, 교수 평가·제출 현황 패널, AI 진행 요약(실데이터)
 - **마이페이지:** 리포트 3페이지 DB 집계 + A4 + Edge `generate-report` (배포 후 OPENAI 없으면도 DB 초안 200)
-- **E2E:** 41플로우 + 인증 가드 · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#41
+- **E2E:** 45플로우 + 인증 가드 · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#45
 - **아카이브 시드:** 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
 - **RLS:** `rls_review_packet.md` + `20260519000000_rls_beta_draft.sql` — **미적용** (H-001)
 - **DB:** bundle v2·인덱스 원격 적용됨(MCP) — 신규 환경은 `apply_remote_full.sql`
@@ -69,8 +69,8 @@
 
 ## AI가 다음에 할 수 있는 것 (인간 승인 없이 가능)
 
-1. T-024 대용량 업로드·링크 게시물 회귀 테스트
-2. 완료 기능 회귀 테스트 및 DX 개선
+1. vision #1~#51 코드 반영 완료 — 신규 추가요청 시 `vision_snapshot` 대조 후 착수
+2. E2E·`14_testing`·`verify:archived-kim` 회귀 (H-003·H-011은 인간)
 
 ## 건드리지 말 것
 

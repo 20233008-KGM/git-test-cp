@@ -40,6 +40,10 @@
 | 학생 랜덤 팀 생성 금지 | ✅ | T-087 | 교수·관리자만 모달·페이지 |
 | 팀 카드 데스크탑 5열·가로 확대 | ✅ | T-120 | xl:grid-cols-5, 팀 목록 max 1920px |
 | 교수 공지 작성·팀 페이지 최신 3건 | ✅ | T-089 | `CourseAnnouncementsPage` + `getAll(..., 3)` |
+| 다른 팀 워크스페이스 트러블슈팅 작성 금지 | ✅ | T-170 | `assertStudentOwnTeamWrite` + `TeamDetailPage` `isMyTeamMember` 게이트 + E2E #42 |
+| 수강생 프로필 클릭 시 화면 중앙 모달 (#50, #8·#18과 별도) | ✅ | T-171 | `StudentProfileModal` `fixed inset-0 z-50` (인라인 하단 배치 제거) + E2E #43 |
+| 팀 상세·마이페이지 모달 뷰포트 고정 (#18·#25·#38) | ✅ | T-172 | `TeamDetailPage`·`MyPage` `my-6` 인라인 → `fixed inset-0` |
+| 팀 탈퇴 버튼은 워크스페이스 내부만 (#51) | ✅ | T-173·T-174 | 하단 소형 탈퇴·팀 있으면 참여 버튼 숨김 |
 
 ---
 

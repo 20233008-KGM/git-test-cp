@@ -5,7 +5,7 @@
 ## 현재
 
 - **Playwright** — `playwright.config.ts`, `tests/e2e/`
-- **핵심 E2E:** `core-flows.spec.ts` — 41플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
+- **핵심 E2E:** `core-flows.spec.ts` — 45플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
 - **단위 테스트:** 없음
 
 ## 실행
@@ -99,6 +99,10 @@ E2E_TEST_PASSWORD=...
 39. 종료 수업 내 조원평가 DB 카드 (`course-my-peer-review-card`)
 40. 교수 아카이브 동료평가 전체 조회 (`course-peer-reviews-overview`, vision #45, `E2E_PROFESSOR_*`)
 41. 과거 수업 페이지 → 교수 평가 링크 (`mypage-archived-professor-evals`)
+42. 다른 팀 트러블슈팅 작성 폼 비노출 (vision #49, `team-trouble-write-form`)
+43. 수강생 프로필 fixed 오버레이 (vision #50)
+44. 팀 탈퇴 워크스페이스 전용·참여 숨김 (vision #51)
+45. 나의팀멤버 클릭 프로필 모달 (`student-quick-profile-modal`)
 
 **로컬 시드 점검:** `npm run verify:archived-kim` — `ok: true` 이면 #35·#46·H-007~011 준비 완료
 

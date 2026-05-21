@@ -2358,8 +2358,8 @@ async function createTroubleshootingLogInDb(
     throw new Error("트러블슈팅 기록은 해당 팀 학생만 작성할 수 있습니다.");
   }
 
-  const courseId = await getTeamCourseIdFromDb(teamId);
-  const course = courseId ? await getCourseByIdFromDb(courseId) : null;
+  const { courseId } = await assertStudentOwnTeamWrite(teamId);
+  const course = await getCourseByIdFromDb(courseId);
   if (course?.status === "archived") {
     throw new Error("종료된 수업에서는 트러블슈팅을 새로 작성할 수 없습니다.");
   }
@@ -2616,6 +2616,27 @@ async function assertTeamDeliverableAccess(teamId: string): Promise<{ courseId: 
   return { courseId };
 }
 
+/** 학생이 자신이 속한 팀에서만 쓰기(트러블슈팅·산출물 등) 가능하도록 검증 (vision #49) */
+async function assertStudentOwnTeamWrite(teamId: string): Promise<{ courseId: string }> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") {
+    return assertTeamDeliverableAccess(teamId);
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) throw new Error("팀 정보를 찾을 수 없습니다.");
+
+  await assertActiveCourseMembership(courseId);
+
+  const myTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  if (myTeamId !== teamId) {
+    throw new Error("내가 속한 팀에서만 작성할 수 있습니다.");
+  }
+
+  return { courseId };
+}
+
 async function getTeamDeliverablesFromDb(teamId: string): Promise<TeamDeliverable[]> {
   if (!teamId) return [];
   await assertTeamDeliverableAccess(teamId);
@@ -2637,7 +2658,7 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
   if (!currentUser) throw new Error("로그인이 필요합니다.");
   if (!teamId) throw new Error("팀 정보가 없습니다.");
 
-  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const { courseId } = await assertStudentOwnTeamWrite(teamId);
 
   const extension = getDeliverableExtension(file.name);
   if (!extension || !TEAM_DELIVERABLE_ALLOWED_EXT.has(extension)) {
@@ -2701,7 +2722,7 @@ async function addTeamDeliverableLinkInDb(
   if (!currentUser) throw new Error("로그인이 필요합니다.");
   if (!teamId) throw new Error("팀 정보가 없습니다.");
 
-  const { courseId } = await assertTeamDeliverableAccess(teamId);
+  const { courseId } = await assertStudentOwnTeamWrite(teamId);
   const normalizedUrl = normalizeDeliverableUrl(input.url);
   const parsed = new URL(normalizedUrl);
   const fallbackName = `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;

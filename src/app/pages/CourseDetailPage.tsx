@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { api } from "../api/supabase-api";
+import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
 import { useAuth } from "../contexts/AuthContext";
-import type { Course, TeamMember } from "../types";
+import type { Course, StudentProfile, TeamMember } from "../types";
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,7 +14,38 @@ export default function CourseDetailPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [myTeamMembers, setMyTeamMembers] = useState<TeamMember[]>([]);
+  const [selectedMemberProfile, setSelectedMemberProfile] = useState<StudentProfile | null>(null);
+  const [memberProfileLoading, setMemberProfileLoading] = useState(false);
+  const [memberProfileError, setMemberProfileError] = useState<string | null>(null);
   const { isProfessor, isAdmin, user } = useAuth();
+
+  const openMemberProfile = async (memberId: string) => {
+    if (memberId === user?.id) return;
+    setMemberProfileLoading(true);
+    setMemberProfileError(null);
+    setSelectedMemberProfile(null);
+    try {
+      const profile = await api.students.getById(memberId);
+      if (!profile) {
+        setMemberProfileError("프로필을 불러오지 못했습니다.");
+        return;
+      }
+      setSelectedMemberProfile(profile);
+    } catch (error) {
+      console.error(error);
+      setMemberProfileError(
+        error instanceof Error ? error.message : "프로필을 불러오지 못했습니다."
+      );
+    } finally {
+      setMemberProfileLoading(false);
+    }
+  };
+
+  const closeMemberProfile = () => {
+    setSelectedMemberProfile(null);
+    setMemberProfileError(null);
+    setMemberProfileLoading(false);
+  };
   const canArchiveCourse = Boolean(
     course && course.status === "active" && (isAdmin || (isProfessor && course.professorId === user?.id))
   );
@@ -200,11 +232,21 @@ export default function CourseDetailPage() {
               ) : (
                 <div className="space-y-2" data-testid="course-detail-my-team-members-list">
                   {myTeamMembers.map((member) => (
-                    <div key={member.id} className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                    <button
+                      key={member.id}
+                      type="button"
+                      data-testid={`course-detail-my-team-member-${member.id}`}
+                      onClick={() => void openMemberProfile(member.id)}
+                      disabled={member.id === user?.id}
+                      className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left text-sm transition-colors hover:border-[#155dfc] hover:bg-[#eff6ff] disabled:cursor-default disabled:opacity-80"
+                    >
                       <span className="font-semibold text-gray-900">{member.name ?? "이름 없음"}</span>
                       {member.studentId && <span className="ml-2 text-gray-500">({member.studentId})</span>}
                       {member.role && <span className="ml-2 text-blue-700">[{member.role}]</span>}
-                    </div>
+                      {member.id === user?.id && (
+                        <span className="ml-2 text-xs text-[#64748b]">(나)</span>
+                      )}
+                    </button>
                   ))}
                 </div>
               )}
@@ -220,6 +262,12 @@ export default function CourseDetailPage() {
           )}
         </div>
       </div>
+      <StudentQuickProfileModal
+        profile={selectedMemberProfile}
+        loading={memberProfileLoading}
+        errorMessage={memberProfileError}
+        onClose={closeMemberProfile}
+      />
     </div>
   );
 }

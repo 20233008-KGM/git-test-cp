@@ -1328,8 +1328,10 @@ export default function MyPage() {
       {/* 프로젝트 상세 모달 */}
       {selectedProject && (
         <div
-          className="mx-auto my-6 flex w-full items-center justify-center rounded-2xl p-4"
-          style={{ backgroundColor: "rgba(82,82,82,0.67)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          data-testid="mypage-project-detail-modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedProject(null);
           }}

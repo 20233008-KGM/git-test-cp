@@ -65,6 +65,23 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     }
   });
 
+  test("42. 다른 팀 상세에서 트러블슈팅 작성 폼 비노출 (vision #49)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+
+    const otherTeamCard = page
+      .locator('[data-testid="teams-card-grid"] > div')
+      .filter({ hasNot: page.getByTestId("team-card-my-team-badge") })
+      .first();
+    test.skip(!(await otherTeamCard.isVisible().catch(() => false)), "다른 팀 카드 없음");
+    await otherTeamCard.getByRole("button", { name: "입장하기" }).click();
+
+    await expect(page.getByTestId("team-trouble-write-form")).toHaveCount(0);
+    await expect(page.getByTestId("team-trouble-readonly-notice")).toBeVisible();
+    await expect(page.getByTestId("team-trouble-problem-input")).toHaveCount(0);
+  });
+
   test("41. 과거 수업 페이지 → 교수 평가 (vision #48)", async ({ page }) => {
     await loginViaLanding(page);
     await page.locator('a[href="/app/mypage"]').click();
@@ -112,6 +129,9 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     });
 
     await page.getByRole("button", { name: "프로젝트 평가" }).click();
+    const evalOverlay = page.getByTestId("professor-project-eval-modal-overlay");
+    await expect(evalOverlay).toBeVisible({ timeout: 15_000 });
+    expect(await evalOverlay.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
     await page.getByTestId("professor-eval-holistic").fill(`e2e-prof-${Date.now()}`);
     await page.getByTestId("professor-project-eval-submit").click();
     await expect(page.getByRole("button", { name: "프로젝트 평가" })).toBeVisible({
@@ -337,7 +357,13 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await loginViaLanding(page);
     await openFirstCourse(page);
     await page.getByRole("link", { name: "팀", exact: true }).click();
-    await page.getByRole("button", { name: "입장하기" }).first().click();
+
+    const myTeamCard = page
+      .locator('[data-testid="teams-card-grid"] > div')
+      .filter({ has: page.getByTestId("team-card-my-team-badge") })
+      .first();
+    test.skip(!(await myTeamCard.isVisible().catch(() => false)), "내 팀 카드 없음");
+    await myTeamCard.getByRole("button", { name: "입장하기" }).click();
 
     const uniqueProblem = `e2e-trouble-persist-${Date.now()}`;
     await page.getByTestId("team-trouble-problem-input").fill(uniqueProblem);
@@ -376,6 +402,25 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await expect(page.getByTestId("course-detail-my-team-members-title")).toBeVisible();
   });
 
+  test("45. 나의팀멤버 클릭 시 프로필 fixed 모달", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByTestId("course-detail-side-my-team-members").click();
+
+    const memberBtn = page
+      .locator('[data-testid^="course-detail-my-team-member-"]')
+      .filter({ hasNot: page.locator("text=(나)") })
+      .first();
+    test.skip(!(await memberBtn.isVisible().catch(() => false)), "다른 조원 없음");
+
+    await memberBtn.click();
+    const overlay = page.getByTestId("student-quick-profile-overlay");
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    expect(await overlay.evaluate((el) => getComputedStyle(el).position)).toBe("fixed");
+    await expect(page.getByTestId("student-quick-profile-modal")).toBeVisible();
+    await overlay.click({ position: { x: 8, y: 8 } });
+  });
+
   test("28. 수강생 카드 클릭 상세 프로필 모달 조회", async ({ page }) => {
     await loginViaLanding(page);
     await openFirstCourse(page);
@@ -385,8 +430,56 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await page.locator('[data-testid^="student-network-card-"]').first().click();
     await expect(page.getByTestId("student-profile-modal")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("student-profile-modal-detailed-bio")).not.toBeEmpty();
-    await page.getByTestId("student-profile-modal-overlay").click();
+    const overlayPosition = await page
+      .getByTestId("student-profile-modal-overlay")
+      .evaluate((el) => getComputedStyle(el).position);
+    expect(overlayPosition).toBe("fixed");
+    await page.getByTestId("student-profile-modal-overlay").click({ position: { x: 8, y: 8 } });
     await expect(page.getByTestId("student-profile-modal")).toHaveCount(0);
+  });
+
+  test("44. 팀 탈퇴는 워크스페이스 안에서만 (vision #51)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+
+    const myTeamCard = page
+      .locator('[data-testid="teams-card-grid"] > div')
+      .filter({ has: page.getByTestId("team-card-my-team-badge") })
+      .first();
+    test.skip(!(await myTeamCard.isVisible().catch(() => false)), "내 팀 카드 없음");
+
+    await expect(myTeamCard.getByTestId(/^team-leave-/)).toHaveCount(0);
+    await expect(myTeamCard.getByTestId(/^team-leave-hint-/)).toBeVisible();
+    await expect(page.locator('[data-testid^="team-join-"]')).toHaveCount(0);
+
+    await myTeamCard.getByRole("button", { name: "입장하기" }).click();
+    await expect(page.getByTestId("team-workspace-leave-wrap")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("team-workspace-leave")).toBeVisible();
+  });
+
+  test("43. 수강생 프로필 모달이 뷰포트 중앙 fixed (vision #50)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "수강자들", exact: true }).click();
+
+    const grid = page.locator(".grid").filter({ has: page.locator('[data-testid^="student-network-card-"]') }).first();
+    await grid.evaluate((el) => el.scrollIntoView({ block: "end" }));
+    await page.locator('[data-testid^="student-network-card-"]').first().click();
+
+    const overlay = page.getByTestId("student-profile-modal-overlay");
+    await expect(overlay).toBeVisible({ timeout: 15_000 });
+    const box = await overlay.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      const viewport = page.viewportSize();
+      expect(viewport).not.toBeNull();
+      if (viewport) {
+        expect(box.width).toBeGreaterThan(viewport.width * 0.9);
+        expect(box.height).toBeGreaterThan(viewport.height * 0.9);
+      }
+    }
+    await overlay.click({ position: { x: 8, y: 8 } });
   });
 
   test("29. 팀 목록에서 내가 속한 팀 강조 UI 노출", async ({ page }) => {

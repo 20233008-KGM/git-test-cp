@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
 import { useAuth } from "../contexts/AuthContext";
@@ -83,7 +83,6 @@ function TeamCardComponent({
   onClick,
   showJoinActions,
   onJoin,
-  onLeave,
   onStageChange,
   canEditStages,
 }: {
@@ -93,7 +92,6 @@ function TeamCardComponent({
   onClick: () => void;
   showJoinActions?: boolean;
   onJoin?: () => void;
-  onLeave?: () => void;
   onStageChange?: (next: number) => void;
   canEditStages?: boolean;
 }) {
@@ -155,34 +153,25 @@ function TeamCardComponent({
           입장하기
         </button>
 
-        {showJoinActions && (
+        {showJoinActions && !isMyTeam && (
           <div className="flex flex-col gap-2">
-            {isMyTeam ? (
-              <button
-                type="button"
-                data-testid={`team-leave-${team.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onLeave?.();
-                }}
-                className="w-full rounded-[10px] border border-gray-300 bg-white py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
-              >
-                팀 탈퇴
-              </button>
-            ) : (
-              <button
-                type="button"
-                data-testid={`team-join-${team.id}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onJoin?.();
-                }}
-                className="w-full rounded-[10px] border border-[#155dfc] bg-[#eff6ff] py-2 text-sm font-bold text-[#155dfc] hover:bg-blue-100"
-              >
-                팀 참여
-              </button>
-            )}
+            <button
+              type="button"
+              data-testid={`team-join-${team.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onJoin?.();
+              }}
+              className="w-full rounded-[10px] border border-[#155dfc] bg-[#eff6ff] py-2 text-sm font-bold text-[#155dfc] hover:bg-blue-100"
+            >
+              팀 참여
+            </button>
           </div>
+        )}
+        {showJoinActions && isMyTeam && (
+          <p className="text-center text-[11px] font-medium text-[#64748b]" data-testid={`team-leave-hint-${team.id}`}>
+            탈퇴는 팀 워크스페이스(입장) 안에서 할 수 있습니다
+          </p>
         )}
 
         {/* 숫자로 보는 전체 진행률입니다. 실제 막대는 아니고 텍스트로만 보여줍니다. */}
@@ -299,6 +288,14 @@ export default function TeamsPage() {
 
   const isArchived = course?.status === "archived";
 
+  const hasMyTeamInCourse = useMemo(
+    () =>
+      Boolean(
+        user?.id && teams.some((team) => team.members.some((member) => member.id === user.id))
+      ),
+    [teams, user?.id]
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* 팀 목록: 상위 MainLayout과 함께 가로를 넓혀 데스크탑 5열 그리드를 수용합니다 (vision #20). */}
@@ -408,21 +405,13 @@ export default function TeamsPage() {
                 team={team}
                 stages={stages}
                 isMyTeam={isMyTeam}
-                showJoinActions={isStudent && !isArchived}
+                showJoinActions={isStudent && !isArchived && !hasMyTeamInCourse}
                 onJoin={async () => {
                   try {
                     await api.teams.join(team.id);
                     await reloadTeams();
                   } catch (error) {
                     alert(error instanceof Error ? error.message : "팀 참여에 실패했습니다.");
-                  }
-                }}
-                onLeave={async () => {
-                  try {
-                    await api.teams.leave(team.id);
-                    await reloadTeams();
-                  } catch (error) {
-                    alert(error instanceof Error ? error.message : "팀 탈퇴에 실패했습니다.");
                   }
                 }}
                 canEditStages={isMyTeam && isStudent && !isArchived}

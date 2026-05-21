@@ -312,8 +312,10 @@ function StudentProfileModal({
 
   return (
     <div
-      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(45,45,45,0.76)] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
       data-testid="student-profile-modal-overlay"
     >
       <div
@@ -443,8 +445,11 @@ function MyInfoEditModal({
 
   return (
     <div
-      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.72)] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      data-testid="student-info-edit-modal-overlay"
     >
       <div
         className="bg-white rounded-[14px] shadow-2xl w-full max-w-[600px] max-h-[90vh] overflow-y-auto"
@@ -636,8 +641,11 @@ function RandomTeamModal({
 
   return (
     <div
-      className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(45,45,45,0.76)] p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      data-testid="random-team-modal-overlay"
     >
       <div
         className="bg-white rounded-[14px] shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col"

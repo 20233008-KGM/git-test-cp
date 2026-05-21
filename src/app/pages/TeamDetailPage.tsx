@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { api, buildTeamProgressSummary } from "../api/supabase-api";
+import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
 import { supabase } from "../supabase";
 import TeamPeerReviewPage from "./TeamPeerReviewPage";
 import TeamRetrospectivePage from "./TeamRetrospectivePage";
@@ -15,12 +16,18 @@ import type {
   TeamSubmissionPeerReviewItem,
   TroubleshootingLog,
   PeerReviewTeammate,
+  StudentProfile,
 } from "../types";
 
 export default function TeamDetailPage() {
   const { id, teamId, courseId } = useParams<{ id?: string; teamId?: string; courseId?: string }>();
   const selectedTeamId = teamId ?? id ?? "";
+  const navigate = useNavigate();
   const { isProfessor, isStudent, isAdmin, user } = useAuth();
+  const [leavingTeam, setLeavingTeam] = useState(false);
+  const [selectedMemberProfile, setSelectedMemberProfile] = useState<StudentProfile | null>(null);
+  const [memberProfileLoading, setMemberProfileLoading] = useState(false);
+  const [memberProfileError, setMemberProfileError] = useState<string | null>(null);
   const [showEvalModal, setShowEvalModal] = useState(false);
   const [showStudentEvalModal, setShowStudentEvalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -185,13 +192,67 @@ export default function TeamDetailPage() {
   const [deliverableLinkUrl, setDeliverableLinkUrl] = useState("");
   const [deliverableLinkTitle, setDeliverableLinkTitle] = useState("");
 
+  const isMyTeamMember = useMemo(
+    () => Boolean(user?.id && teammates.some((member) => member.id === user.id)),
+    [teammates, user?.id]
+  );
+
   const canEditLog = (log: TroubleshootingLog) => log.author === myName;
   const canResolveLog = (log: TroubleshootingLog) =>
     log.status === "in-progress" &&
     !isArchived &&
     (log.author === myName || isProfessor || isAdmin);
 
-  const canUploadDeliverable = !isArchived && (isStudent || isProfessor || isAdmin);
+  const canWriteTroubleshooting = !isArchived && isStudent && isMyTeamMember;
+  const canUploadDeliverable =
+    !isArchived && ((isStudent && isMyTeamMember) || isProfessor || isAdmin);
+  const canLeaveTeam = !isArchived && isStudent && isMyTeamMember;
+
+  const openMemberProfile = async (memberId: string) => {
+    if (memberId === user?.id) return;
+    setMemberProfileLoading(true);
+    setMemberProfileError(null);
+    setSelectedMemberProfile(null);
+    try {
+      const profile = await api.students.getById(memberId);
+      if (!profile) {
+        setMemberProfileError("프로필을 불러오지 못했습니다.");
+        return;
+      }
+      setSelectedMemberProfile(profile);
+    } catch (error) {
+      console.error(error);
+      setMemberProfileError(
+        error instanceof Error ? error.message : "프로필을 불러오지 못했습니다."
+      );
+    } finally {
+      setMemberProfileLoading(false);
+    }
+  };
+
+  const closeMemberProfile = () => {
+    setSelectedMemberProfile(null);
+    setMemberProfileError(null);
+    setMemberProfileLoading(false);
+  };
+
+  const handleLeaveTeam = async () => {
+    if (!selectedTeamId || leavingTeam) return;
+    if (!window.confirm("이 팀에서 탈퇴할까요? 다른 팀에 참여하려면 탈퇴 후 팀 목록에서 참여할 수 있습니다.")) {
+      return;
+    }
+
+    setLeavingTeam(true);
+    try {
+      await api.teams.leave(selectedTeamId);
+      navigate(courseId ? `/app/courses/${courseId}/teams` : "/app/teams");
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "팀 탈퇴에 실패했습니다.");
+    } finally {
+      setLeavingTeam(false);
+    }
+  };
 
   const teamProgressSummary = useMemo(
     () => buildTeamProgressSummary(deliverables, troubleshootingLogs),
@@ -596,30 +657,32 @@ export default function TeamDetailPage() {
                 </span>
               )
             ) : isStudent ? (
-              isEvaluationOpen ? (
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => setShowPeerReviewModal(true)}
-                    data-testid="team-peer-review-modal-open"
-                    className="border-2 border-[#155dfc] bg-white px-6 py-2.5 rounded-[10px] font-bold text-base text-[#155dfc] hover:bg-blue-50 transition-colors text-center"
-                  >
-                    조원평가
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowRetrospectiveModal(true)}
-                    data-testid="team-retrospective-modal-open"
-                    className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors text-center"
-                  >
-                    {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
-                  </button>
-                </div>
-              ) : (
-                <span className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">
-                  교수가 수업을 종료하면 조원평가·회고록이 열립니다
-                </span>
-              )
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+                {isEvaluationOpen ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowPeerReviewModal(true)}
+                      data-testid="team-peer-review-modal-open"
+                      className="border-2 border-[#155dfc] bg-white px-6 py-2.5 rounded-[10px] font-bold text-base text-[#155dfc] hover:bg-blue-50 transition-colors text-center"
+                    >
+                      조원평가
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRetrospectiveModal(true)}
+                      data-testid="team-retrospective-modal-open"
+                      className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors text-center"
+                    >
+                      {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
+                    </button>
+                  </>
+                ) : (
+                  <span className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">
+                    교수가 수업을 종료하면 조원평가·회고록이 열립니다
+                  </span>
+                )}
+              </div>
             ) : null}
           </div>
         </div>
@@ -642,18 +705,22 @@ export default function TeamDetailPage() {
             <h3 className="mb-3 text-base font-bold text-[#1c398e]">👥 팀원</h3>
             <div className="flex flex-wrap gap-3">
               {teammates.map((member) => (
-                <div
+                <button
                   key={member.id}
-                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-[#f8fafc] px-3 py-2"
+                  type="button"
+                  data-testid={`team-workspace-member-${member.id}`}
+                  onClick={() => void openMemberProfile(member.id)}
+                  disabled={member.id === user?.id}
+                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-[#f8fafc] px-3 py-2 transition-colors hover:border-[#155dfc] hover:bg-[#eff6ff] disabled:cursor-default disabled:opacity-80"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155dfc] text-xs font-bold text-white">
                     {(member.name ?? "?").charAt(0)}
                   </span>
-                  <div>
+                  <div className="text-left">
                     <p className="text-sm font-bold text-gray-900">{member.name}</p>
                     <p className="text-[10px] text-gray-500">{member.contribution ?? "팀원"}</p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -1072,8 +1139,20 @@ export default function TeamDetailPage() {
               </div>
             </div>
 
-            {!isArchived && isStudent && (
-              <div className="mt-4 bg-white border-2 border-[rgba(174,174,174,0.3)] rounded-[10px] shadow-md p-4">
+            {isStudent && !isArchived && !isMyTeamMember && (
+              <p
+                className="mt-4 rounded-[10px] border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600"
+                data-testid="team-trouble-readonly-notice"
+              >
+                다른 팀 워크스페이스는 조회만 가능합니다. 트러블슈팅은 내 팀에서만 작성할 수 있습니다.
+              </p>
+            )}
+
+            {canWriteTroubleshooting && (
+              <div
+                className="mt-4 bg-white border-2 border-[rgba(174,174,174,0.3)] rounded-[10px] shadow-md p-4"
+                data-testid="team-trouble-write-form"
+              >
                 <p className="text-xs text-red-600 font-medium mb-2">새 트러블슈팅 기록</p>
                 <textarea
                   value={problemInput}
@@ -1219,13 +1298,33 @@ export default function TeamDetailPage() {
             </>
           )}
         </div>
+
+        {canLeaveTeam && (
+          <div
+            className="mt-10 flex justify-end border-t border-[#e2e8f0] pt-4"
+            data-testid="team-workspace-leave-wrap"
+          >
+            <button
+              type="button"
+              onClick={() => void handleLeaveTeam()}
+              disabled={leavingTeam}
+              data-testid="team-workspace-leave"
+              className="text-[11px] font-normal text-[#94a3b8] transition-colors hover:text-[#475569] underline-offset-2 hover:underline disabled:opacity-50"
+            >
+              {leavingTeam ? "탈퇴 처리 중…" : "팀에서 탈퇴하기"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 채팅 모달 */}
       {showChatModal && (
         <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowChatModal(false)}
+          role="dialog"
+          aria-modal="true"
+          data-testid="team-chat-modal-overlay"
         >
           <div
             className="bg-white rounded-[14px] shadow-2xl max-w-[680px] w-full flex flex-col"
@@ -1325,8 +1424,11 @@ export default function TeamDetailPage() {
       {/* 평가 모달 (교수만) */}
       {isProfessor && isEvaluationOpen && showEvalModal && (
         <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowEvalModal(false)}
+          role="dialog"
+          aria-modal="true"
+          data-testid="professor-project-eval-modal-overlay"
         >
           <div
             className="bg-white rounded-[10px] shadow-2xl max-w-[1191px] w-full max-h-[90vh] overflow-y-auto relative"
@@ -1450,8 +1552,11 @@ export default function TeamDetailPage() {
       {/* 학생 평가 모달 (교수만) */}
       {isProfessor && isEvaluationOpen && showStudentEvalModal && (
         <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowStudentEvalModal(false)}
+          role="dialog"
+          aria-modal="true"
+          data-testid="professor-student-eval-modal-overlay"
         >
           <div
             className="bg-white rounded-[10px] shadow-2xl max-w-[780px] w-full max-h-[90vh] overflow-y-auto"
@@ -1555,8 +1660,11 @@ export default function TeamDetailPage() {
       {/* 피드백 커스텀 모달 */}
       {!isArchived && showFeedbackCustomModal && (
         <div
-          className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.83)] p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
           onClick={() => setShowFeedbackCustomModal(false)}
+          role="dialog"
+          aria-modal="true"
+          data-testid="team-feedback-custom-modal-overlay"
         >
           <div
             className="bg-white rounded-[10px] shadow-2xl max-w-[500px] w-full max-h-[90vh] overflow-y-auto"
@@ -1656,6 +1764,13 @@ export default function TeamDetailPage() {
           </div>
         </div>
       )}
+
+      <StudentQuickProfileModal
+        profile={selectedMemberProfile}
+        loading={memberProfileLoading}
+        errorMessage={memberProfileError}
+        onClose={closeMemberProfile}
+      />
     </div>
   );
 }

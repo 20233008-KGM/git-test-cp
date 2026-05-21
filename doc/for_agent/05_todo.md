@@ -175,9 +175,22 @@
 | T-167 | deploy_vercel·env.example | done | apply_remote_full |
 | T-168 | 28·00_pre_launch H-007~011 | done | human:verify |
 | T-169 | prelaunch_check.md · H-002 probe | done | Edge OPTIONS |
+| T-170 | vision #49 다른 팀 트러블슈팅·산출물 작성 차단 | done | `assertStudentOwnTeamWrite` + TeamDetail UI + E2E #42 |
+| T-171 | vision #50 수강생 프로필 fixed 모달 (#8·#18 별도) | done | `StudentsNetworkPage` 오버레이 `fixed inset-0` + E2E #43 |
+| T-172 | 인라인 모달 → fixed 오버레이 (TeamDetail·MyPage) | done | 채팅·교수평가·피드백·프로젝트상세 + E2E #12 |
+| T-173 | vision #51 팀 탈퇴는 워크스페이스 내부만 | done | TeamsPage 탈퇴 제거·TeamDetail `team-workspace-leave` + E2E #44 |
+| T-174 | vision #51 보강: 탈퇴 소형·참여버튼 숨김 | done | 하단 muted 탈퇴·`hasMyTeamInCourse` |
+| T-175 | 조원 클릭 프로필 fixed 모달 (나의팀멤버·워크스페이스) | done | `StudentQuickProfileModal` + E2E #45 |
+| T-176 | E2E·handoff 문서 #42~45 동기화 | done | `14_testing`·`17_handoff` |
 
 ## 완료됨 (최근)
 
+- [o] T-175·T-176 조원 프로필 모달·문서 (2026-05-21, plans/260521-26.md)
+- [o] T-174 vision #51 탈퇴 스타일·참여 숨김 (2026-05-21, plans/260521-25.md)
+- [o] T-173 vision #51 팀 탈퇴 워크스페이스 전용 (2026-05-21, plans/260521-24.md)
+- [o] T-172 TeamDetail·MyPage 모달 fixed 오버레이 (2026-05-21, plans/260521-23.md)
+- [o] T-171 vision #50 학생 프로필 fixed 모달 (2026-05-21, plans/260521-22.md)
+- [o] T-170 vision #49 다른 팀 TS·산출물 작성 차단 (2026-05-21, plans/260521-21.md)
 - [o] T-166~T-169 prelaunch:check (2026-05-21, plans/260521-20.md)
 - [o] T-162~T-165 문서·CI·E2E #41 (2026-05-21, plans/260521-19.md)
 - [o] T-158~T-161 검증 파이프라인 (2026-05-21, plans/260521-18.md)

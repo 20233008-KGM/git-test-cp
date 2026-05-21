@@ -1,0 +1,84 @@
+import type { StudentProfile } from "../types";
+
+type StudentQuickProfileModalProps = {
+  profile: StudentProfile | null;
+  loading: boolean;
+  errorMessage?: string | null;
+  onClose: () => void;
+};
+
+export default function StudentQuickProfileModal({
+  profile,
+  loading,
+  errorMessage,
+  onClose,
+}: StudentQuickProfileModalProps) {
+  if (!loading && !profile && !errorMessage) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      data-testid="student-quick-profile-overlay"
+    >
+      <div
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[14px] bg-white p-6 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="student-quick-profile-modal"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="text-lg font-bold text-[#101828]">수강생 프로필</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xl font-bold text-gray-400 hover:text-gray-700"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+
+        {loading && <p className="text-sm text-gray-500">프로필을 불러오는 중…</p>}
+
+        {errorMessage && !loading && (
+          <p className="text-sm font-medium text-red-600" data-testid="student-quick-profile-error">
+            {errorMessage}
+          </p>
+        )}
+
+        {profile && !loading && (
+          <div className="space-y-4" data-testid="student-quick-profile-body">
+            <div>
+              <p className="text-base font-bold text-[#101828]">{profile.name}</p>
+              <p className="text-sm text-[#6a7282]">{profile.studentId}</p>
+              <p className="text-sm text-[#6a7282]">{profile.major}</p>
+            </div>
+            {profile.bio && (
+              <div>
+                <p className="mb-1 text-xs font-bold text-gray-500">자기소개</p>
+                <p className="text-sm text-[#364153] leading-relaxed">{profile.bio}</p>
+              </div>
+            )}
+            {(profile.skills?.length ?? 0) > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-bold text-gray-500">기술 스택</p>
+                <div className="flex flex-wrap gap-2">
+                  {profile.skills!.map((skill) => (
+                    <span
+                      key={skill}
+                      className="rounded-full bg-[#eff6ff] px-2.5 py-1 text-xs font-medium text-[#1c398e]"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
