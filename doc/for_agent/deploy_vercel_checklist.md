@@ -9,7 +9,8 @@
 |---|------|------|
 | 1 | 프로덕션 Supabase 프로젝트 URL·anon key 확보 | [ ] |
 | 2 | RLS 리뷰 (`rls_review_packet.md`, H-001) | [ ] |
-| 3 | **`migrations/20260520102000_team_detail_writes_bundle_v2.sql`** (H-007~010 일괄) · [29](../for_human/29_supabase_bundle_sql.md) | [ ] |
+| 3 | **`supabase/apply_remote_full.sql`** (`npm run supabase:apply-remote-full`) — v2+김학생 시드+인덱스 · [38](../for_human/38_archived_kim_student_setup.md) | [ ] |
+| 3b | (대안) 번들 v2만 — [29](../for_human/29_supabase_bundle_sql.md) | [ ] |
 | 4 | Edge `generate-report` deploy (+ `OPENAI_API_KEY` 선택 — 없어도 DB 초안 200) | [ ] |
 | 5 | Storage bucket `ai_team_deliverables` 정책 확인 | [ ] |
 
@@ -25,8 +26,11 @@
 
 ```bash
 npm ci
+npm run prelaunch:check
 npm run build
 ```
+
+`prelaunch:check` = build + (`.env` Supabase 있으면) `verify:archived-kim` + `verify:bundle:preflight`
 
 | # | 항목 | 확인 |
 |---|------|------|

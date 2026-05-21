@@ -81,23 +81,33 @@ function TeamCardComponent({
   stages,
   isMyTeam,
   onClick,
+  showJoinActions,
+  onJoin,
+  onLeave,
+  onStageChange,
+  canEditStages,
 }: {
   team: TeamCard;
   stages: string[];
   isMyTeam: boolean;
   onClick: () => void;
+  showJoinActions?: boolean;
+  onJoin?: () => void;
+  onLeave?: () => void;
+  onStageChange?: (next: number) => void;
+  canEditStages?: boolean;
 }) {
   return (
     <div
       // 카드 아무 곳이나 눌러도 해당 팀 상세 페이지로 이동하게 합니다.
       onClick={onClick}
-      className={`bg-white rounded-[14px] border shadow-[2px_4px_4px_2px_rgba(224,224,224,0.28)] overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer flex flex-col ${
+      className={`flex h-full min-w-0 flex-col cursor-pointer overflow-hidden rounded-[14px] border bg-white shadow-[2px_4px_4px_2px_rgba(224,224,224,0.28)] transition-all hover:-translate-y-0.5 hover:shadow-lg ${
         isMyTeam ? "border-[#155dfc] ring-2 ring-[#bfdbfe]" : "border-gray-200"
       }`}
     >
       {/* 카드 상단의 파란 그라데이션 영역입니다. 팀 이름과 뱃지를 보여줍니다. */}
       <div className="bg-gradient-to-r from-[#3676ff] to-[#003ecc] px-5 py-5 border-b border-black/10 flex-shrink-0">
-        <p className="text-white font-black text-3xl leading-none mb-1">
+        <p className="mb-1 text-2xl font-black leading-tight text-white xl:text-xl">
           {team.name}
         </p>
         {/* badge 값이 있으면 뱃지 문구를 보여주고, 없으면 아래에서 빈 높이만 맞춥니다. */}
@@ -145,6 +155,36 @@ function TeamCardComponent({
           입장하기
         </button>
 
+        {showJoinActions && (
+          <div className="flex flex-col gap-2">
+            {isMyTeam ? (
+              <button
+                type="button"
+                data-testid={`team-leave-${team.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLeave?.();
+                }}
+                className="w-full rounded-[10px] border border-gray-300 bg-white py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+              >
+                팀 탈퇴
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-testid={`team-join-${team.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onJoin?.();
+                }}
+                className="w-full rounded-[10px] border border-[#155dfc] bg-[#eff6ff] py-2 text-sm font-bold text-[#155dfc] hover:bg-blue-100"
+              >
+                팀 참여
+              </button>
+            )}
+          </div>
+        )}
+
         {/* 숫자로 보는 전체 진행률입니다. 실제 막대는 아니고 텍스트로만 보여줍니다. */}
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-[#3676ff]" />
@@ -155,6 +195,37 @@ function TeamCardComponent({
 
         {/* completedStages 값을 넘겨서 완료된 단계 개수만큼 파란색으로 표시합니다. */}
         <StageProgress completedStages={team.completedStages} stages={stages} />
+        {canEditStages && onStageChange && (
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              data-testid={`team-stage-decrease-${team.id}`}
+              disabled={team.completedStages <= 0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStageChange(team.completedStages - 1);
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-xs font-bold disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="text-xs font-bold text-gray-600">
+              진행 단계 {team.completedStages}/{stages.length}
+            </span>
+            <button
+              type="button"
+              data-testid={`team-stage-increase-${team.id}`}
+              disabled={team.completedStages >= stages.length}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStageChange(team.completedStages + 1);
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-xs font-bold disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
+        )}
 
         {/* 최근 활동 목록입니다. 활동이 없으면 빈 상태 메시지를 대신 보여줍니다. */}
         <div>
@@ -196,36 +267,42 @@ function TeamCardComponent({
 // 팀 목록 페이지의 실제 시작점입니다.
 // 이 컴포넌트가 팀 카드 목록, 공지 목록, 푸터를 한 화면에 조립합니다.
 export default function TeamsPage() {
-  // useNavigate는 react-router가 제공하는 페이지 이동 함수입니다.
-  // navigate("/주소")를 호출하면 해당 주소의 페이지로 이동합니다.
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId?: string }>();
-  const { user } = useAuth();
+  const { user, isStudent } = useAuth();
   const [teams, setTeams] = useState<TeamCard[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stages, setStages] = useState<string[]>([]);
   const [course, setCourse] = useState<Course | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newProjectTitle, setNewProjectTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const reloadTeams = React.useCallback(async () => {
+    if (!courseId) return;
+    const [teamData, announcementData, stageData, courseData] = await Promise.all([
+      api.teamCards.getAll(courseId),
+      api.announcements.getAll(courseId, 3),
+      api.teamStages.getAll(courseId),
+      api.courses.getById(courseId),
+    ]);
+    setTeams(teamData);
+    setAnnouncements(announcementData);
+    setStages(stageData);
+    setCourse(courseData ?? null);
+  }, [courseId]);
 
   useEffect(() => {
-    Promise.all([
-      api.teamCards.getAll(courseId),
-      api.announcements.getAll(courseId),
-      api.teamStages.getAll(courseId),
-      courseId ? api.courses.getById(courseId) : Promise.resolve(undefined),
-    ]).then(([teamData, announcementData, stageData, courseData]) => {
-      setTeams(teamData);
-      setAnnouncements(announcementData);
-      setStages(stageData);
-      setCourse(courseData ?? null);
-    });
-  }, [courseId]);
+    void reloadTeams();
+  }, [reloadTeams]);
 
   const isArchived = course?.status === "archived";
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* 가운데 정렬된 메인 콘텐츠 영역입니다. max-w-7xl로 너무 넓어지지 않게 제한합니다. */}
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      {/* 팀 목록: 상위 MainLayout과 함께 가로를 넓혀 데스크탑 5열 그리드를 수용합니다 (vision #20). */}
+      <div className="w-full min-w-0 flex-1 py-2 sm:py-4">
         {/* 페이지 제목과 새 팀 만들기 버튼이 있는 상단 영역입니다. */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-black tracking-tight text-[#155dfc] sm:text-3xl">
@@ -236,11 +313,81 @@ export default function TeamsPage() {
               종료된 수업: 읽기 전용
             </span>
           ) : (
-            <button className="w-full rounded-[10px] bg-[#1962ff] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#1450e0] sm:w-auto">
+            <button
+              type="button"
+              data-testid="teams-create-open"
+              onClick={() => setShowCreateModal(true)}
+              className="w-full rounded-[10px] bg-[#1962ff] px-5 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-[#1450e0] sm:w-auto"
+            >
               + 새 팀 만들기
             </button>
           )}
         </div>
+
+        {showCreateModal && courseId && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="mb-4 text-lg font-bold text-gray-900">새 팀 만들기</h2>
+              <div className="flex flex-col gap-3">
+                <input
+                  data-testid="teams-create-name"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  placeholder="팀 이름"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  data-testid="teams-create-project"
+                  value={newProjectTitle}
+                  onChange={(e) => setNewProjectTitle(e.target.value)}
+                  placeholder="프로젝트 제목 (선택)"
+                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="teams-create-submit"
+                    disabled={creating}
+                    onClick={async () => {
+                      setCreating(true);
+                      try {
+                        const { teamId } = await api.teams.create(courseId, {
+                          name: newTeamName,
+                          projectTitle: newProjectTitle,
+                        });
+                        setShowCreateModal(false);
+                        setNewTeamName("");
+                        setNewProjectTitle("");
+                        await reloadTeams();
+                        navigate(`/app/courses/${courseId}/teams/${teamId}`);
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : "팀 생성에 실패했습니다.");
+                      } finally {
+                        setCreating(false);
+                      }
+                    }}
+                    className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {creating ? "생성 중…" : "생성"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isArchived && (
           <div className="mb-6 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600">
@@ -248,26 +395,65 @@ export default function TeamsPage() {
           </div>
         )}
 
-        {/* 팀 카드들을 반응형 그리드로 배치합니다. 화면이 넓어질수록 한 줄에 더 많이 보입니다. */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-          {teams.map((team) => (
-            <TeamCardComponent
-              key={team.id}
-              team={team}
-              stages={stages}
-              isMyTeam={Boolean(user?.id && team.members.some((member) => member.id === user.id))}
-              // 팀 카드를 누르면 /app/teams/팀id 주소로 이동합니다.
-              onClick={() => navigate(courseId ? `/app/courses/${courseId}/teams/${team.id}` : `/app/teams/${team.id}`)}
-            />
-          ))}
+        {/* 데스크탑(xl) 5열 — 카드가 세로로 과도하게 길어지지 않도록 (vision #20) */}
+        <div
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+          data-testid="teams-card-grid"
+        >
+          {teams.map((team) => {
+            const isMyTeam = Boolean(user?.id && team.members.some((member) => member.id === user.id));
+            return (
+              <TeamCardComponent
+                key={team.id}
+                team={team}
+                stages={stages}
+                isMyTeam={isMyTeam}
+                showJoinActions={isStudent && !isArchived}
+                onJoin={async () => {
+                  try {
+                    await api.teams.join(team.id);
+                    await reloadTeams();
+                  } catch (error) {
+                    alert(error instanceof Error ? error.message : "팀 참여에 실패했습니다.");
+                  }
+                }}
+                onLeave={async () => {
+                  try {
+                    await api.teams.leave(team.id);
+                    await reloadTeams();
+                  } catch (error) {
+                    alert(error instanceof Error ? error.message : "팀 탈퇴에 실패했습니다.");
+                  }
+                }}
+                canEditStages={isMyTeam && isStudent && !isArchived}
+                onStageChange={async (next) => {
+                  try {
+                    await api.teams.updateCompletedStages(team.id, next);
+                    await reloadTeams();
+                  } catch (error) {
+                    alert(error instanceof Error ? error.message : "진행 단계 저장에 실패했습니다.");
+                  }
+                }}
+                onClick={() =>
+                  navigate(
+                    courseId ? `/app/courses/${courseId}/teams/${team.id}` : `/app/teams/${team.id}`
+                  )
+                }
+              />
+            );
+          })}
         </div>
 
         {/* 중요 공지와 마감일 목록입니다. announcements 배열을 반복해서 카드로 보여줍니다. */}
         <div className="mt-12">
           <h2 className="text-xl font-black text-[#101828] mb-5 flex items-center gap-2">
             📌 중요 공지 &amp; 마감일
+            <span className="text-sm font-normal text-gray-500">(최신 3건)</span>
           </h2>
           <div className="flex flex-col gap-4">
+            {announcements.length === 0 && (
+              <p className="text-sm text-gray-500">등록된 공지가 없습니다.</p>
+            )}
             {announcements.map((ann, i) => (
               // 공지 하나를 흰색 카드로 표시합니다.
               <div

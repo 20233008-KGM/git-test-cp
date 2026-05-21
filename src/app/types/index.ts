@@ -184,6 +184,7 @@ export interface MyPageProfile {
   name: string;
   email: string;
   schoolAndMajor: string;
+  imageUrl?: string;
 }
 
 export interface MyPageReportStat {

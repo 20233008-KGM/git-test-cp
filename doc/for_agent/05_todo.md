@@ -1,7 +1,7 @@
 ﻿# 05 — TODO (우선순위)
 
 > **관련:** `02_current_state.md` · `17_handoff.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-20
+> **마지막 갱신:** 2026-05-21
 
 ## P0 — 즉시 (데이터 기반)
 
@@ -60,7 +60,7 @@
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-040 | Playwright 핵심 플로우 | done | 31플로우 + 인증 가드 (`14_testing.md`) |
+| T-040 | Playwright 핵심 플로우 | done | 41플로우 + 인증 가드 (`14_testing.md`) |
 | T-041 | GitHub Actions CI | done | `.github/workflows/e2e.yml` |
 | T-042 | 프로덕션 배포 | in_progress | `vercel.json` + `deploy_vercel_checklist.md`, 실행 H-005 |
 | T-057 | Playwright 스모크 회귀 커맨드 정리 | done | `npm run test:e2e:smoke` + E2E #31 |
@@ -89,8 +89,114 @@
 | T-081 | 수강자 네트워크 빈 수업 데모 폴백 제거(vision #13) | done | `StudentsNetworkPage` `courseId` 스코프 시 API 결과 그대로 사용 |
 | T-082 | 랜덤 팀 `courseId` 라우트·Projects 카드 링크 | done | `/courses/:courseId/teams/random`, `ProjectsPage`→팀 상세 |
 | T-083 | `getStudentByIdFromDb` 접근 가능 수업 멤버십 기준 | done | primary 수업에만 속하지 않아도 같은 네트워크면 조회 가능 |
+| T-084 | 팀 수동 생성 API + TeamsPage 「+ 새 팀 만들기」 | done | `api.teams.create`, 생성 모달 |
+| T-085 | 팀 참여·탈퇴 (수업당 1팀) | done | `api.teams.join` / `leave`, 카드 버튼 |
+| T-086 | 랜덤 배정 기존 팀원 제외 + RandomTeamPage DB 저장 | done | #27·#28, `saveRandomAssignment` |
+| T-087 | 학생 랜덤 팀 UI 숨김 | done | StudentsNetwork·RandomTeamPage 교수 전용 |
+| T-088 | 팀 카드 데스크탑 최소 가로 50% | done | `lg:grid-cols-2`, `lg:min-w-[50%]` |
+| T-089 | 교수 공지 작성 + 팀 페이지 최신 3건 | done | `CourseAnnouncementsPage`, 사이드 네비 |
+| T-090 | vision #14 인간 보고서 + agent 유지 규칙 | done | `for_human/29_vision_requests_report.md` |
+| T-091 | TeamDetail UX (#15~#17,#29,#32,#26) | done | 조원평가 순서, TS 폼 하단, AI추천, 팀원, 피드백 수 |
+| T-092 | 팀 카드 활동 2건 + 진행 단계 수정 | done | `updateCompletedStages` |
+| T-093 | 수업 종료 후에만 평가 (vision #43) | done | `assertCourseAllowsEvaluations` |
+| T-094 | 수업 삭제 + 교수 프로필 저장 | done | `courses.delete`, `professors.saveProfile` |
+| T-095 | 아카이브 평가 시드 + 종료 수업 네비 | done | `archived_evals_kim_student.sql`, 사이드 네비 |
+| T-096 | 리포트 수신 동료평가 집계 | done | `gatherAiReportContext` teammate_id |
+| T-097 | 리포트 페이지 동적 네비 | done | `REPORT_PAGES` + Chevron |
+| T-098 | MyPage 과거 수업 사이드 | done | `getArchivedCourses` |
+| T-099 | 프로필 이미지 + 가입 기술 태그 | done | `updateAvatar`, `SignInPage` skills |
+| T-100 | 교수 마이페이지 대시보드 | done | `mypage-professor-dashboard` |
+| T-101 | 조원평가·회고록 모달 | done | `TeamDetailPage` overlay |
+| T-102 | 교수 동료평가 전체 조회 | done | `CoursePeerReviewsOverviewPage` |
+| T-103 | 아카이브 학생 평가 조회 페이지 | done | `CourseMyPeerReviewsGivenPage`, `CourseProfessorEvalsPage` |
+| T-104 | MyPage 학생 프로필 수정 | done | `saveStudentProfile` |
+| T-105 | 리포트 빈 팀플 상태 | done | `teams.length===0` → 빈 카드 |
+| T-106 | E2E 리포트 네비·평가 조회 | done | core-flows #32·#33 |
+| T-107 | 리포트 빈 상태·시드 가이드 | done | `38_archived_kim_student_setup.md` |
+| T-108 | 프로필 저장 후 refreshProfile | done | `AuthContext.refreshProfile` |
+| T-109 | DEMO_PROJECTS 제거 | done | MyPage |
+| T-110 | E2E 프로필 수정 #34 | done | core-flows |
+| T-111 | TeamDetail 회고록 제출 상태 연동 | done | `retrospectiveSubmitted` + 모달 닫을 때 갱신 |
+| T-112 | ProfessorProfile 저장 후 refreshProfile | done | AuthContext |
+| T-113 | MyPage 리포트 DB 없을 때 데모 숨김 | done | 역량·활동·트러블슈팅 |
+| T-114 | smoke full grep #32·#33·#34 | done | package.json |
+| T-115 | 통합 시드·02·29 문서 | done | `archived_kim_student_bundle.sql` |
+| T-116 | bundle SQL UTF-8 재생성 | done | `build-archived-bundle.mjs` |
+| T-117 | `npm run seed:archived-bundle` | done | package.json |
+| T-118 | MyPage 역량·TS 빈 상태 문구 | done | reportContextReady |
+| T-119 | 260521-6·7 doc 마감 | done | plans·current_session_plan |
+| T-120 | vision #20 팀 카드 5열·가로 확대 | done | TeamsPage·MainLayout |
+| T-121 | vision #20 레이아웃 폭 | done | `max-w-[min(100%,1920px)]` 팀 목록 |
+| T-122 | vision_snapshot·27·29 동기화 | done | `sync-vision-snapshot.mjs` |
+| T-123 | vision #47 MyPage TDZ 수정 | done | `reportHasArchivedTeams` 순서 |
+| T-124 | E2E #35 마이페이지 렌더 | done | `mypage-page` testid |
+| T-125 | vision #47 doc·스모크 grep | done | 29·27·snapshot |
+| T-126 | MyPage 리포트 로드 오류·재시도 | done | `mypage-report-load-error` |
+| T-127 | `verify:archived-kim` 스크립트 | done | `verify-archived-kim-setup.mjs` |
+| T-128 | 14·29·38 doc | done | #32~#35·verify 가이드 |
+| T-129 | PGRST205 missing table 감지 | done | supabase-api·ai-report |
+| T-130 | verify:archived-kim 상세 | done | tableChecks·missingTables |
+| T-131 | EvalSchemaNotice·getSchemaStatus | done | 평가 조회 페이지 |
+| T-132 | E2E #36 | done | core-flows |
+| T-133 | 38·14·29 | done | bundle v2 안내 |
+| T-134 | apply_remote_full.sql | done | build-apply-remote-full.mjs |
+| T-135 | legacy peer_review_students 감지 | done | getEvalSchemaStatus |
+| T-136 | EvalSchemaNotice·교수 동료평가 조회 | done | 3 pages |
+| T-137 | seed README·migrations README | done | |
+| T-138 | H-011 human_action_items | done | apply_remote_full |
+| T-139 | E2E openFirstArchivedCourse | done | auth helper |
+| T-140 | MyPage EvalSchemaNotice | done | 학생 리포트 상단 |
+| T-141 | 00·29·28·38 doc | done | |
+| T-142 | MCP bundle v2 마이그레이션 | done | `team_detail_writes_bundle_v2` |
+| T-143 | MCP 평가 시드 | done | `archived_evals_kim_student` |
+| T-144 | vision #48 과거 수업 전용 페이지 | done | `MyPageArchivedCoursesPage` |
+| T-145 | verify·29·snapshot·E2E #37 | done | `evalReady: true` |
+| T-146 | OOP 아카이브 평가 시드 | done | `team-oop-lost` |
+| T-147 | bundle·apply_remote_full 재생성 | done | seed:archived-bundle |
+| T-148 | verify 팀별 eval | done | `evalByArchivedTeam` |
+| T-149 | smoke #37·27 | done | package.json grep |
+| T-150 | 아카이브 회고록 시드 | done | `archived_retrospectives_kim_student.sql` |
+| T-151 | bundle 회고록 포함 | done | `build-archived-bundle.mjs` |
+| T-152 | 교수 평가 E2E #38·testid | done | `CourseProfessorEvalsPage` |
+| T-153 | verify retrospectiveCount | done | verify script |
+| T-154 | 아카이브 피드백 시드 | done | `archived_feedbacks_kim_student.sql` |
+| T-155 | bundle 피드백 포함 | done | build-archived-bundle |
+| T-156 | hot_path_membership_indexes | done | MCP migration |
+| T-157 | E2E #39·#40·testid | done | peer review·professor overview |
+| T-158 | apply_remote_full 인덱스 §3 | done | hot_path_membership_indexes |
+| T-159 | verify:archived-kim:json · verify-bundle | done | archivedKim in report |
+| T-160 | human:verify H-011 | done | verify-archived-kim when [o] |
+| T-161 | seed·migrations README · 02 | done | |
+| T-162 | 14·17·26 문서 동기화 | done | E2E #37~#41 |
+| T-163 | human:verify H-007~011 | done | archived-kim |
+| T-164 | E2E #41 · smoke | done | |
+| T-165 | CI archived verify · snapshot | done | build.yml |
+| T-166 | prelaunch-check 스크립트 | done | build+archived+preflight |
+| T-167 | deploy_vercel·env.example | done | apply_remote_full |
+| T-168 | 28·00_pre_launch H-007~011 | done | human:verify |
+| T-169 | prelaunch_check.md · H-002 probe | done | Edge OPTIONS |
 
 ## 완료됨 (최근)
+
+- [o] T-166~T-169 prelaunch:check (2026-05-21, plans/260521-20.md)
+- [o] T-162~T-165 문서·CI·E2E #41 (2026-05-21, plans/260521-19.md)
+- [o] T-158~T-161 검증 파이프라인 (2026-05-21, plans/260521-18.md)
+- [o] T-154~T-157 피드백·인덱스·E2E (2026-05-21, plans/260521-17.md)
+- [o] T-150~T-153 회고록·E2E #38 (2026-05-21, plans/260521-16.md)
+- [o] T-146~T-149 OOP 평가·verify 강화 (2026-05-21, plans/260521-15.md)
+- [o] T-142~T-145 MCP DB·#48 과거 수업 페이지 (2026-05-21, plans/260521-14.md)
+- [o] T-138~T-141 H-011·E2E·MyPage (2026-05-21, plans/260521-13.md)
+- [o] T-134~T-137 원격 일괄 SQL·schema (2026-05-21, plans/260521-12.md)
+- [o] T-129~T-133 vision #46 schema 안내 (2026-05-21, plans/260521-11.md)
+- [o] T-126~T-128 리포트 오류 UI·시드 점검 (2026-05-21, plans/260521-10.md)
+- [o] T-123~T-125 vision #47 마이페이지 진입 수정 (2026-05-21, plans/260521-9.md)
+- [o] T-120~T-122 vision #20 5열·doc (2026-05-21, plans/260521-8.md)
+- [o] T-111~T-119 회고록·시드·빈 상태 (2026-05-21, plans/260521-6·260521-7.md)
+- [o] T-107~T-110 정리·프로필·시드 가이드 (2026-05-21, plans/260521-5.md)
+- [o] T-103~T-106 아카이브 평가·프로필·E2E (2026-05-21, plans/260521-4.md)
+- [o] T-096~T-102 MyPage·가입·모달·동료평가 조회 (2026-05-21, plans/260521-3.md)
+- [o] T-090~T-095 vision #14~#44 일부 (2026-05-21, plans/260521-2.md)
+- [o] T-084~T-089 팀 생성·참여·랜덤·공지 (2026-05-21, plans/260521-1.md)
 
 - [o] T-083 타 학생 프로필 단건 조회 멤버십 범위 확장 (`getStudentByIdFromDb`) (2026-05-20)
 - [o] T-082 랜덤 팀 페이지 수업 스코프 라우트 + `ProjectsPage` 팀 링크 (2026-05-20)

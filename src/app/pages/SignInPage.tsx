@@ -4,6 +4,21 @@ import { useAuth } from "../contexts/AuthContext";
 import type { Signupinput } from "../contexts/AuthContext";
 import { UserRole } from "../types";
 
+const SIGNUP_SKILL_PRESETS = [
+  "React",
+  "TypeScript",
+  "Node.js",
+  "Python",
+  "Java",
+  "Spring",
+  "Figma",
+  "UI/UX",
+  "기획",
+  "데이터분석",
+  "Docker",
+  "Git",
+] as const;
+
 export default function SignInPage() {
   // 페이지 이동을 도와주는 함수입니다.
   // 예: 회원가입 성공 후 "/app/courses" 페이지로 이동할 때 사용합니다.
@@ -21,7 +36,34 @@ export default function SignInPage() {
     password: "",
     role: "student" as UserRole,
     courseCode: "",
+    skills: [],
   });
+  const [customSkill, setCustomSkill] = useState("");
+
+  const selectedSkills = form.skills ?? [];
+
+  const toggleSkill = (skill: string) => {
+    setForm((prev) => {
+      const current = prev.skills ?? [];
+      const next = current.includes(skill)
+        ? current.filter((s) => s !== skill)
+        : current.length < 12
+          ? [...current, skill]
+          : current;
+      return { ...prev, skills: next };
+    });
+  };
+
+  const addCustomSkill = () => {
+    const trimmed = customSkill.trim();
+    if (!trimmed) return;
+    setForm((prev) => {
+      const current = prev.skills ?? [];
+      if (current.includes(trimmed) || current.length >= 12) return prev;
+      return { ...prev, skills: [...current, trimmed] };
+    });
+    setCustomSkill("");
+  };
 
   // 이메일/비밀번호 input이나 역할 select 값이 바뀔 때 실행됩니다.
   const handlechange = (
@@ -55,6 +97,7 @@ export default function SignInPage() {
         password: form.password as string,
         role: form.role as UserRole,
         courseCode: form.role === "student" ? form.courseCode : undefined,
+        skills: form.skills,
       });
 
       navigate("/app/courses");
@@ -187,6 +230,58 @@ export default function SignInPage() {
                   <option value="student">학생</option>
                   <option value="professor">교수</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                  기술·역량 태그 (최대 12개)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {SIGNUP_SKILL_PRESETS.map((skill) => {
+                    const active = selectedSkills.includes(skill);
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => toggleSkill(skill)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                          active
+                            ? "border-blue-600 bg-blue-600 text-white"
+                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400"
+                        }`}
+                      >
+                        {skill}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={customSkill}
+                    onChange={(e) => setCustomSkill(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addCustomSkill();
+                      }
+                    }}
+                    placeholder="직접 입력"
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={addCustomSkill}
+                    className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                  >
+                    추가
+                  </button>
+                </div>
+                {selectedSkills.length > 0 && (
+                  <p className="mt-2 text-xs text-gray-600">
+                    선택: {selectedSkills.join(", ")}
+                  </p>
+                )}
               </div>
 
               {form.role === "student" && (

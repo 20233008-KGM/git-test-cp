@@ -5,6 +5,7 @@ import {
   loginProfessorViaLanding,
   loginViaLanding,
   openFirstCourse,
+  openFirstArchivedCourse,
 } from "./helpers/auth";
 
 test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
@@ -38,7 +39,41 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await loginViaLanding(page);
     await page.locator('a[href="/app/mypage"]').click();
     await expect(page).toHaveURL("/app/mypage");
+    await expect(page.getByTestId("mypage-page")).toBeVisible();
     await expect(page.getByRole("heading", { name: "마이페이지" })).toBeVisible();
+  });
+
+  test("35. 마이페이지 진입 렌더 회귀 (vision #47)", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await expect(page).toHaveURL("/app/mypage");
+    await expect(page.getByTestId("mypage-page")).toBeVisible();
+    await expect(page.getByText("마이페이지 메뉴")).toBeVisible();
+  });
+
+  test("37. 마이페이지 과거 수업 전용 페이지 (vision #48)", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await expect(page.getByTestId("mypage-archived-courses-nav")).toBeVisible();
+    await expect(page.locator('a[href*="/evals/my-peer-reviews"]')).toHaveCount(0);
+    await page.getByTestId("mypage-archived-courses-nav").click();
+    await expect(page).toHaveURL("/app/mypage/archived-courses");
+    await expect(page.getByTestId("mypage-archived-courses-page")).toBeVisible();
+    const cards = page.getByTestId("mypage-archived-course-card");
+    if ((await cards.count()) > 0) {
+      await expect(page.getByTestId("mypage-archived-my-peer-reviews").first()).toBeVisible();
+    }
+  });
+
+  test("41. 과거 수업 페이지 → 교수 평가 (vision #48)", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await page.getByTestId("mypage-archived-courses-nav").click();
+    const profLink = page.getByTestId("mypage-archived-professor-evals").first();
+    test.skip(!(await profLink.isVisible().catch(() => false)), "아카이브 수업 카드 없음");
+    await profLink.click();
+    await expect(page).toHaveURL(/\/evals\/professor/);
+    await expect(page.getByTestId("course-professor-evals-student")).toBeVisible();
   });
 
   test("6. 마이페이지 DB 리포트 미리보기", async ({ page }) => {
@@ -375,7 +410,7 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await page.locator('a[href="/app/mypage"]').click();
     await expect(page).toHaveURL("/app/mypage");
 
-    await page.getByRole("button", { name: "다음 페이지" }).click();
+    await page.getByTestId("mypage-report-next").click();
     await expect(page.getByText("PAGE 02 PROJECT DETAIL")).toBeVisible();
 
     const dbCards = page.getByTestId("mypage-team-card-db");
@@ -397,14 +432,107 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await expect(page.getByTestId("mypage-competency-db")).toBeVisible();
     await expect(page.getByTestId("mypage-competency-db")).toContainText("DB 추정");
     await expect(page.getByTestId("mypage-activity-bullets")).toContainText("협업");
-    await page.getByRole("button", { name: "다음 페이지" }).click();
+    await page.getByTestId("mypage-report-next").click();
     await expect(page.getByText("PAGE 02 PROJECT DETAIL")).toBeVisible();
     await expect(page.getByTestId("mypage-team-card-db")).toBeVisible({ timeout: 15_000 });
-    await page.getByRole("button", { name: "다음 페이지" }).click();
+    await page.getByTestId("mypage-report-next").click();
     await expect(page.getByText("PAGE 03 PROBLEM SOLVING")).toBeVisible();
     await expect(page.getByTestId("mypage-page3-intro")).toContainText("트러블슈팅", {
       timeout: 15_000,
     });
+  });
+
+  test("34. 마이페이지 학생 프로필 수정", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await page.getByRole("button", { name: "내 정보 수정" }).click();
+    const form = page.getByTestId("mypage-profile-edit-form");
+    await expect(form).toBeVisible();
+
+    const uniqueMajor = `E2E전공-${Date.now()}`;
+    await form.locator("label").filter({ hasText: "전공" }).locator("input").fill(uniqueMajor);
+    await form.getByRole("button", { name: "저장" }).click();
+    await expect(page.getByText("프로필이 저장되었습니다.")).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("32. 마이페이지 동적 리포트 네비 라벨", async ({ page }) => {
+    await loginViaLanding(page);
+    await page.locator('a[href="/app/mypage"]').click();
+    await expect(page.getByTestId("mypage-report-next")).toContainText("주요 팀플 상세");
+    await page.getByTestId("mypage-report-next").click();
+    await expect(page.getByTestId("mypage-report-next")).toContainText("문제해결 경험");
+    await expect(page.getByTestId("mypage-report-prev")).toContainText("역량 및 활동 요약");
+  });
+
+  test("36. 아카이브 평가 페이지 렌더 (schema 배너 허용)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstArchivedCourse(page);
+
+    const myPeerNav = page.getByTestId("course-detail-side-my-peer-reviews");
+    const hasArchivedNav = await myPeerNav.isVisible().catch(() => false);
+    test.skip(!hasArchivedNav, "아카이브(종료) 수업에서만 사이드 네비가 표시됩니다.");
+
+    await myPeerNav.click();
+    await expect(page.getByTestId("course-my-peer-reviews-given")).toBeVisible();
+    await expect(
+      page
+        .getByTestId("eval-schema-missing-banner")
+        .or(page.getByText("제출한 조원평가가 없습니다."))
+        .or(page.getByRole("heading", { level: 2 }))
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: "← 수업으로" }).click();
+    await page.getByTestId("course-detail-side-professor-evals").click();
+    await expect(page.getByTestId("course-professor-evals-student")).toBeVisible();
+  });
+
+  test("33. 종료 수업 조원평가·교수 평가 조회 페이지", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstArchivedCourse(page);
+
+    const myPeerNav = page.getByTestId("course-detail-side-my-peer-reviews");
+    const hasArchivedNav = await myPeerNav.isVisible().catch(() => false);
+    test.skip(!hasArchivedNav, "아카이브(종료) 수업에서만 사이드 네비가 표시됩니다.");
+
+    await myPeerNav.click();
+    await expect(page).toHaveURL(/\/evals\/my-peer-reviews/);
+    await expect(page.getByTestId("course-my-peer-reviews-given")).toBeVisible();
+
+    await page.getByRole("link", { name: "← 수업으로" }).click();
+    await page.getByTestId("course-detail-side-professor-evals").click();
+    await expect(page).toHaveURL(/\/evals\/professor/);
+    await expect(page.getByTestId("course-professor-evals-student")).toBeVisible();
+    const studentEval = page.getByTestId("course-professor-eval-student");
+    const emptyEval = page.getByText("아직 교수 평가가 등록되지 않았습니다.");
+    await expect(studentEval.or(emptyEval)).toBeVisible({ timeout: 10_000 });
+    if (await studentEval.isVisible().catch(() => false)) {
+      await expect(studentEval).toContainText(/평가|리드|패턴|도메인/);
+      await expect(page.getByTestId("course-professor-eval-project")).toBeVisible();
+    }
+  });
+
+  test("39. 종료 수업 내 조원평가 DB 카드 (vision #46)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstArchivedCourse(page);
+    const myPeerNav = page.getByTestId("course-detail-side-my-peer-reviews");
+    test.skip(!(await myPeerNav.isVisible().catch(() => false)), "아카이브 수업이 없습니다.");
+    await myPeerNav.click();
+    const card = page.getByTestId("course-my-peer-review-card");
+    await expect(card.first()).toBeVisible({ timeout: 12_000 });
+    await expect(card.first()).toContainText(/리더십|협업|도메인|기술/);
+  });
+
+  test("38. 종료 수업 교수 평가 DB 내용 (vision #46)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstArchivedCourse(page);
+    const profNav = page.getByTestId("course-detail-side-professor-evals");
+    test.skip(!(await profNav.isVisible().catch(() => false)), "아카이브 수업이 없습니다.");
+    await profNav.click();
+    await expect(page.getByTestId("course-professor-evals-student")).toBeVisible();
+    await expect(page.getByTestId("course-professor-eval-student")).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect(page.getByTestId("course-professor-eval-project")).toBeVisible();
   });
 
   test("13. 마이페이지 AI 리포트 생성 버튼", async ({ page }) => {
@@ -425,8 +553,24 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await loginProfessorViaLanding(page);
     await page.locator('a[href="/app/mypage"]').click();
     await expect(page).toHaveURL("/app/mypage");
-    await expect(page.getByTestId("mypage-professor-report-block")).toBeVisible();
+    await expect(page.getByTestId("mypage-professor-dashboard")).toBeVisible();
     await expect(page.getByTestId("ai-report-generate-button")).toHaveCount(0);
+  });
+
+  test("40. 교수 아카이브 동료평가 전체 조회 (vision #45)", async ({ page }) => {
+    test.skip(!hasProfessorE2ECredentials, "E2E_PROFESSOR_EMAIL · E2E_PROFESSOR_PASSWORD 를 .env 에 설정하세요.");
+
+    await loginProfessorViaLanding(page);
+    await page.goto("/app/courses/course-swe-2025-archived/peer-reviews");
+    await expect(page.getByTestId("course-peer-reviews-overview")).toBeVisible({
+      timeout: 15_000,
+    });
+    const teamBlock = page.getByTestId("peer-reviews-team-team-swe-schedule");
+    const emptyMsg = page.getByText("아직 제출된 동료평가가 없습니다.");
+    await expect(teamBlock.or(emptyMsg)).toBeVisible({ timeout: 12_000 });
+    if (await teamBlock.isVisible().catch(() => false)) {
+      await expect(teamBlock).toContainText(/리더십|기술|일정/);
+    }
   });
 
   test("5. 로그아웃 → 랜딩", async ({ page }) => {

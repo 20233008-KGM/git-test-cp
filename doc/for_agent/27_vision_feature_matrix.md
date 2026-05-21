@@ -33,6 +33,13 @@
 | CourseDetail 내부 네비 제거 + 메인 레이아웃 네비로 이관 | ✅ | T-056 | `MainLayout` 좌측 네비 확장 + `CourseDetailPage` 내부 네비 제거 |
 | human_action_items 완료 체크칸 + AI 체크 기반 검증 규칙 | ✅ | T-058 | `for_human/28_human_action_items.md` 체크 열 + `23/28` 규칙에 `[o]` 검증 절차 추가 |
 | 수강자 목록은 항상 해당 수업 멤버만(빈 수업에 데모 목록 금지) | ✅ | T-081 | `StudentsNetworkPage`에서 `courseId`가 있으면 DB 빈 배열을 데모 카드로 바꾸지 않음 |
+| 팀 생성하기 버튼 동작 | ✅ | T-084 | `api.teams.create` + TeamsPage 모달 |
+| 팀 참여·탈퇴 (수업당 1팀) | ✅ | T-085 | `join` / `leave` + 카드 UI |
+| 랜덤 팀 생성 시 기존 팀원 제외 | ✅ | T-086 | `getAssignedStudentIds` + 배정 검증 |
+| 팀 생성 후 카드 목록 갱신 | ✅ | T-086 | 저장 후 teams 라우트 이동·reload |
+| 학생 랜덤 팀 생성 금지 | ✅ | T-087 | 교수·관리자만 모달·페이지 |
+| 팀 카드 데스크탑 5열·가로 확대 | ✅ | T-120 | xl:grid-cols-5, 팀 목록 max 1920px |
+| 교수 공지 작성·팀 페이지 최신 3건 | ✅ | T-089 | `CourseAnnouncementsPage` + `getAll(..., 3)` |
 
 ---
 
@@ -89,8 +96,10 @@
 | AI 문단 생성 | MyPage 버튼 | 🔶 | Edge draft 200 / LLM | deploy·H-002 |
 | 교수 평가 → 리포트 | `gatherContext` | ✅ | 번들 v2 | 스니펫·건수 |
 | 집계 새로고침 | MyPage 버튼 | ✅ | `resolveReportContext` | 캐시·강제 refresh |
+| 마이페이지 진입 (vision #47) | `MyPage` | ✅ | TDZ 버그 수정 (T-123) | E2E #35 |
+| 과거 수업 전용 페이지 (vision #48) | `MyPageArchivedCoursesPage` | ✅ | 사이드 버튼만 · `/mypage/archived-courses` | E2E #37 |
 
-**달성도:** UI ~78% · 읽기 ~62% · AI ~65% (DB·Edge 초안, LLM deploy 대기)
+**달성도:** UI ~80% · 읽기 ~65% · AI ~65% (DB·Edge 초안, LLM deploy 대기)
 
 ---
 

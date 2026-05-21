@@ -19,6 +19,8 @@
 | CI 시크릿 10분 | **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** |
 | SQL 후 확인 5분 | **[35_smoke_test_after_bundle.md](./35_smoke_test_after_bundle.md)** |
 | 리포트 집계 3분 | **[37_verify_ai_report.md](./37_verify_ai_report.md)** |
+| 김학생 아카이브 시드 5분 | **[38_archived_kim_student_setup.md](./38_archived_kim_student_setup.md)** |
+| **원클릭 SQL (권장)** | `npm run supabase:apply-remote-full` → `supabase/apply_remote_full.sql` |
 
 ---
 
@@ -32,10 +34,11 @@
 | [ ] | H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
 | [ ] | H-005 | 낮음 | **프로덕션 배포** GO/NO-GO — [`deploy_vercel_checklist.md`](../for_agent/deploy_vercel_checklist.md) 따라 Vercel 연결·`VITE_*` 설정 | 실제 서비스 공개 | 배포 URL 공유 |
 | [ ] | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
-| [ ] | H-007 | 중간 | Supabase **번들 v2** 실행 — `20260520102000_team_detail_writes_bundle_v2.sql` (H-008·009·010 포함) · 가이드 [29](./29_supabase_bundle_sql.md) | 팀 상세 쓰기 테이블 일괄 | 「번들 v2 실행함」 |
-| [ ] | H-008 | 중간 | 동료평가 테이블 SQL — 번들 파일에 포함됨. 개별만 필요 시 `20260520094800_ai_team_detail_peer_reviews.sql` | 팀 동료평가 DB 저장 | 동료평가 「등록 완료」 후 새로고침 유지 |
-| [ ] | H-009 | 중간 | 회고록 — **번들 v2에 포함** · 개별만: [32](./32_retrospective_sql.md) | 회고록 DB | v2 실행 시 생략 가능 |
-| [ ] | H-010 | 중간 | 교수 평가 — **번들 v2에 포함** · 개별: `20260520101500_ai_team_detail_professor_evals.sql` | 교수 학생·프로젝트 평가 | v2 실행 시 생략 가능 |
+| [ ] | H-007 | 중간 | Supabase **번들 v2** — **H-011 `apply_remote_full.sql` 권장** (피드백·평가·회고 포함) · [38](./38_archived_kim_student_setup.md) | 팀 상세 쓰기 테이블 | `npm run human:verify` (H-007 `[o]`) |
+| [ ] | H-008 | 중간 | 동료평가 — **H-011에 포함** · 개별: `20260520094800_ai_team_detail_peer_reviews.sql` | 팀 동료평가 DB | `npm run human:verify` (H-008 `[o]`) |
+| [ ] | H-009 | 중간 | 회고록 — **H-011에 포함** · [32](./32_retrospective_sql.md) | 회고록 DB | `npm run human:verify` (H-009 `[o]`) |
+| [ ] | H-010 | 중간 | 교수 평가 — **H-011에 포함** | 교수 학생·프로젝트 평가 | `npm run human:verify` (H-010 `[o]`) |
+| [ ] | H-011 | 높음 | **원클릭 SQL** — `npm run supabase:apply-remote-full` 후 Supabase에서 **`supabase/apply_remote_full.sql`** Run · 가이드 [38](./38_archived_kim_student_setup.md) | vision #35·#46 평가·아카이브 리포트 | `npm run verify:archived-kim` → `evalReady: true` (2026-05-21 MCP 적용·검증 통과 — 인간 `[o]` 확인) |
 
 ---
 
@@ -51,6 +54,7 @@
 
 | 시각 | ID | 결과 | 메모 |
 |------|----|------|------|
+| 2026-05-21 | H-011 | pass (agent) | `verify:archived-kim` evalReady·reportOk true — 인간 `[o]` 대기 |
 
 ---
 

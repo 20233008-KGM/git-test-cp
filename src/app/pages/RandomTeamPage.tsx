@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import type { Team, TeamMember } from "../types";
 import { api } from "../api/supabase-api";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function RandomTeamPage() {
+  const navigate = useNavigate();
   const { courseId: courseIdFromRoute } = useParams<{ courseId?: string }>();
+  const { isProfessor, isAdmin } = useAuth();
+  const canManage = isProfessor || isAdmin;
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamSize, setTeamSize] = useState(4);
   const [students, setStudents] = useState<TeamMember[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [courseId, setCourseId] = useState("");
 
   useEffect(() => {
+    if (!canManage) return;
     let cancelled = false;
 
     async function load() {
@@ -21,17 +29,25 @@ export default function RandomTeamPage() {
 
         if (!resolvedId || cancelled) {
           setStudents([]);
+          setCourseId("");
           return;
         }
 
-        const data = await api.students.getAll(resolvedId);
+        setCourseId(resolvedId);
+        const [data, assignedIds] = await Promise.all([
+          api.students.getAll(resolvedId),
+          api.teams.getAssignedStudentIds(resolvedId),
+        ]);
         if (cancelled) return;
 
-        const members: TeamMember[] = data.map((s) => ({
-          id: s.id,
-          name: s.name,
-          studentId: s.studentId,
-        }));
+        const assigned = new Set(assignedIds);
+        const members: TeamMember[] = data
+          .filter((s) => !assigned.has(s.id))
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            studentId: s.studentId,
+          }));
         setStudents(members);
       } catch {
         if (!cancelled) setStudents([]);
@@ -45,26 +61,32 @@ export default function RandomTeamPage() {
     return () => {
       cancelled = true;
     };
-  }, [courseIdFromRoute]);
+  }, [courseIdFromRoute, canManage]);
 
   const generateRandomTeams = () => {
-    // 랜덤 섞기
     const shuffled = [...students].sort(() => Math.random() - 0.5);
-
-    // 팀 나누기
     const newTeams: Team[] = [];
     for (let i = 0; i < shuffled.length; i += teamSize) {
       newTeams.push({
-        id: `team-${newTeams.length + 1}`,
+        id: `preview-${newTeams.length + 1}`,
         name: `팀 ${newTeams.length + 1}`,
         members: shuffled.slice(i, i + teamSize),
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     }
-
     setTeams(newTeams);
   };
+
+  if (!canManage) {
+    return (
+      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <p className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
+          랜덤 팀 생성은 교수만 사용할 수 있습니다.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -87,11 +109,38 @@ export default function RandomTeamPage() {
             onClick={generateRandomTeams}
             className="w-full rounded bg-blue-600 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 sm:w-auto"
           >
-            팀 생성하기
+            팀 미리보기
+          </button>
+          <button
+            type="button"
+            data-testid="random-team-save"
+            disabled={saving || teams.length === 0 || !courseId}
+            onClick={async () => {
+              if (!courseId || teams.length === 0) return;
+              setSaving(true);
+              try {
+                const result = await api.teams.saveRandomAssignment(
+                  courseId,
+                  teams.map((team) => team.members.map((member) => member.id))
+                );
+                alert(`${result.teamCount}개 팀, ${result.memberCount}명을 저장했습니다.`);
+                navigate(`/app/courses/${courseId}/teams`);
+              } catch (error) {
+                console.error(error);
+                alert(error instanceof Error ? error.message : "팀 저장에 실패했습니다.");
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="w-full rounded border border-[#155dfc] bg-white px-6 py-2 font-medium text-[#155dfc] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          >
+            {saving ? "저장 중…" : "Supabase에 저장"}
           </button>
         </div>
         {!loadingStudents && students.length === 0 && (
-          <p className="text-sm text-gray-600">이 수업에 표시할 수강생이 없습니다. 수업에 학생 멤버십을 먼저 등록해 주세요.</p>
+          <p className="text-sm text-gray-600">
+            배정 가능한 수강생이 없습니다. 이미 모든 학생이 팀에 속했거나 수업에 학생이 없습니다.
+          </p>
         )}
         {loadingStudents && <p className="text-sm text-gray-500">수강생 목록을 불러오는 중…</p>}
       </div>

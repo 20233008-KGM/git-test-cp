@@ -6,7 +6,8 @@
 
 | 목적 | 파일 | 인간 항목 |
 |------|------|-----------|
-| **팀 상세 쓰기 전체 (권장)** | `20260520102000_team_detail_writes_bundle_v2.sql` | H-007~010 |
+| **원격 한 번에 (권장)** | `../apply_remote_full.sql` (`npm run supabase:apply-remote-full`) | H-007~010 + 시드 |
+| **팀 상세 쓰기 전체** | `20260520102000_team_detail_writes_bundle_v2.sql` | H-007~010 |
 | 피드백 + 동료평가 (v1) | `20260520095400_team_detail_writes_bundle.sql` | H-007·H-008 |
 
 ## 개별 파일
@@ -28,6 +29,12 @@
 | 파일 | 내용 |
 |------|------|
 | `20260520100300_realtime_chat.sql` | 채팅 INSERT 실시간 반영 |
+
+## 성능 (선택)
+
+| 파일 | 내용 |
+|------|------|
+| `20260521061800_hot_path_membership_indexes.sql` | `ai_team_members`·`ai_teams`·`ai_course_memberships` 인덱스 (`apply_remote_full` §3 포함) |
 
 ## 적용 후 확인
 

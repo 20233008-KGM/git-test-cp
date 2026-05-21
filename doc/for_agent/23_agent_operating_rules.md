@@ -57,7 +57,7 @@
 - [ ] `03_development_roadmap.md` — Phase 진행률
 - [ ] 개발 단계 갱신 (MVP / Alpha / Beta / Launch)
 - [ ] `04_service_launch_flow.md` — 런칭 준비 항목
-- [ ] 완료/미완료 기능 동기화 (`27_vision_feature_matrix.md`)
+- [ ] 완료/미완료 기능 동기화 (`27_vision_feature_matrix.md`, `for_human/29_vision_requests_report.md`)
 - [ ] `vision_snapshot.md` 동기화 (원본 `vision.md`에 변경/추가요청이 생겼을 때)
 - [ ] `for_human/01_project_status.md` — 인간용 상태
 - [ ] `for_human/28_human_action_items.md` — 신규 인간 항목·완료 반영 (필수)

@@ -1,18 +1,19 @@
 ﻿# 17 — 인수인계
 
 > **관련:** `02_current_state.md` · `05_todo.md` · `28_human_action_items.md` · `25_ai_work_log.md`  
-> **마지막 갱신:** 2026-05-20
+> **마지막 갱신:** 2026-05-21
 
 ## 지금 여기까지
 
-- **단계:** Alpha → Beta 진입 (~70%)
+- **단계:** Alpha → Beta 진입 (~80%)
 - **API:** `supabase-api.ts` — 과목·팀·Q&A·네트워크·Storage·팀 상세 쓰기 전반
 - **인증:** Firebase + `ai_users` + ProtectedRoute + JWT 스캐폴드 (`VITE_ENABLE_SUPABASE_FIREBASE_JWT`, **기본 off**)
 - **팀 상세:** 채팅·Realtime, 피드백·동료평가·회고록 DB, 교수 평가·제출 현황 패널, AI 진행 요약(실데이터)
 - **마이페이지:** 리포트 3페이지 DB 집계 + A4 + Edge `generate-report` (배포 후 OPENAI 없으면도 DB 초안 200)
-- **E2E:** 31플로우 + 인증 가드 · CI `build.yml` + `e2e.yml` + `test:e2e:smoke`
+- **E2E:** 41플로우 + 인증 가드 · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#41
+- **아카이브 시드:** 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
 - **RLS:** `rls_review_packet.md` + `20260519000000_rls_beta_draft.sql` — **미적용** (H-001)
-- **DB 마이그레이션(로컬 DRAFT):** 번들 v2 `20260520102000_team_detail_writes_bundle_v2.sql` — **인간 실행 필요**
+- **DB:** bundle v2·인덱스 원격 적용됨(MCP) — 신규 환경은 `apply_remote_full.sql`
 - **스캔 확인:** `CoursesPage` 수업코드 자동생성(T-026)·일정 캘린더(T-027) 완료, `TeamDetailPage` 업로드 500MB·링크 게시물(T-024) 완료 + 코드/압축 확장자 확대, `MyPage` 교수 비노출(T-025) 완료
 - **vision 신규요청:** T-050~T-053 전체 완료 (트러블슈팅 유실/전용 페이지/사이드 네비/수강생 상세 모달)
 - **코드 정리:** `TeamDetailPage` 미사용(회고록/조원평가) 모달 코드 제거로 유지보수성 개선
@@ -50,7 +51,8 @@
 
 → [`for_human/00_pre_launch_order.md`](../for_human/00_pre_launch_order.md)
 
-1. **H-007** — 번들 v2 SQL → [35](../for_human/35_smoke_test_after_bundle.md) · 리포트 집계 [37](../for_human/37_verify_ai_report.md)
+1. **H-011** — `verify:archived-kim` 통과 확인 → `28`에서 `[o]` → `npm run human:verify`
+2. **H-007~010** — (선택) 동일하게 `[o]` 후 human:verify (피드백·평가·회고·교수평가 테이블)
 2. **H-003 / H-004** — 로컬 E2E · GitHub Secrets ([34](../for_human/34_github_ci_secrets.md))
 3. **H-002** — Edge `generate-report` + OPENAI ([30](../for_human/30_edge_ai_report.md))
 4. **H-001** — RLS 승인 ([31](../for_human/31_rls_beta_decision.md)) → JWT ([33](../for_human/33_firebase_supabase_jwt_setup.md))

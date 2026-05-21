@@ -5,7 +5,7 @@
 ## 현재
 
 - **Playwright** — `playwright.config.ts`, `tests/e2e/`
-- **핵심 E2E:** `core-flows.spec.ts` — 31플로우 + 인증 가드 1건
+- **핵심 E2E:** `core-flows.spec.ts` — 41플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
 - **단위 테스트:** 없음
 
 ## 실행
@@ -26,6 +26,8 @@ npm run verify:bundle:preflight
 npm run verify:bundle:preflight:strict
 npm run verify:bundle:preflight:selftest
 npm run verify:bundle:pipeline
+npm run verify:archived-kim
+npm run verify:archived-kim:json
 ```
 
 `.env`:
@@ -87,12 +89,24 @@ E2E_TEST_PASSWORD=...
 29. 팀 목록에서 내가 속한 팀 강조 UI 노출 (`team-card-my-team-badge`)
 30. 수업 상세 네비 중복 제거 확인 (`수업 메뉴` 단일 노출)
 31. 마이페이지 PAGE02 실데이터 카드 기준 확인 (`mypage-team-card-db`)
+32. 마이페이지 리포트 네비 라벨 (`mypage-report-next` / `prev`)
+33. 종료 수업 조원평가·교수 평가 조회 (`course-my-peer-reviews-given`, `course-professor-evals-student`)
+34. 마이페이지 학생 프로필 수정 (`mypage-profile-edit-form`)
+35. 마이페이지 진입 렌더 회귀 (`mypage-page`, vision #47)
+36. 아카이브 평가 페이지 렌더 (`eval-schema-missing-banner` 허용)
+37. 마이페이지 과거 수업 전용 페이지 (`mypage-archived-courses-page`, vision #48)
+38. 종료 수업 교수 평가 DB 문단 (`course-professor-eval-student`, vision #46)
+39. 종료 수업 내 조원평가 DB 카드 (`course-my-peer-review-card`)
+40. 교수 아카이브 동료평가 전체 조회 (`course-peer-reviews-overview`, vision #45, `E2E_PROFESSOR_*`)
+41. 과거 수업 페이지 → 교수 평가 링크 (`mypage-archived-professor-evals`)
+
+**로컬 시드 점검:** `npm run verify:archived-kim` — `ok: true` 이면 #35·#46·H-007~011 준비 완료
 
 헬퍼: `tests/e2e/helpers/auth.ts`
 
 ## CI
 
-- `.github/workflows/build.yml` — `npm run build` (시크릿 불필요)
+- `.github/workflows/build.yml` — `npm run build` + (시크릿 있으면) `verify:archived-kim:json`
 - `.github/workflows/e2e.yml` — `VITE_*`, `E2E_TEST_*` 시크릿 (H-004)
 
 ## 다음

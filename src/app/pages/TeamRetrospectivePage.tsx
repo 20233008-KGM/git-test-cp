@@ -34,6 +34,7 @@ export default function TeamRetrospectivePage() {
   }, [courseId, teamId]);
 
   const isArchived = course?.status === "archived";
+  const isEvaluationOpen = isArchived;
 
   const updateRetrospectiveCustom = (key: keyof TeamRetrospectiveSections, custom: string) => {
     setRetrospectiveSections((prev) => ({
@@ -43,7 +44,7 @@ export default function TeamRetrospectivePage() {
   };
 
   const handleSubmitRetrospective = async () => {
-    if (!teamId || submittingRetrospective || isArchived) return;
+    if (!teamId || submittingRetrospective || !isEvaluationOpen) return;
     setSubmittingRetrospective(true);
     try {
       await api.teamDetail.submitRetrospective(teamId, retrospectiveSections);
@@ -82,9 +83,9 @@ export default function TeamRetrospectivePage() {
         </Link>
       </div>
 
-      {isArchived && (
-        <div className="mb-6 rounded border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-          종료된 수업은 읽기 전용이라 회고록을 수정할 수 없습니다.
+      {!isEvaluationOpen && (
+        <div className="mb-6 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          교수가 수업을 종료(아카이브)한 뒤에만 회고록을 작성할 수 있습니다.
         </div>
       )}
 
@@ -110,7 +111,7 @@ export default function TeamRetrospectivePage() {
                 value={retrospectiveSections[key].custom}
                 onChange={(e) => updateRetrospectiveCustom(key, e.target.value)}
                 placeholder="직접 입력하세요."
-                disabled={isArchived}
+                disabled={!isEvaluationOpen}
                 data-testid={`retrospective-custom-${key}`}
                 className="w-full rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60"
               />
@@ -123,7 +124,7 @@ export default function TeamRetrospectivePage() {
         <button
           type="button"
           data-testid="retrospective-submit"
-          disabled={submittingRetrospective || isArchived}
+          disabled={submittingRetrospective || !isEvaluationOpen}
           onClick={() => void handleSubmitRetrospective()}
           className="rounded-[10px] bg-[#155dfc] px-12 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60"
         >

@@ -55,6 +55,10 @@ export interface AiReportTeamSnapshot {
   peerReviewsSubmitted: number;
   /** 동료평가 요약 (키워드·코멘트) */
   peerReviewSnippet?: string;
+  /** 팀원들이 나에게 남긴 동료평가 키워드 집계 */
+  peerReviewsReceived: { text: string; count: number }[];
+  /** 수신 동료평가 요약 */
+  peerReviewReceivedSnippet?: string;
   /** 교수 학생 평가 수신 여부 (H-010, student_row_id = ai_users.id) */
   professorStudentEvalReceived: boolean;
   /** 교수 프로젝트 평가 존재 여부 (팀 단위) */

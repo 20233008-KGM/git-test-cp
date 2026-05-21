@@ -31,7 +31,14 @@
     "test:e2e:smoke:force-full": "node scripts/run-e2e-smoke.mjs --full",
     "test:e2e:smoke:force-public": "node scripts/run-e2e-smoke.mjs --public",
     "test:e2e:smoke:public": "playwright test --grep \"인증 가드\"",
-    "test:e2e:smoke:full": "playwright test --grep \"((^|\\s)(1\\.|3\\.|6\\.|24\\.|25\\.|26\\.|27\\.|28\\.|29\\.|30\\.|31\\.))|인증 가드\""
+    "test:e2e:smoke:full": "playwright test --grep \"((^|\\s)(1\\.|3\\.|4\\.|6\\.|24\\.|25\\.|26\\.|27\\.|28\\.|29\\.|30\\.|31\\.|32\\.|33\\.|34\\.|35\\.|36\\.|37\\.|38\\.|39\\.|41\\.))|인증 가드\"",
+    "seed:archived-bundle": "node scripts/build-archived-bundle.mjs",
+    "vision:snapshot": "node scripts/sync-vision-snapshot.mjs",
+    "verify:archived-kim": "node scripts/verify-archived-kim-setup.mjs",
+    "verify:archived-kim:json": "node scripts/verify-archived-kim-setup.mjs --json",
+    "supabase:apply-remote-full": "node scripts/build-apply-remote-full.mjs",
+    "prelaunch:check": "node scripts/prelaunch-check.mjs",
+    "prelaunch:check:json": "node scripts/prelaunch-check.mjs --json"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

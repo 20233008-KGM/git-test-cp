@@ -19,6 +19,7 @@ export default function TeamPeerReviewPage() {
 
   const myName = user?.name ?? "";
   const isArchived = course?.status === "archived";
+  const isEvaluationOpen = isArchived;
 
   useEffect(() => {
     if (!courseId || !teamId) return;
@@ -61,7 +62,7 @@ export default function TeamPeerReviewPage() {
   };
 
   const handleSubmitPeerReview = async (memberId: string) => {
-    if (!teamId || submittingPeerReviewId || isArchived) return;
+    if (!teamId || submittingPeerReviewId || !isEvaluationOpen) return;
     const review = peerReviews[memberId];
     if (!review) return;
 
@@ -109,9 +110,9 @@ export default function TeamPeerReviewPage() {
         </Link>
       </div>
 
-      {isArchived && (
-        <div className="mb-6 rounded border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-          종료된 수업은 읽기 전용이라 조원평가를 제출할 수 없습니다.
+      {!isEvaluationOpen && (
+        <div className="mb-6 rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+          교수가 수업을 종료(아카이브)한 뒤에만 조원평가를 제출할 수 있습니다.
         </div>
       )}
 
@@ -202,7 +203,7 @@ export default function TeamPeerReviewPage() {
                   type="button"
                   data-testid={`peer-review-submit-${member.id}`}
                   onClick={() => void handleSubmitPeerReview(member.id)}
-                  disabled={submittingPeerReviewId === member.id || isArchived}
+                  disabled={submittingPeerReviewId === member.id || !isEvaluationOpen}
                   className={`rounded-full px-8 py-2 text-sm font-bold text-white transition-colors disabled:opacity-60 ${
                     review.submitted ? "bg-green-500" : "bg-[#155dfc] hover:bg-blue-700"
                   }`}

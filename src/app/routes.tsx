@@ -13,10 +13,15 @@ import ProjectsPage from "./pages/ProjectsPage";
 import QnAPage from "./pages/QnAPage";
 import QnADetailPage from "./pages/QnADetailPage";
 import TeamsPage from "./pages/TeamsPage";
+import CourseAnnouncementsPage from "./pages/CourseAnnouncementsPage";
 import TeamDetailPage from "./pages/TeamDetailPage";
 import TeamPeerReviewPage from "./pages/TeamPeerReviewPage";
 import TeamRetrospectivePage from "./pages/TeamRetrospectivePage";
+import CoursePeerReviewsOverviewPage from "./pages/CoursePeerReviewsOverviewPage";
+import CourseMyPeerReviewsGivenPage from "./pages/CourseMyPeerReviewsGivenPage";
+import CourseProfessorEvalsPage from "./pages/CourseProfessorEvalsPage";
 import MyPage from "./pages/MyPage";
+import MyPageArchivedCoursesPage from "./pages/MyPageArchivedCoursesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import StudentsNetworkPage from "./pages/StudentsNetworkPage";
 import SignInPage from "./pages/SignInPage";
@@ -52,6 +57,22 @@ export const router = createBrowserRouter([
           {
             path: "courses/:courseId/teams",
             Component: TeamsPage,
+          },
+          {
+            path: "courses/:courseId/announcements",
+            Component: CourseAnnouncementsPage,
+          },
+          {
+            path: "courses/:courseId/peer-reviews",
+            Component: CoursePeerReviewsOverviewPage,
+          },
+          {
+            path: "courses/:courseId/evals/my-peer-reviews",
+            Component: CourseMyPeerReviewsGivenPage,
+          },
+          {
+            path: "courses/:courseId/evals/professor",
+            Component: CourseProfessorEvalsPage,
           },
           {
             path: "courses/:courseId/teams/random",
@@ -108,6 +129,10 @@ export const router = createBrowserRouter([
           {
             path: "mypage",
             Component: MyPage,
+          },
+          {
+            path: "mypage/archived-courses",
+            Component: MyPageArchivedCoursesPage,
           },
           {
             path: "students",

@@ -15,6 +15,7 @@ export type Signupinput = {
   password: string;
   role: UserRole;
   courseCode?: string;
+  skills?: string[];
 }
 
 interface AuthContextType {
@@ -29,6 +30,8 @@ interface AuthContextType {
   signInWithEmail: (input: Signupinput) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Supabase ai_users 프로필 재조회 (마이페이지 저장 후 UI 반영) */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -141,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // input은 회원가입할 때 필요한 정보 묶음입니다.
       // 예: { name: "...", email: "...", password: "...", role: "student" }
       // 이렇게 객체 하나로 받으면 나중에 name, major 같은 값이 추가돼도 함수 인자를 계속 늘리지 않아도 됩니다.
-      const { name, email, password, role, courseCode } = input;
+      const { name, email, password, role, courseCode, skills } = input;
 
       // Firebase Auth에 계정을 만들고, Firebase uid를 Supabase에 저장합니다.
       const firebaseUid = (await createUserWithEmailAndPassword(auth, email, password)).user.uid;
@@ -154,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firebase_uid: firebaseUid,
         name,
         role,
-        skills: [],
+        skills: asArray<string>(skills).slice(0, 12),
         tags: [],
         research_areas: [],
       };
@@ -225,6 +228,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
   };
 
+  const refreshProfile = async () => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return;
+
+    const { data: userData, error } = await supabase
+      .from("ai_users")
+      .select("*")
+      .eq("firebase_uid", firebaseUser.uid)
+      .maybeSingle();
+
+    if (error) {
+      console.error("프로필 새로고침 실패:", error);
+      return;
+    }
+    if (userData) {
+      setUser(toProfile(userData as AiUserRow));
+      setIsAuthenticated(true);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -239,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithEmail,
         login,
         logout,
+        refreshProfile,
       }}
     >
       {children}

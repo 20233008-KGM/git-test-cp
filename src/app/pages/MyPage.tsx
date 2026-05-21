@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
 import AiReportPrintView from "../components/AiReportPrintView";
+import EvalSchemaNotice from "../components/EvalSchemaNotice";
 import type { AiReportContext, AiReportGenerateResponse } from "../types/ai-report";
+
+const REPORT_PAGES = [
+  { id: 1, title: "역량 및 활동 요약", prevLabel: null, nextLabel: "주요 팀플 상세" },
+  { id: 2, title: "주요 팀플 상세", prevLabel: "역량 및 활동 요약", nextLabel: "문제해결 경험" },
+  { id: 3, title: "문제해결 경험", prevLabel: "주요 팀플 상세", nextLabel: null },
+] as const;
 
 interface PeerReview {
   text: string;
@@ -41,8 +50,24 @@ export default function MyPage() {
     context: AiReportContext;
     report: AiReportGenerateResponse;
   } | null>(null);
-  const { user } = useAuth();
+  const { user, isProfessor, refreshProfile } = useAuth();
   const canViewStudentReport = user?.role === "student";
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [profileEditForm, setProfileEditForm] = useState({
+    name: "",
+    major: "",
+    bio: "",
+    skills: [] as string[],
+  });
+  const [profileEditSkillDraft, setProfileEditSkillDraft] = useState("");
+  const [profileSaveMessage, setProfileSaveMessage] = useState<string | null>(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [missingEvalTables, setMissingEvalTables] = useState<string[]>([]);
+  const [legacyPeerDisplayTable, setLegacyPeerDisplayTable] = useState(false);
 
   async function resolveReportContext(forceRefresh = false): Promise<AiReportContext> {
     if (!user?.id) {
@@ -152,140 +177,20 @@ export default function MyPage() {
     }
   }
 
-  const DEMO_PROJECTS: Project[] = [
-    {
-      title: "헬리버리 서비스",
-      subtitle: "10-20대의 건강한 식사 분석 서비스",
-      tags: ["기획 및 디자인", "기업가 정신", "고객 인터뷰 경험", "교수님의 호평"],
-      period: "2019.03 - 2019.06 | 1조",
-      role: "기획 및 디자인",
-      completionRate: 100,
-      contributions: [
-        "서비스 기획 및 사용자 여정 맵 설계",
-        "Figma를 활용한 UI/UX 프로토타입 제작",
-        "고객 인터뷰 10건 수행 및 인사이트 도출",
-      ],
-      problemCase: {
-        problem: "초기 사용자 조사에서 타겟 연령층 식습관 데이터 부족",
-        solution: "오프라인 인터뷰와 설문지를 병행하여 50명 데이터 수집",
-        result: "서비스 핵심 기능 3가지 도출, 교수님 A+ 평가 획득",
-      },
-      techStack: ["Figma", "Notion", "Google Forms", "Miro"],
-      insights:
-        "💡 이 프로젝트를 통해 얻은 경험 (Experience Insights)\n\n[기획 역량: 사용자 중심 설계]\n\n• 실제 사용자 인터뷰를 통해 가설을 검증하고, 데이터 기반으로 서비스 방향성을 결정하는 경험을 쌓았습니다.\n• 팀원들과의 협업을 통해 아이디어를 구체화하고 피그마로 시각화하는 과정에서 기획자의 역할을 수행하였습니다.\n\n[성과 정리]\n\n• 교수님으로부터 고객 중심적 접근 방식에 대한 높은 평가를 받아 A+ 성적을 획득하였습니다.",
-      peerReviews: [
-        { text: "다시 팀하고 싶어요", count: 3 },
-        { text: "시간 약속을 잘 지켜요", count: 2 },
-        { text: "아이디어가 창의적이에요", count: 2 },
-        { text: "커뮤니케이션이 원활해요", count: 3 },
-      ],
-      professorReview:
-        "헬리버리 서비스 기획에서 고객 중심적 사고와 철저한 시장 조사가 돋보였습니다. 인터뷰 결과를 바탕으로 한 피봇 결정이 매우 적절하였으며, 팀을 이끄는 리더십과 문서화 능력이 우수합니다.",
-    },
-    {
-      title: "캠퍼스 카풀 웹서비스",
-      subtitle: "대학생 캠퍼스 카풀 웹 서비스",
-      tags: ["기획 및 디자인", "웹프로그래밍", "고객 인터뷰 경험", "동료들의 호평"],
-      period: "2026.03 - 2026.06 | 1조",
-      role: "프론트엔드 개발",
-      completionRate: 95,
-      contributions: [
-        "React + TypeScript 기반 프론트엔드 아키텍처 설계 및 구현",
-        "실시간 카풀 매칭 UI/UX 구현 (사용자 만족도 4.5/5.0)",
-        "Vercel 배포 및 성능 최적화 (Lighthouse 점수 92점)",
-      ],
-      problemCase: {
-        problem: "모바일 환경에서 레이아웃 깨짐 현상 발생",
-        solution: "CSS 클래스명 충돌 발견 → 명확한 네이밍 컨벤션 적용으로 해결",
-        result: "반응형 레이아웃 완성, 모든 디바이스에서 정상 작동",
-      },
-      techStack: ["React", "TypeScript", "Tailwind CSS", "REST API", "Vercel"],
-      insights:
-        "💡 이 프로젝트를 통해 얻은 경험 (Experience Insights)\n\n[기술 역량: 아키텍처 설계 및 타입 안정성 확보]\n\n• React와 TypeScript를 결합한 프론트엔드 기반 구조를 초기 단계부터 직접 설계하고 구축하는 경험을 획득함.\n• 동적 타이핑 언어의 한계를 보완하기 위해 정적 타입 검사를 적용하여 런타임 에러 발생률을 낮추고, 코드의 가독성과 전반적인 유지보수성을 높이는 실무적 감각을 체득함.\n\n[문제 해결: 디버깅 및 프로세스 개선]\n\n• 모바일 디바이스 환경에서 발생하는 레이아웃 깨짐 현상의 원인을 단순 UI 오류가 아닌 'CSS 클래스명 충돌'이라는 구조적 문제로 파악하고 디버깅하는 역량을 기름.\n• 일회성 코드 수정에 그치지 않고, 명확한 네이밍 컨벤션 규칙을 수립하고 도입하여 반응형 웹 구현을 달성함.\n\n[성능 최적화 및 배포 파이프라인 경험]\n\n• Vercel 플랫폼을 활용하여 로컬 환경에서 개발된 프로젝트를 실제 프로덕션 환경으로 배포하는 전체 사이클을 경험함.\n• 초기 로딩 속도와 렌더링 성능을 개선하는 최적화 작업을 수행하고, 그 결과를 구글 Lighthouse 92점이라는 객관적인 정량 지표로 증명함.",
-      peerReviews: [
-        { text: "다시 팀하고 싶어요", count: 2 },
-        { text: "시간 약속을 잘 지켜요", count: 3 },
-        { text: "디자인을 잘 해요", count: 1 },
-        { text: "끝까지 책임감을 가지고 완성해요", count: 2 },
-      ],
-      professorReview:
-        "스스로 문제를 발굴하고 해결하는 능력이 좋습니다. DB문제를 스스로 해결하고 곧바로 다른 문제를 발굴하여 해결하고자 노력하는 모습이 보였습니다. 프로젝트에 대해 꾸준히 고객 인터뷰를 하고 피봇을 진행하는 등 고객의 의견을 곧바로 반영하였습니다.",
-    },
-    {
-      title: "길잡이 서비스",
-      subtitle: "노인들을 위한 지도 서비스",
-      tags: ["기획 및 디자인", "창업아이템개발", "고객 인터뷰 경험", "피그마를 통한 앱 디자인"],
-      period: "2020.09 - 2020.12 | 2조",
-      role: "UX/UI 디자인",
-      completionRate: 88,
-      contributions: [
-        "노인 사용자 대상 UX 리서치 및 페르소나 정의",
-        "접근성을 고려한 대형 UI 컴포넌트 설계",
-        "Figma 앱 프로토타입 제작 및 사용성 테스트",
-      ],
-      problemCase: {
-        problem: "노인 사용자의 작은 버튼 터치 오류율 38% 발생",
-        solution: "최소 터치 영역을 48px로 확대하고 대비 비율 4.5:1 이상 유지",
-        result: "오류율 12%로 감소, 사용성 테스트 만족도 4.2/5.0 달성",
-      },
-      techStack: ["Figma", "Notion", "Zeplin", "Adobe XD"],
-      insights:
-        "💡 이 프로젝트를 통해 얻은 경험 (Experience Insights)\n\n[접근성 설계 역량]\n\n• 디지털 소외 계층을 위한 UI 설계 원칙(WCAG 2.1)을 실무에 적용하는 경험을 쌓았습니다.\n• 단순히 시각적으로 예쁜 디자인이 아닌, 실제 사용자 맥락에 맞는 디자인의 중요성을 체득하였습니다.\n\n[사용자 리서치]\n\n• 노인 사용자 15명을 직접 인터뷰하고 사용성 테스트를 진행하며 정성적 데이터를 수집하는 역량을 향상시켰습니다.",
-      peerReviews: [
-        { text: "꼼꼼하게 일해요", count: 3 },
-        { text: "사용자 관점으로 생각해요", count: 2 },
-        { text: "다시 팀하고 싶어요", count: 2 },
-        { text: "적극적으로 참여해요", count: 1 },
-      ],
-      professorReview:
-        "노인 사용자를 위한 접근성 중심 설계가 매우 인상적이었습니다. 단순히 이론적 지식에 그치지 않고 실제 사용자 테스트를 통해 검증하는 과정이 체계적이었으며, 팀 내에서 사용자 중심 사고를 전파하는 역할을 훌륭히 수행하였습니다.",
-    },
-    {
-      title: "야구를 위한 공간",
-      subtitle: "야구 팬들을 위한 오프라인 공간",
-      tags: ["기획 및 디자인", "디지털콘텐츠", "고객 인터뷰 경험", "학생 및 교수님의 호평"],
-      period: "2021.03 - 2021.06 | 3조",
-      role: "디지털 콘텐츠 제작",
-      completionRate: 92,
-      contributions: [
-        "야구 팬 커뮤니티 공간 브랜딩 및 콘텐츠 전략 수립",
-        "SNS 채널 운영 기획 및 콘텐츠 캘린더 작성",
-        "인스타그램 릴스 5편 기획/촬영/편집",
-      ],
-      problemCase: {
-        problem: "초기 SNS 팔로워 수 미달 및 낮은 참여율",
-        solution: "타겟 해시태그 분석 및 인플루언서 콜라보 기획",
-        result: "4주 내 팔로워 500명 달성, 평균 좋아요 120개",
-      },
-      techStack: ["Premiere Pro", "Photoshop", "Canva", "Instagram", "Notion"],
-      insights:
-        "💡 이 프로젝트를 통해 얻은 경험 (Experience Insights)\n\n[디지털 마케팅 역량]\n\n• 오프라인 공간의 매력을 온라인 콘텐츠로 효과적으로 전달하는 크리에이티브 역량을 향상하였습니다.\n• 데이터 기반 콘텐츠 전략 수립 및 A/B 테스트를 통한 최적화 방법을 체득하였습니다.\n\n[협업 및 실행력]\n\n• 촉박한 일정 속에서 촬영, 편집, 배포 파이프라인을 팀원들과 함께 구축하며 실행 역량을 강화하였습니다.",
-      peerReviews: [
-        { text: "창의적인 아이디어를 내요", count: 3 },
-        { text: "다시 팀하고 싶어요", count: 2 },
-        { text: "실행력이 뛰어나요", count: 3 },
-        { text: "긍정적인 에너지가 넘쳐요", count: 2 },
-      ],
-      professorReview:
-        "디지털 콘텐츠 제작 전 과정을 직접 기획하고 실행한 점이 돋보입니다. 이론에 그치지 않고 실제 SNS 채널을 운영하며 정량적 성과를 달성한 것이 인상적이었습니다. 창의성과 실행력 모두 높은 평가를 드립니다.",
-    },
-  ];
-
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [reportContext, setReportContext] = useState<AiReportContext | null>(null);
   const [reportContextReady, setReportContextReady] = useState(false);
+  const [reportLoadError, setReportLoadError] = useState<string | null>(null);
+  const reportHasArchivedTeams = (reportContext?.teams.length ?? 0) > 0;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const loaded = await api.myPage.getProjectsForUser();
-        if (!cancelled && loaded.length > 0) {
-          setProjects(loaded);
-        }
+        await api.myPage.getProjectsForUser();
       } catch {
-        // reportContext 준비 후 데모 폴백 effect에서 처리
+        // reportContext effect에서 프로젝트 카드 설정
       } finally {
         if (!cancelled) setProjectsLoading(false);
       }
@@ -296,20 +201,41 @@ export default function MyPage() {
   }, []);
 
   useEffect(() => {
+    if (user?.role !== "student") return;
+    const student = user;
+    setProfileEditForm({
+      name: student.name ?? "",
+      major: student.major ?? "",
+      bio: student.bio ?? "",
+      skills: [...(student.skills ?? [])],
+    });
+  }, [user]);
+
+  useEffect(() => {
     if (!user?.id) {
       setReportContext(null);
+      setReportLoadError(null);
       setReportContextReady(true);
       return;
     }
     let cancelled = false;
     setReportContextReady(false);
+    setReportLoadError(null);
     api.aiReport
       .gatherContext(user.id)
       .then((ctx) => {
-        if (!cancelled) setReportContext(ctx);
+        if (!cancelled) {
+          setReportContext(ctx);
+          setReportLoadError(null);
+        }
       })
-      .catch(() => {
-        if (!cancelled) setReportContext(null);
+      .catch((err) => {
+        if (!cancelled) {
+          setReportContext(null);
+          setReportLoadError(
+            err instanceof Error ? err.message : "리포트 집계를 불러오지 못했습니다."
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setReportContextReady(true);
@@ -320,16 +246,101 @@ export default function MyPage() {
   }, [user?.id]);
 
   useEffect(() => {
+    if (!user?.id) {
+      setProfileImageUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void api.myPage
+      .getProfile()
+      .then((profile) => {
+        if (!cancelled) setProfileImageUrl(profile.imageUrl ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setProfileImageUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.role !== "student") {
+      setMissingEvalTables([]);
+      setLegacyPeerDisplayTable(false);
+      return;
+    }
+    let cancelled = false;
+    void api.courseEvals.getSchemaStatus().then((status) => {
+      if (!cancelled) {
+        setMissingEvalTables(status.missingTables);
+        setLegacyPeerDisplayTable(status.legacyPeerDisplayTable);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAvatarMessage("이미지 파일만 선택할 수 있습니다.");
+      return;
+    }
+    setAvatarUploading(true);
+    setAvatarMessage(null);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("파일을 읽지 못했습니다."));
+        reader.readAsDataURL(file);
+      });
+      const saved = await api.myPage.updateAvatar(dataUrl);
+      setProfileImageUrl(saved);
+      setAvatarMessage("프로필 이미지가 저장되었습니다.");
+    } catch (err) {
+      setAvatarMessage(err instanceof Error ? err.message : "이미지 저장에 실패했습니다.");
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  }
+
+  useEffect(() => {
     if (!reportContextReady || projectsLoading) return;
 
     if (reportContext) {
-      setProjects(api.aiReport.mapToMyPageProjects(reportContext));
+      setProjects(
+        reportContext.teams.length > 0
+          ? api.aiReport.mapToMyPageProjects(reportContext)
+          : []
+      );
       return;
     }
   }, [reportContext, reportContextReady, projectsLoading]);
 
+  async function handleSaveStudentProfile() {
+    if (user?.role !== "student") return;
+    setProfileSaving(true);
+    setProfileSaveMessage(null);
+    try {
+      const saved = await api.myPage.saveStudentProfile(profileEditForm);
+      setProfileEditForm(saved);
+      await refreshProfile();
+      setProfileSaveMessage("프로필이 저장되었습니다.");
+      setShowProfileEdit(false);
+    } catch (err) {
+      setProfileSaveMessage(err instanceof Error ? err.message : "저장에 실패했습니다.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   const sideNavItems = ["요약 리포트", "상세 리포트", "내 정보 조회", "내 정보 수정"];
-  const reportPageTitles = ["역량 및 활동 요약", "주요 팀플 상세", "문제해결 경험"];
+  const currentReportPage = REPORT_PAGES[reportPage - 1] ?? REPORT_PAGES[0];
   const profileName = user?.name ?? "로그인 사용자";
   const profileEmail = user?.email ?? "-";
   const profileInitial = profileName.slice(0, 1);
@@ -411,20 +422,31 @@ export default function MyPage() {
     { label: "문제 해결/회고", value: 82, desc: "트러블슈팅 로그를 남기고 원인-계획-해결을 정리하는 습관이 있습니다." },
   ];
 
-  const competencyItems = reportContext
-    ? api.aiReport.buildCompetencyItems(reportContext)
-    : DEMO_COMPETENCY_ITEMS;
+  const competencyItems =
+    reportContext && reportHasArchivedTeams
+      ? api.aiReport.buildCompetencyItems(reportContext)
+      : reportContextReady
+        ? []
+        : DEMO_COMPETENCY_ITEMS;
 
-  const activityBullets = reportContext
-    ? api.aiReport.buildActivityBullets(reportContext)
-    : [
-        { title: "기획", body: "사용자 인터뷰와 페르소나를 바탕으로 서비스 방향을 정리했습니다." },
-        { title: "구현", body: "React 기반 화면 구현, 반응형 레이아웃, 데이터 연동 흐름을 담당했습니다." },
-        {
-          title: "협업",
-          body: "역할 분담, 발표 자료, 트러블슈팅 기록을 문서화하며 팀 진행을 안정화했습니다.",
-        },
-      ];
+  const activityBullets =
+    reportContext && reportHasArchivedTeams
+      ? api.aiReport.buildActivityBullets(reportContext)
+      : reportContextReady
+        ? [
+            {
+              title: "활동 기록",
+              body: "종료된 팀플 참여 기록이 없습니다. doc/for_human/38_archived_kim_student_setup.md 시드 적용 후 「집계 새로고침」을 실행하세요.",
+            },
+          ]
+        : [
+            { title: "기획", body: "사용자 인터뷰와 페르소나를 바탕으로 서비스 방향을 정리했습니다." },
+            { title: "구현", body: "React 기반 화면 구현, 반응형 레이아웃, 데이터 연동 흐름을 담당했습니다." },
+            {
+              title: "협업",
+              body: "역할 분담, 발표 자료, 트러블슈팅 기록을 문서화하며 팀 진행을 안정화했습니다.",
+            },
+          ];
 
   const DEMO_TROUBLESHOOTING_CASES = [
     {
@@ -455,7 +477,9 @@ export default function MyPage() {
   const troubleshootingCases =
     reportContext && reportContext.troubleshootingCases.length > 0
       ? reportContext.troubleshootingCases
-      : DEMO_TROUBLESHOOTING_CASES;
+      : reportContextReady
+        ? []
+        : DEMO_TROUBLESHOOTING_CASES;
 
   const page3UsesDb = Boolean(
     reportContext && reportContext.troubleshootingCases.length > 0
@@ -466,7 +490,7 @@ export default function MyPage() {
     : `${profileName} 학생의 문제해결 경험은 단순 오류 수정이 아니라, 원인 파악, 구조 재정리, 재발 방지까지 이어지는 방식으로 기록되어 있습니다. (DB 로그가 없어 예시 사례를 표시합니다.)`;
 
   return (
-    <div className="min-h-screen bg-[#f0f0f0]">
+    <div className="min-h-screen bg-[#f0f0f0]" data-testid="mypage-page">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 px-4 py-6 sm:gap-6 sm:px-6 lg:flex-row lg:items-start lg:px-8">
         {/* 사이드 네비게이션 바 */}
         <aside className="w-full rounded-[14px] bg-white p-5 shadow-md lg:sticky lg:top-8 lg:w-[240px] lg:shrink-0">
@@ -476,12 +500,35 @@ export default function MyPage() {
               <button
                 key={item}
                 type="button"
-                className="whitespace-nowrap rounded-[10px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-3 text-left text-[15px] font-bold text-[#155dfc] transition-colors hover:bg-[#dbeafe] lg:w-full"
+                onClick={() => {
+                  if (item === "내 정보 수정" && user?.role === "student") {
+                    setShowProfileEdit(true);
+                    document.getElementById("mypage-profile-section")?.scrollIntoView({
+                      behavior: "smooth",
+                    });
+                  }
+                }}
+                className={`whitespace-nowrap rounded-[10px] border px-5 py-3 text-left text-[15px] font-bold transition-colors lg:w-full ${
+                  item === "내 정보 수정" && showProfileEdit
+                    ? "border-[#155dfc] bg-[#155dfc] text-white"
+                    : "border-[#dbeafe] bg-[#eff6ff] text-[#155dfc] hover:bg-[#dbeafe]"
+                }`}
               >
                 {item}
               </button>
             ))}
           </nav>
+          {canViewStudentReport && (
+            <div className="mt-6 border-t border-[#e5e7eb] pt-4">
+              <Link
+                to="/app/mypage/archived-courses"
+                className="block w-full rounded-[10px] border border-[#dbeafe] bg-[#eff6ff] px-5 py-3 text-center text-[15px] font-bold text-[#155dfc] hover:bg-[#dbeafe] lg:text-left"
+                data-testid="mypage-archived-courses-nav"
+              >
+                과거 수업
+              </Link>
+            </div>
+          )}
         </aside>
 
         <main className="min-w-0 flex-1">
@@ -489,13 +536,33 @@ export default function MyPage() {
         <h1 className="text-[30px] font-bold text-black mb-10">마이페이지</h1>
 
         {/* 프로필 섹션 */}
-        <div className="mb-8 flex min-h-[400px] flex-col items-center gap-8 rounded-[14px] bg-[rgba(255,255,255,0.9)] p-8 shadow-md md:flex-row">
+        <div
+          id="mypage-profile-section"
+          className="mb-8 flex min-h-[400px] flex-col items-center gap-8 rounded-[14px] bg-[rgba(255,255,255,0.9)] p-8 shadow-md md:flex-row"
+        >
           {/* 프로필 아바타 */}
           <div className="flex shrink-0 flex-col items-center gap-3 md:w-[240px]">
-            <div className="flex h-[171px] w-[170px] items-center justify-center rounded-full bg-[#1862ff] text-[35px] font-bold text-white">
-              {profileInitial}
+            <div className="flex h-[171px] w-[170px] items-center justify-center overflow-hidden rounded-full bg-[#1862ff] text-[35px] font-bold text-white">
+              {profileImageUrl ? (
+                <img src={profileImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                profileInitial
+              )}
             </div>
-              <button className="flex h-[33px] w-[33px] items-center justify-center rounded-[6px] border border-black bg-black">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+              <button
+                type="button"
+                disabled={avatarUploading}
+                onClick={() => avatarInputRef.current?.click()}
+                className="flex h-[33px] w-[33px] items-center justify-center rounded-[6px] border border-black bg-black disabled:opacity-50"
+                title="프로필 이미지 변경"
+              >
                 <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24.1667 22.9233">
                   <path
                     d={svgPaths.p38455680}
@@ -506,6 +573,11 @@ export default function MyPage() {
                   />
                 </svg>
               </button>
+            {avatarMessage && (
+              <p className="max-w-[170px] text-center text-[10px] font-medium text-[#475569]">
+                {avatarMessage}
+              </p>
+            )}
           </div>
 
           {/* 프로필 정보 */}
@@ -564,32 +636,188 @@ export default function MyPage() {
                 </p>
               </div>
             </div>
+
+            {user?.role === "student" && showProfileEdit && (
+              <div
+                className="rounded-[10px] border border-[#dbeafe] bg-[#f8fbff] p-5"
+                data-testid="mypage-profile-edit-form"
+              >
+                <p className="mb-3 text-[16px] font-bold text-[#155dfc]">내 정보 수정</p>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    이름
+                    <input
+                      type="text"
+                      value={profileEditForm.name}
+                      onChange={(e) =>
+                        setProfileEditForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    전공
+                    <input
+                      type="text"
+                      value={profileEditForm.major}
+                      onChange={(e) =>
+                        setProfileEditForm((f) => ({ ...f, major: e.target.value }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    자기소개
+                    <textarea
+                      value={profileEditForm.bio}
+                      onChange={(e) =>
+                        setProfileEditForm((f) => ({ ...f, bio: e.target.value }))
+                      }
+                      rows={3}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">기술 태그</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {profileEditForm.skills.map((skill) => (
+                        <button
+                          key={skill}
+                          type="button"
+                          onClick={() =>
+                            setProfileEditForm((f) => ({
+                              ...f,
+                              skills: f.skills.filter((s) => s !== skill),
+                            }))
+                          }
+                          className="rounded-full bg-[#155dfc] px-3 py-1 text-xs font-bold text-white"
+                        >
+                          {skill} ×
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        type="text"
+                        value={profileEditSkillDraft}
+                        onChange={(e) => setProfileEditSkillDraft(e.target.value)}
+                        placeholder="태그 추가"
+                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const t = profileEditSkillDraft.trim();
+                          if (!t || profileEditForm.skills.includes(t)) return;
+                          if (profileEditForm.skills.length >= 12) return;
+                          setProfileEditForm((f) => ({
+                            ...f,
+                            skills: [...f.skills, t],
+                          }));
+                          setProfileEditSkillDraft("");
+                        }}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold"
+                      >
+                        추가
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <button
+                      type="button"
+                      disabled={profileSaving}
+                      onClick={() => void handleSaveStudentProfile()}
+                      className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                    >
+                      {profileSaving ? "저장 중…" : "저장"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileEdit(false)}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700"
+                    >
+                      취소
+                    </button>
+                  </div>
+                  {profileSaveMessage && (
+                    <p className="text-xs font-medium text-[#475569]">{profileSaveMessage}</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {canViewStudentReport ? (
           <>
+            <EvalSchemaNotice
+              missingTables={missingEvalTables}
+              legacyPeerDisplayTable={legacyPeerDisplayTable}
+            />
+            {reportLoadError && (
+              <div
+                className="mx-auto mb-4 w-full max-w-[794px] rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+                data-testid="mypage-report-load-error"
+              >
+                <p className="font-bold">리포트 데이터를 불러오지 못했습니다.</p>
+                <p className="mt-1">{reportLoadError}</p>
+                <p className="mt-2 text-xs text-red-800">
+                  Supabase 연결·RLS·번들 v2(`20260520102000_team_detail_writes_bundle_v2.sql`) 적용 여부를
+                  확인하세요. 시드: `npm run verify:archived-kim`
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-800"
+                  onClick={() => {
+                    if (!user?.id) return;
+                    setReportContextReady(false);
+                    setReportLoadError(null);
+                    void api.aiReport
+                      .gatherContext(user.id)
+                      .then((ctx) => {
+                        setReportContext(ctx);
+                        setReportLoadError(null);
+                      })
+                      .catch((err) => {
+                        setReportContext(null);
+                        setReportLoadError(
+                          err instanceof Error ? err.message : "리포트 집계를 불러오지 못했습니다."
+                        );
+                      })
+                      .finally(() => setReportContextReady(true));
+                  }}
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
             <div className="mx-auto flex w-full max-w-[794px] flex-col gap-3 rounded-2xl border border-[#dbe7ff] bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="text-[12px] font-black text-[#155dfc]">리포트 페이지 넘기기</p>
                 <p className="mt-1 text-[14px] font-bold text-[#334155]">
-                  {reportPage} / 3 · {reportPageTitles[reportPage - 1]}
+                  {reportPage} / 3 · {currentReportPage.title}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
+                  type="button"
+                  data-testid="mypage-report-prev"
                   onClick={() => setReportPage((page) => Math.max(1, page - 1))}
                   disabled={reportPage === 1}
-                  className="rounded-full border border-[#cbd5e1] bg-white px-4 py-2 text-[13px] font-bold text-[#334155] transition-colors hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex items-center gap-1 rounded-full border border-[#cbd5e1] bg-white px-4 py-2 text-[13px] font-bold text-[#334155] transition-colors hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  이전 페이지
+                  <ChevronLeft className="h-4 w-4" />
+                  {currentReportPage.prevLabel ?? "이전"}
                 </button>
                 <button
+                  type="button"
+                  data-testid="mypage-report-next"
                   onClick={() => setReportPage((page) => Math.min(3, page + 1))}
                   disabled={reportPage === 3}
-                  className="rounded-full bg-[#155dfc] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[#0f4bd8] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex items-center gap-1 rounded-full bg-[#155dfc] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[#0f4bd8] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  다음 페이지
+                  {currentReportPage.nextLabel ?? "다음"}
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -715,20 +943,29 @@ export default function MyPage() {
                       핵심 역량 진단{reportContext ? " (DB)" : ""}
                     </h3>
                     <div className="mt-3 space-y-3">
-                      {competencyItems.map((item) => (
-                        <div key={item.label}>
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] font-bold text-[#1e293b]">{item.label}</p>
-                              <p className="text-[10px] text-[#64748b]">{item.desc}</p>
+                      {competencyItems.length === 0 ? (
+                        <p className="text-[11px] text-[#64748b]">
+                          종료 팀플 데이터가 없어 역량 점수를 계산할 수 없습니다.
+                        </p>
+                      ) : (
+                        competencyItems.map((item) => (
+                          <div key={item.label}>
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[11px] font-bold text-[#1e293b]">{item.label}</p>
+                                <p className="text-[10px] text-[#64748b]">{item.desc}</p>
+                              </div>
+                              <span className="text-[11px] font-black text-[#155dfc]">{item.value}</span>
                             </div>
-                            <span className="text-[11px] font-black text-[#155dfc]">{item.value}</span>
+                            <div className="h-2 overflow-hidden rounded-full bg-[#e8eef8]">
+                              <div
+                                className="h-full rounded-full bg-[#155dfc]"
+                                style={{ width: `${item.value}%` }}
+                              />
+                            </div>
                           </div>
-                          <div className="h-2 overflow-hidden rounded-full bg-[#e8eef8]">
-                            <div className="h-full rounded-full bg-[#155dfc]" style={{ width: `${item.value}%` }} />
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -758,14 +995,29 @@ export default function MyPage() {
                     <h3 className="text-[17px] font-black text-[#101828]">주요 팀플 상세 조회</h3>
                   </div>
                   <p className="text-[10px] text-[#64748b]">
-                    {reportContext && reportContext.teams.length > 0
-                      ? "Supabase 팀 멤버십 기준 카드입니다."
-                      : projectsLoading
-                        ? "프로젝트 불러오는 중…"
-                        : "각 카드를 클릭하면 상세 리포트를 확인할 수 있습니다."}
+                    {reportHasArchivedTeams
+                      ? "종료(archived) 수업 팀플만 집계합니다."
+                      : reportContextReady
+                        ? "종료된 팀플 기록이 없습니다."
+                        : "프로젝트 불러오는 중…"}
                   </p>
                 </div>
-                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+
+                {reportContextReady && !reportHasArchivedTeams && (
+                  <div
+                    className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] leading-5 text-amber-900"
+                    data-testid="mypage-report-empty-archived"
+                  >
+                    <p className="font-bold">종료된 팀플이 리포트에 없습니다.</p>
+                    <p className="mt-1">
+                      Supabase에 아카이브 수업·팀 멤버십이 있어야 합니다. 인간용 가이드:{" "}
+                      <code className="rounded bg-white px-1">doc/for_human/38_archived_kim_student_setup.md</code>
+                      — 시드 SQL 2개 실행 후 「집계 새로고침」을 눌러 보세요.
+                    </p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                   {reportContext && reportContext.teams.length > 0
                     ? reportContext.teams.map((team, index) => (
                         <div
@@ -908,6 +1160,11 @@ export default function MyPage() {
                 </div>
 
                 <div className="space-y-4" data-testid="mypage-troubleshooting-list">
+                  {troubleshootingCases.length === 0 && reportContextReady && (
+                    <p className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-600">
+                      등록된 트러블슈팅 로그가 없습니다.
+                    </p>
+                  )}
                   {troubleshootingCases.map((caseItem, index) => (
                     <div
                       key={"logId" in caseItem ? caseItem.logId : `${caseItem.title}-${index}`}
@@ -992,6 +1249,67 @@ export default function MyPage() {
           </div>
             </section>
           </>
+        ) : isProfessor && user?.role === "professor" ? (
+          <section
+            className="mx-auto w-full max-w-[794px] rounded-[10px] border border-[#d9e2f2] bg-white p-8 shadow-[0_28px_80px_rgba(15,23,42,0.18)]"
+            data-testid="mypage-professor-dashboard"
+          >
+            <p className="text-[11px] font-black text-[#155dfc]">PROFESSOR DASHBOARD</p>
+            <h2 className="mt-2 text-[22px] font-black text-[#0f172a]">교수 마이페이지</h2>
+            <p className="mt-3 text-[13px] leading-6 text-[#475569]">
+              학생용 팀플 리포트는 학생 계정에서만 열람할 수 있습니다. 아래에서 소속·연구 정보를 확인하고 수업·평가
+              메뉴로 이동하세요.
+            </p>
+            <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <dt className="text-[10px] font-bold uppercase text-[#64748b]">소속</dt>
+                <dd className="mt-1 text-[15px] font-bold text-[#0f172a]">
+                  {user.department || "미입력"}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <dt className="text-[10px] font-bold uppercase text-[#64748b]">연구실</dt>
+                <dd className="mt-1 text-[15px] font-bold text-[#0f172a]">{user.office || "미입력"}</dd>
+              </div>
+              <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                <dt className="text-[10px] font-bold uppercase text-[#64748b]">상담 시간</dt>
+                <dd className="mt-1 text-[15px] font-bold text-[#0f172a]">
+                  {user.officeHours || "미입력"}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 sm:col-span-2">
+                <dt className="text-[10px] font-bold uppercase text-[#64748b]">연구 분야</dt>
+                <dd className="mt-2 flex flex-wrap gap-2">
+                  {(user.researchAreas?.length ?? 0) > 0 ? (
+                    user.researchAreas.map((area) => (
+                      <span
+                        key={area}
+                        className="rounded-full bg-[#eff6ff] px-3 py-1 text-xs font-bold text-[#155dfc]"
+                      >
+                        {area}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-[#64748b]">등록된 연구 분야가 없습니다.</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/app/profile/professor"
+                className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-[#0f4bd8]"
+              >
+                프로필 수정
+              </Link>
+              <Link
+                to="/app/courses"
+                className="rounded-lg border border-[#cbd5e1] bg-white px-4 py-2 text-sm font-bold text-[#334155] hover:bg-[#f8fafc]"
+              >
+                내 수업 목록
+              </Link>
+            </div>
+          </section>
         ) : (
           <section
             className="mx-auto w-full max-w-[794px] rounded-[10px] border border-[#d9e2f2] bg-white p-8 text-center shadow-[0_28px_80px_rgba(15,23,42,0.18)]"
@@ -1000,8 +1318,7 @@ export default function MyPage() {
             <p className="text-[11px] font-black text-[#155dfc]">REPORT ACCESS</p>
             <h2 className="mt-2 text-[22px] font-black text-[#0f172a]">학생용 팀플 리포트</h2>
             <p className="mt-3 text-[13px] leading-6 text-[#475569]">
-              이 리포트는 학생의 협업·성장 기록을 위한 전용 화면입니다. 교수 계정에서는 팀 상세의 제출 현황과
-              평가 패널을 이용해 주세요.
+              이 리포트는 학생 계정 전용입니다.
             </p>
           </section>
         )}

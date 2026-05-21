@@ -78,8 +78,96 @@ function verifyItem(item, options) {
             extra: smoke.output.trim(),
           };
     }
+    case "H-002": {
+      const base = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+      if (!base) {
+        return { status: "fail", detail: "VITE_SUPABASE_URL 없음 — Edge 프로브 불가" };
+      }
+      const probe = spawnSync(
+        "node",
+        [
+          "-e",
+          `fetch('${base}/functions/v1/generate-report',{method:'OPTIONS'}).then(r=>process.exit(r.status===404?2:0)).catch(()=>process.exit(3))`,
+        ],
+        { cwd: rootDir, encoding: "utf8", shell: true, env: process.env }
+      );
+      if (probe.status === 0) {
+        return {
+          status: "manual",
+          detail: "Edge URL 응답 — 마이페이지 「AI 리포트 생성」으로 최종 확인 (OPENAI Secret)",
+        };
+      }
+      return {
+        status: "fail",
+        detail: "generate-report Edge 미배포 또는 unreachable — [30_edge_ai_report.md]",
+      };
+    }
     case "H-004": {
       return { status: "manual", detail: "GitHub Secrets는 로컬에서 자동 검증 불가" };
+    }
+    case "H-007":
+    case "H-008":
+    case "H-009":
+    case "H-010":
+    case "H-011": {
+      const hasUrl = Boolean(process.env.VITE_SUPABASE_URL?.trim());
+      const hasKey = Boolean(process.env.VITE_SUPABASE_ANON_KEY?.trim());
+      if (!hasUrl || !hasKey) {
+        return { status: "fail", detail: "VITE_SUPABASE_URL · VITE_SUPABASE_ANON_KEY 누락" };
+      }
+      const result = spawnSync("node", ["scripts/verify-archived-kim-setup.mjs", "--json"], {
+        cwd: rootDir,
+        encoding: "utf8",
+        shell: true,
+      });
+      try {
+        const parsed = JSON.parse((result.stdout ?? "").trim());
+        const checks = {
+          "H-007": (parsed.feedbackCount ?? 0) >= 1,
+          "H-008": (parsed.evalCounts?.peerReviewsGiven ?? 0) >= 1,
+          "H-009": (parsed.retrospectiveCount ?? 0) >= 1,
+          "H-010":
+            (parsed.evalCounts?.professorStudentEvals ?? 0) >= 1 &&
+            (parsed.evalCounts?.professorProjectEvals ?? 0) >= 1,
+          "H-011": Boolean(parsed.ok),
+        };
+        if (item.id === "H-011" && checks["H-011"]) {
+          return {
+            status: "pass",
+            detail: `verify:archived-kim ok (evalReady=${parsed.evalReady}, feedback=${parsed.feedbackCount})`,
+          };
+        }
+        if (item.id !== "H-011" && checks[item.id]) {
+          return { status: "pass", detail: `${item.id} 원격 시드·테이블 확인됨` };
+        }
+        if (item.id === "H-011") {
+          return {
+            status: "fail",
+            detail: `verify:archived-kim 실패 (evalReady=${parsed.evalReady ?? false})`,
+            extra: (result.stderr ?? "").trim(),
+          };
+        }
+        return {
+          status: "fail",
+          detail: `${item.id} 검증 실패 — npm run verify:archived-kim 참고`,
+          extra: JSON.stringify(
+            {
+              feedbackCount: parsed.feedbackCount,
+              evalCounts: parsed.evalCounts,
+              retrospectiveCount: parsed.retrospectiveCount,
+              missingTables: parsed.missingTables,
+            },
+            null,
+            2
+          ),
+        };
+      } catch {
+        return {
+          status: "fail",
+          detail: "verify:archived-kim JSON 파싱 실패",
+          extra: `${result.stdout ?? ""}\n${result.stderr ?? ""}`.trim(),
+        };
+      }
     }
     default: {
       return { status: "manual", detail: "현재 자동 검증 핸들러 없음 (문서 기준 수동 확인 필요)" };

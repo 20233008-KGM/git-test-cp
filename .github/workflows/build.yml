@@ -22,3 +22,10 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Verify archived kim seed (Supabase)
+        if: ${{ secrets.VITE_SUPABASE_URL != '' && secrets.VITE_SUPABASE_ANON_KEY != '' }}
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run verify:archived-kim:json

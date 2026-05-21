@@ -32,6 +32,153 @@
 
 ---
 
+## 2026-05-21 06:15:30 — prelaunch:check 런칭 자동 점검
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-20.md` |
+| **한 일** | `npm run prelaunch:check` (build·archived·preflight); deploy 체크리스트·28·00 갱신; H-002 Edge URL 프로브 |
+| **검증** | `prelaunch:check` → `ok: true` |
+| **당신이 할 일** | H-011 `[o]` → `npm run human:verify` · H-002 Edge [30](./30_edge_ai_report.md) |
+
+---
+
+## 2026-05-21 05:58:22 — 문서·CI·E2E #41·human H-007~011
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-19.md` |
+| **한 일** | `14_testing`·`17`·`26` 갱신; `human:verify` H-007~011; E2E #41; CI build에 `verify:archived-kim` |
+| **검증** | `npm run build` OK |
+| **당신이 할 일** | `28`에서 H-007~011 `[o]` 후 `npm run human:verify` |
+
+---
+
+## 2026-05-21 05:44:05 — 검증 파이프라인·원클릭 SQL 정리
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-18.md` |
+| **한 일** | `apply_remote_full`에 인덱스 §3; `verify:archived-kim:json`; verify-bundle `archivedKim`; `human:verify` H-011; README·02 |
+| **검증** | `verify:bundle:json` overallOk · build OK |
+| **당신이 할 일** | H-011 완료 시 `28`에서 `[o]` 후 `npm run human:verify` |
+
+---
+
+## 2026-05-21 05:22:40 — 피드백 시드·DB 인덱스·동료평가 E2E
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-17.md` |
+| **한 일** | SWE·OOP 피드백 MCP 시드; `hot_path_membership_indexes` 마이그레이션; E2E #39(학생)·#40(교수); verify `feedbackCount` |
+| **검증** | `feedbackCount: 2` · build OK |
+| **당신이 할 일** | 교수 계정으로 종료 수업 → 동료평가 전체 조회 확인 (E2E_PROFESSOR_* 설정 시 #40 자동) |
+
+---
+
+## 2026-05-21 05:08:12 — 회고록 시드·교수 평가 E2E
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-16.md` |
+| **한 일** | SWE·OOP 회고록 MCP 시드; bundle·apply_remote_full; `CourseProfessorEvalsPage` testid; E2E #38; verify `retrospectiveCount` |
+| **검증** | `retrospectiveCount: 2` · build OK |
+| **당신이 할 일** | 종료 수업 → 교수 평가에서 학생·프로젝트 문단 표시 확인 |
+
+---
+
+## 2026-05-21 04:38:55 — OOP 평가 시드·verify 팀별
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-15.md` |
+| **한 일** | `team-oop-lost` peer·교수 평가 시드(MCP+SQL); bundle·apply_remote_full 재생성; `verify:archived-kim` `evalByArchivedTeam`; smoke #37 |
+| **검증** | peer 2·prof 2·project 2 · SWE·OOP `ready: true` |
+| **당신이 할 일** | 과거 수업 페이지에서 OOP 카드 → 내 조원평가·교수 평가 클릭 확인 |
+
+---
+
+## 2026-05-21 04:18:42 — MCP 평가 DB·vision #48 과거 수업 페이지
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-14.md` |
+| **한 일** | MCP `team_detail_writes_bundle_v2` + 평가 시드 SQL; `MyPageArchivedCoursesPage`·라우트; MyPage 사이드 목록 제거·「과거 수업」버튼; E2E #37; `verify:archived-kim` evalReady |
+| **검증** | `npm run verify:archived-kim` OK · `npm run build` OK |
+| **당신이 할 일** | H-011 `[o]` 확인 후 마이페이지 PAGE 02 팀 카드·과거 수업 페이지 UI 확인 |
+
+---
+
+## 2026-05-21 03:52:10 — H-011·E2E 아카이브·MyPage 평가 안내
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-13.md` |
+| **한 일** | H-011 인간 항목, `openFirstArchivedCourse`, MyPage EvalSchemaNotice, 런칭 doc |
+| **당신이 할 일** | **H-011:** `apply_remote_full.sql` Supabase 실행 → `npm run verify:archived-kim` |
+
+---
+
+## 2026-05-21 03:38:15 — apply_remote_full.sql 일괄 적용 파일
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-12.md` |
+| **한 일** | `supabase/apply_remote_full.sql` 생성, `npm run supabase:apply-remote-full`, 레거시 테이블 안내 |
+| **당신이 할 일** | Supabase SQL Editor에 `apply_remote_full.sql` 1회 실행 → `npm run verify:archived-kim` |
+
+---
+
+## 2026-05-21 03:22:50 — vision #46 평가 테이블 안내·verify 강화
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-11.md` |
+| **한 일** | PGRST205 감지, EvalSchemaNotice, verify 상세 출력, E2E #36 |
+| **당신이 할 일** | Supabase에서 **bundle v2 SQL** 실행 → `npm run verify:archived-kim` → `evalReady: true` 확인 |
+
+---
+
+## 2026-05-21 03:05:40 — 리포트 로드 오류 UI·시드 점검 스크립트
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-10.md` |
+| **한 일** | MyPage 집계 실패 시 오류 배너·재시도, `npm run verify:archived-kim`, 14·38·29 갱신 |
+| **당신이 할 일** | SQL Editor에서 bundle 실행 → `npm run verify:archived-kim` → 김학생으로 마이페이지 확인 |
+
+---
+
+## 2026-05-21 02:50:12 — vision #47 마이페이지 진입 수정
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-9.md` |
+| **한 일** | `reportHasArchivedTeams`를 state 선언 뒤로 이동(TDZ ReferenceError 제거), E2E #35·`mypage-page` testid |
+| **당신이 할 일** | 브라우저에서 `/app/mypage` 새로고침 후 정상 진입 확인 |
+
+---
+
+## 2026-05-21 02:38:40 — vision #20 팀 카드 5열·가로 확대
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-8.md` — 사용자가 vision #20 문구 수정 반영 |
+| **한 일** | 팀 목록 xl 5열 그리드, MainLayout 팀 목록 경로 max 1920px, vision_snapshot·29·27 동기화 |
+| **당신이 할 일** | 데스크탑에서 팀 카드 페이지 열어 카드 비율 확인 (dev 서버 새로고침) |
+
+---
+
+## 2026-05-21 02:22:15 — 통합 시드 복구·MyPage 빈 상태
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | `doc/for_agent/plans/260521-7.md` — bundle UTF-8·seed 스크립트·빈 상태 UI |
+| **한 일** | `archived_kim_student_bundle.sql` 한글 깨짐 수정, `scripts/build-archived-bundle.mjs` + `npm run seed:archived-bundle`, MyPage 역량/트러블슈팅 빈 안내, 260521-6 마감 |
+| **당신이 할 일** | Supabase SQL Editor에서 bundle 실행 → 김학생 로그인 → 리포트·평가 확인 (`38_archived_kim_student_setup.md`) |
+
+---
+
 ## 동료 보고 체크포인트
 
 - 2026-05-20 13:04:45 — **여기까지 동료에게 보고함:** `2026-05-20 12:31:17 — T-024 링크 제목 fallback E2E 추가`
@@ -39,6 +186,56 @@
 ---
 
 ## 최근 작업 로그 (최신 → 과거)
+
+### 2026-05-21 01:55:07 — 리포트 데모 제거·시드 가이드·프로필 갱신
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260521-5.md`](../for_agent/plans/260521-5.md) |
+| **한 일** | MyPage 하드코딩 데모 프로젝트 제거, 종료 팀플 없을 때 안내 박스, `refreshProfile`, `38_archived_kim_student_setup.md`, E2E #34. |
+| **당신에게** | `38_archived_kim_student_setup.md` 순서대로 SQL 실행 후 김학생으로 리포트 확인 |
+
+---
+
+### 2026-05-21 01:47:32 — 아카이브 평가 조회·학생 프로필 수정
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260521-4.md`](../for_agent/plans/260521-4.md) — vision #30·#34·#44·#35·#46 |
+| **한 일** | 종료 수업 「내 조원평가」「교수 평가」 전용 페이지·사이드 네비. MyPage 학생 정보 수정 폼. 리포트 종료 팀 0건 빈 상태. E2E #32·#33. `npm run build` 통과. |
+| **당신에게** | `archived_courses_kim_student.sql`·`archived_evals_kim_student.sql` 적용 후 김학생으로 리포트·평가 조회 확인 |
+
+---
+
+### 2026-05-21 01:41:40 — MyPage 리포트·가입 태그·모달·교수 동료평가 조회
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260521-3.md`](../for_agent/plans/260521-3.md) — vision #33~#42·#38·#39·#45 |
+| **한 일** | 리포트: 수신 동료평가 집계, 페이지별 이전/다음 라벨. MyPage: 과거 수업 사이드, 프로필 이미지, 교수 대시보드. 회원가입 기술 태그. TeamDetail 조원평가·회고 모달. `CoursePeerReviewsOverviewPage` + 교수 네비. `npm run build` 통과. |
+| **당신에게** | 김학생 계정으로 아카이브 팀플 리포트·시드 SQL 검증 (#35·#46). H-001~H-010은 인간 키. |
+
+---
+
+### 2026-05-21 01:32:03 — vision #14~#44 TeamDetail·평가 게이트·보고서
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260521-2.md`](../for_agent/plans/260521-2.md) — TeamDetail UX, 종료 후 평가, 수업 삭제, vision 인간 보고서 |
+| **한 일** | `29_vision_requests_report.md` 추가. TeamDetail: 조원평가·AI추천·팀원·피드백 집계·교수 TS 금지. 평가는 **archived 후만**. `courses.delete`, `professors.saveProfile`, 팀 진행단계, 활동 2건, 아카이브 네비·평가 시드 SQL. `npm run build` 통과. |
+| **당신에게** | 수업 종료 → 조원평가·회고 테스트. 선택: `archived_evals_kim_student.sql` 실행 |
+
+---
+
+### 2026-05-21 01:25:48 — 팀 생성·참여·랜덤 배정·공지게시판
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260521-1.md`](../for_agent/plans/260521-1.md) — vision #19·#21·#27~#31·#20·#22 인간 키 없이 구현 |
+| **한 일** | `api.teams`: create/join/leave/getAssignedStudentIds. TeamsPage: 생성 모달, 참여·탈퇴, 2열 카드, 공지 3건. RandomTeamPage·StudentsNetwork: 교수만 랜덤, 미배정 학생만. `CourseAnnouncementsPage` + 사이드 네비. `npm run build` 통과. |
+| **당신이 할 일** | 로컬에서 팀 생성·참여·공지 등록 한 번 확인 (Supabase 연결 필요) |
+
+---
 
 ### 2026-05-20 18:17:45 — 타 학생 프로필 단건 조회 멤버십 범위 확장
 

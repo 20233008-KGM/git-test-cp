@@ -1,20 +1,20 @@
 ﻿# 02 — 현재 상태 (항상 최신 유지)
 
 > **관련:** `05_todo.md` · `17_handoff.md` · `27_vision_feature_matrix.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-20 · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~70%
+> **마지막 갱신:** 2026-05-21 · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~80%
 
 ## 스냅샷
 
 | 영역 | % | 상태 |
 |------|---|------|
-| 프론트엔드 UI | 83 | 마이페이지 리포트·권한 분리·수업 생성 UX·링크 게시물 |
-| 데이터 연동 (읽기) | 60 | `supabase-api.ts` → Supabase `ai_*` |
-| 데이터 연동 (쓰기) | 54 | Q&A·트러블슈팅·채팅·피드백·회고록·네트워크·산출물 |
+| 프론트엔드 UI | 88 | vision #1~#45 대부분 완료, 평가·리포트·모달 |
+| 데이터 연동 (읽기) | 65 | `supabase-api.ts` → Supabase `ai_*` · 아카이브 평가·회고 시드 |
+| 데이터 연동 (쓰기) | 56 | Q&A·트러블슈팅·채팅·피드백·회고록·네트워크·산출물 |
 | 인증 | 58 | Firebase + `ai_users` + JWT 스캐폴드(기본 off) + ProtectedRoute |
 | DB / RLS | 45 | 리뷰 패키지·Beta 초안 SQL (T-011, 미적용) |
-| DevOps | 35 | CI build + E2E, `vercel.json`, `deploy_vercel_checklist.md` (H-005) |
+| DevOps | 40 | CI build + archived verify + `prelaunch:check` + E2E (`deploy_vercel_checklist`, H-005) |
 | AI 리포트 | 65 | DB·A4·마이페이지 집계; Edge 초안(OPENAI 없음) + LLM deploy H-002 |
-| E2E 테스트 | 81 | Playwright 31플로우 + 인증 가드, GH Actions + smoke 커맨드 |
+| E2E 테스트 | 84 | Playwright 40플로우 + 인증 가드, GH Actions + smoke #1~#39 |
 
 ## vision 기반 이해도 점검 (2026-05-20)
 
@@ -51,7 +51,8 @@
 - [o] 교수 팀 평가 DB·제출 현황 조회·AI 진행 요약 (H-010, 번들 v2)
 - [o] AI 리포트 DB 집계·A4 인쇄·마이페이지 실데이터 (T-030/031, LLM 제외)
 - [o] Playwright E2E + GitHub Actions (T-040, T-041)
-- [o] 종료 수업 시드 (김학생 등) — `supabase/seed/archived_courses_kim_student.sql`
+- [o] 종료 수업 시드 (김학생) — 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
+- [o] vision #47·#48 — 마이페이지 TDZ 수정 · 과거 수업 전용 페이지
 - [o] `supabase-api.ts` rename (TD-001)
 
 ## 미완료 / 진행 중

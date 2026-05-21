@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import type { StudentProfile } from "../types";
 
@@ -38,6 +39,15 @@ export default function StudentProfilePage() {
           <div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">소개</h2>
             <p className="text-gray-700">{profile.bio}</p>
+          </div>
+
+          <div className="pt-2">
+            <Link
+              to="/app/mypage"
+              className="inline-flex rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-[#0f4bd8]"
+            >
+              마이페이지에서 프로필 수정
+            </Link>
           </div>
 
           <div>

@@ -7,10 +7,11 @@ import Navigation from "../components/Navigation";
 
 function CourseSideNavigation() {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, isProfessor, isAdmin } = useAuth();
   const courseMatch = location.pathname.match(/^\/app\/courses\/([^/]+)/);
   const courseId = courseMatch?.[1];
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
+  const [courseStatus, setCourseStatus] = useState<"active" | "archived" | null>(null);
 
   useEffect(() => {
     if (!courseId || !user?.id) {
@@ -29,6 +30,16 @@ function CourseSideNavigation() {
       isCancelled = true;
     };
   }, [courseId, user?.id]);
+
+  useEffect(() => {
+    if (!courseId) {
+      setCourseStatus(null);
+      return;
+    }
+    void api.courses.getById(courseId).then((course) => {
+      setCourseStatus(course?.status ?? null);
+    });
+  }, [courseId]);
 
   const courseTab = new URLSearchParams(location.search).get("tab") ?? "overview";
   const myTeamPeerReviewPath = useMemo(() => {
@@ -72,14 +83,55 @@ function CourseSideNavigation() {
       disabled: !courseId,
       testId: "course-detail-side-teams",
     },
-    {
-      key: "peer-review",
-      label: "조원평가",
-      path: myTeamPeerReviewPath,
-      active: Boolean(myTeamPeerReviewPath) && location.pathname.startsWith(myTeamPeerReviewPath),
-      disabled: !myTeamPeerReviewPath,
-      testId: "course-detail-side-peer-review",
-    },
+    ...(isProfessor || isAdmin
+      ? [
+          {
+            key: "announcements",
+            label: "공지게시판",
+            path: courseId ? `/app/courses/${courseId}/announcements` : "/app/courses",
+            active: Boolean(courseId) && location.pathname === `/app/courses/${courseId}/announcements`,
+            disabled: !courseId,
+            testId: "course-detail-side-announcements",
+          },
+          {
+            key: "peer-reviews-overview",
+            label: "동료평가 조회",
+            path: courseId ? `/app/courses/${courseId}/peer-reviews` : "/app/courses",
+            active: Boolean(courseId) && location.pathname === `/app/courses/${courseId}/peer-reviews`,
+            disabled: !courseId,
+            testId: "course-detail-side-peer-reviews-overview",
+          },
+        ]
+      : []),
+    ...(courseStatus === "archived" && courseId
+      ? [
+          {
+            key: "my-peer-reviews",
+            label: "내 조원평가",
+            path: `/app/courses/${courseId}/evals/my-peer-reviews`,
+            active: location.pathname === `/app/courses/${courseId}/evals/my-peer-reviews`,
+            disabled: false,
+            testId: "course-detail-side-my-peer-reviews",
+          },
+          {
+            key: "professor-evals",
+            label: "교수 평가",
+            path: `/app/courses/${courseId}/evals/professor`,
+            active: location.pathname === `/app/courses/${courseId}/evals/professor`,
+            disabled: false,
+            testId: "course-detail-side-professor-evals",
+          },
+        ]
+      : [
+          {
+            key: "peer-review",
+            label: "조원평가",
+            path: myTeamPeerReviewPath,
+            active: Boolean(myTeamPeerReviewPath) && location.pathname.startsWith(myTeamPeerReviewPath),
+            disabled: !myTeamPeerReviewPath,
+            testId: "course-detail-side-peer-review",
+          },
+        ]),
   ] as const;
 
   return (
@@ -118,13 +170,19 @@ export default function MainLayout() {
     /^\/app\/courses\/[^/]+/.test(location.pathname) ||
     location.pathname.startsWith("/app/students") ||
     location.pathname.startsWith("/app/teams");
+  const isCourseTeamsListPage = /^\/app\/courses\/[^/]+\/teams\/?$/.test(location.pathname);
+  const courseContentMaxWidth = isCourseTeamsListPage
+    ? "max-w-[min(100%,1920px)]"
+    : "max-w-7xl";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-gradient-to-b from-gray-50 to-white">
       <Navigation />
       <main className="flex-1 w-full">
         {showCourseSideNavigation ? (
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:gap-6 sm:py-6 lg:flex-row lg:px-8">
+          <div
+            className={`mx-auto flex w-full ${courseContentMaxWidth} flex-col gap-4 px-4 py-4 sm:gap-6 sm:py-6 lg:flex-row lg:px-8`}
+          >
             <CourseSideNavigation />
             <div className="min-w-0 flex-1">
               <Outlet />

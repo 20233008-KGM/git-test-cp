@@ -9,11 +9,12 @@
 
 ## 2. SQL 파일 내용 붙여넣기
 
-로컬 프로젝트에서 아래 파일을 연 뒤 **전체 복사** → SQL Editor에 붙여넣기:
+**가장 쉬운 방법 (vision #35·#46):**
 
-**권장 (v2, 전체):** `supabase/migrations/20260520102000_team_detail_writes_bundle_v2.sql`  
-(피드백·동료평가·회고록·교수 평가 한 번에)
+1. `npm run supabase:apply-remote-full`
+2. `supabase/apply_remote_full.sql` 전체 복사 → SQL Editor → Run
 
+**테이블만 (시드 제외):** `supabase/migrations/20260520102000_team_detail_writes_bundle_v2.sql`  
 **이전 (v1):** `supabase/migrations/20260520095400_team_detail_writes_bundle.sql`
 
 ## 3. Run 실행

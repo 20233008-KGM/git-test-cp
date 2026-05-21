@@ -136,9 +136,13 @@ function main() {
   const humanVerify = runAndParse("node", ["scripts/verify-human-actions.mjs", "--json"]);
   const smokePlan = runAndParse("node", ["scripts/run-e2e-smoke.mjs", "--dry-run", "--json"]);
   const humanSyncPreview = runAndParse("node", ["scripts/sync-human-actions.mjs", "--json"]);
+  const archivedKim = runAndParse("node", ["scripts/verify-archived-kim-setup.mjs", "--json"]);
 
   const parseFailed = Boolean(
-    humanVerify.parseError || smokePlan.parseError || humanSyncPreview.parseError
+    humanVerify.parseError ||
+      smokePlan.parseError ||
+      humanSyncPreview.parseError ||
+      archivedKim.parseError
   );
   const syncHasReverted = (humanSyncPreview.parsed?.revertedCount ?? 0) > 0;
   const report = {
@@ -149,6 +153,8 @@ function main() {
       humanVerify.exitCode === 0 &&
       smokePlan.exitCode === 0 &&
       humanSyncPreview.exitCode === 0 &&
+      archivedKim.exitCode === 0 &&
+      (archivedKim.parsed?.ok ?? false) &&
       !(humanVerify.parsed?.shouldFail ?? false) &&
       !syncHasReverted,
     humanVerify: {
@@ -175,6 +181,14 @@ function main() {
       manualCount: humanSyncPreview.parsed?.manualCount ?? null,
       memoAddedCount: humanSyncPreview.parsed?.memoAddedCount ?? null,
       parseError: humanSyncPreview.parseError,
+    },
+    archivedKim: {
+      exitCode: archivedKim.exitCode,
+      ok: archivedKim.parsed?.ok ?? null,
+      evalReady: archivedKim.parsed?.evalReady ?? null,
+      feedbackCount: archivedKim.parsed?.feedbackCount ?? null,
+      retrospectiveCount: archivedKim.parsed?.retrospectiveCount ?? null,
+      parseError: archivedKim.parseError,
     },
   };
 

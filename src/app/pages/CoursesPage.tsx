@@ -127,6 +127,28 @@ export default function CoursesPage() {
     }
   };
 
+  const handleDeleteCourse = async (course: Course) => {
+    if (
+      !window.confirm(
+        `'${course.name}' 수업과 연결된 팀·공지·멤버십 데이터를 모두 삭제합니다. 계속할까요?`
+      )
+    ) {
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await api.courses.delete(course.id);
+      await loadCourses(statusFilter);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "수업을 삭제하지 못했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleArchiveCourse = async (course: Course) => {
     if (!window.confirm(`'${course.name}' 수업을 종료하고 아카이브로 전환할까요?`)) return;
 
@@ -251,7 +273,8 @@ export default function CoursesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {courses.map((course) => {
-            const canArchiveCourse = canManageCourses && course.status === "active" && (isAdmin || course.professorId === user?.id);
+            const canManageThisCourse = canManageCourses && (isAdmin || course.professorId === user?.id);
+            const canArchiveCourse = canManageThisCourse && course.status === "active";
 
             return (
           <Link
@@ -318,6 +341,21 @@ export default function CoursesPage() {
                 className="mt-4 w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 수업 종료
+              </button>
+            )}
+            {canManageThisCourse && (
+              <button
+                type="button"
+                data-testid={`course-delete-${course.id}`}
+                disabled={submitting}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleDeleteCourse(course);
+                }}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-bold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                수업 삭제
               </button>
             )}
           </Link>

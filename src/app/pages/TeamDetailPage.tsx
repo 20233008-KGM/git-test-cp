@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { api, buildTeamProgressSummary } from "../api/supabase-api";
 import { supabase } from "../supabase";
+import TeamPeerReviewPage from "./TeamPeerReviewPage";
+import TeamRetrospectivePage from "./TeamRetrospectivePage";
 import type {
   ChatMessage,
   Course,
@@ -12,6 +14,7 @@ import type {
   TeamSubmissionRetrospectiveItem,
   TeamSubmissionPeerReviewItem,
   TroubleshootingLog,
+  PeerReviewTeammate,
 } from "../types";
 
 export default function TeamDetailPage() {
@@ -21,6 +24,8 @@ export default function TeamDetailPage() {
   const [showEvalModal, setShowEvalModal] = useState(false);
   const [showStudentEvalModal, setShowStudentEvalModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [showPeerReviewModal, setShowPeerReviewModal] = useState(false);
+  const [showRetrospectiveModal, setShowRetrospectiveModal] = useState(false);
   const [problemInput, setProblemInput] = useState("");
   const [planInput, setPlanInput] = useState("");
   const [course, setCourse] = useState<Course | null>(null);
@@ -55,6 +60,9 @@ export default function TeamDetailPage() {
 
   const myName = user?.name ?? (isProfessor ? "교수" : "학생");
   const isArchived = course?.status === "archived";
+  const isEvaluationOpen = isArchived;
+  const [teammates, setTeammates] = useState<PeerReviewTeammate[]>([]);
+  const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
 
   const handleCreateTroubleshootingLog = async () => {
     if (!selectedTeamId || !problemInput.trim()) {
@@ -358,6 +366,16 @@ export default function TeamDetailPage() {
 
   const [retrospectiveSubmitted, setRetrospectiveSubmitted] = useState(false);
 
+  const refreshRetrospectiveStatus = async () => {
+    if (!selectedTeamId) return;
+    try {
+      const draft = await api.teamDetail.getRetrospectiveDraft(selectedTeamId);
+      setRetrospectiveSubmitted(draft.submitted);
+    } catch (error) {
+      console.warn("회고록 상태 갱신 실패:", error);
+    }
+  };
+
   const handleSubmitFeedback = async () => {
     if (!selectedTeamId || submittingFeedback || isArchived) return;
     if (selectedFeedbacks.length === 0 && !customFeedbackText.trim()) return;
@@ -390,6 +408,8 @@ export default function TeamDetailPage() {
         troubleshootingLogsResult,
         deliverablesResult,
         retrospectiveDraftResult,
+        teammatesResult,
+        feedbackCountsResult,
       ] = await Promise.allSettled([
         api.teamDetail.getFeedbackOptions(selectedTeamId),
         api.teamDetail.getMyFeedback(selectedTeamId),
@@ -398,6 +418,8 @@ export default function TeamDetailPage() {
         api.teamDetail.getTroubleshootingLogs(selectedTeamId),
         api.teamDetail.getDeliverables(selectedTeamId),
         api.teamDetail.getRetrospectiveDraft(selectedTeamId),
+        api.teamDetail.getTeammates(selectedTeamId),
+        api.teamDetail.getFeedbackCounts(selectedTeamId),
       ]);
 
       if (isCancelled) return;
@@ -451,10 +473,23 @@ export default function TeamDetailPage() {
         console.warn("산출물 로드 실패:", deliverablesResult.reason);
       }
 
+      if (teammatesResult.status === "fulfilled") {
+        setTeammates(teammatesResult.value);
+      } else {
+        console.warn("팀원 목록 로드 실패:", teammatesResult.reason);
+      }
+
+      if (feedbackCountsResult.status === "fulfilled") {
+        setFeedbackCounts(feedbackCountsResult.value);
+      } else {
+        console.warn("피드백 집계 로드 실패:", feedbackCountsResult.reason);
+      }
+
       if (retrospectiveDraftResult.status === "fulfilled") {
         setRetrospectiveSubmitted(retrospectiveDraftResult.value.submitted);
       } else {
         console.warn("회고록 초안 로드 실패:", retrospectiveDraftResult.reason);
+        setRetrospectiveSubmitted(false);
       }
     };
 
@@ -491,6 +526,30 @@ export default function TeamDetailPage() {
     });
   }, [selectedTeamId, isProfessor, isAdmin]);
 
+  const aiRecommendedLog = useMemo((): TroubleshootingLog | null => {
+    const inProgress = troubleshootingLogs.find((log) => log.status === "in-progress");
+    if (inProgress) {
+      return {
+        ...inProgress,
+        id: "ai-recommendation",
+        author: "AI 추천",
+      };
+    }
+    return {
+      id: "ai-recommendation",
+      author: "AI 추천",
+      status: "in-progress",
+      timestamp: "지금",
+      problem: "배포 환경과 로컬 환경 차이로 E2E·빌드가 불안정할 수 있습니다.",
+      plan: "환경 변수·시드 데이터를 맞추고, flaky 테스트에는 retry를 적용해 보세요.",
+    };
+  }, [troubleshootingLogs]);
+
+  const totalFeedbackCount = useMemo(
+    () => Object.values(feedbackCounts).reduce((sum, count) => sum + count, 0),
+    [feedbackCounts]
+  );
+
   return (
     <div className="min-h-screen bg-[#f0f0f0]">
       <div className="mx-auto w-full max-w-[1504px] px-4 py-6 sm:px-6 lg:px-8">
@@ -504,42 +563,99 @@ export default function TeamDetailPage() {
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="break-words text-2xl font-black text-[#155dfc] sm:text-[30px]">{selectedTeamId}</h1>
-            {isArchived ? (
-              <span className="rounded-[10px] border border-gray-200 bg-white px-6 py-2.5 text-base font-bold text-gray-500">
-                종료된 수업: 읽기 전용
-              </span>
-            ) : isProfessor ? (
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => setShowStudentEvalModal(true)}
-                  className="bg-white border-2 border-[#155dfc] text-[#155dfc] px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-50 transition-colors"
-                >
-                  학생 평가
-                </button>
-                <button
-                  onClick={() => setShowEvalModal(true)}
-                  className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors"
-                >
-                  프로젝트 평가
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Link
-                  to={courseId ? `/app/courses/${courseId}/teams/${selectedTeamId}/retrospective` : "#"}
-                  data-testid="team-retrospective-page-link"
-                  className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors"
-                >
-                  {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
-                </Link>
-              </div>
-            )}
+            {isProfessor ? (
+              isEvaluationOpen ? (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => setShowStudentEvalModal(true)}
+                    className="bg-white border-2 border-[#155dfc] text-[#155dfc] px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-50 transition-colors"
+                  >
+                    학생 평가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowEvalModal(true)}
+                    className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors"
+                  >
+                    프로젝트 평가
+                  </button>
+                  {courseId && (
+                    <Link
+                      to={`/app/courses/${courseId}/peer-reviews`}
+                      data-testid="course-peer-reviews-overview-link"
+                      className="rounded-[10px] border border-[#cbd5e1] bg-white px-6 py-2.5 text-center text-base font-bold text-[#334155] hover:bg-[#f8fafc]"
+                    >
+                      동료평가 전체
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <span className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">
+                  수업 종료 후 평가 가능
+                </span>
+              )
+            ) : isStudent ? (
+              isEvaluationOpen ? (
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => setShowPeerReviewModal(true)}
+                    data-testid="team-peer-review-modal-open"
+                    className="border-2 border-[#155dfc] bg-white px-6 py-2.5 rounded-[10px] font-bold text-base text-[#155dfc] hover:bg-blue-50 transition-colors text-center"
+                  >
+                    조원평가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRetrospectiveModal(true)}
+                    data-testid="team-retrospective-modal-open"
+                    className="bg-[#155dfc] text-white px-6 py-2.5 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors text-center"
+                  >
+                    {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
+                  </button>
+                </div>
+              ) : (
+                <span className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">
+                  교수가 수업을 종료하면 조원평가·회고록이 열립니다
+                </span>
+              )
+            ) : null}
           </div>
         </div>
 
-        {isArchived && (
-          <div className="mb-6 rounded-[14px] border border-gray-200 bg-white px-5 py-4 text-sm font-bold text-gray-600 shadow-sm">
-            이 수업은 아카이브 상태입니다. 평가, 업로드, 문제 등록, 피드백 작성은 비활성화됩니다.
+        {isArchived ? (
+          <div className="mb-6 rounded-[14px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-bold text-blue-900 shadow-sm">
+            종료된 수업입니다. 조원평가·회고록·교수 평가를 진행할 수 있습니다. 트러블슈팅·산출물 업로드는 읽기 전용입니다.
+          </div>
+        ) : (
+          <div className="mb-6 rounded-[14px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900 shadow-sm">
+            진행 중인 수업입니다. 협업(트러블슈팅·산출물)은 가능하며, 조원평가·회고록·교수 평가는 수업 종료 후에만 열립니다.
+          </div>
+        )}
+
+        {teammates.length > 0 && (
+          <div
+            className="mb-6 rounded-[14px] border border-[#dbeafe] bg-white p-5 shadow-sm"
+            data-testid="team-workspace-members"
+          >
+            <h3 className="mb-3 text-base font-bold text-[#1c398e]">👥 팀원</h3>
+            <div className="flex flex-wrap gap-3">
+              {teammates.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-[#f8fafc] px-3 py-2"
+                >
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155dfc] text-xs font-bold text-white">
+                    {(member.name ?? "?").charAt(0)}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{member.name}</p>
+                    <p className="text-[10px] text-gray-500">{member.contribution ?? "팀원"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -788,7 +904,7 @@ export default function TeamDetailPage() {
           </div>
 
           {/* 오른쪽: 트러블슈팅 로그 */}
-          <div className="bg-white rounded-[14px] shadow-md border border-[rgba(0,0,0,0.1)] p-5">
+          <div className="bg-white rounded-[14px] shadow-md border border-[rgba(0,0,0,0.1)] p-5 flex flex-col">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-bold text-[#1c398e]">
                 🛠️ 트러블슈팅 로그
@@ -796,51 +912,30 @@ export default function TeamDetailPage() {
               <span className="text-xs text-[#6a7282]">문제 해결 과정 및 피드백</span>
             </div>
 
-            <div className="bg-[rgba(239,246,255,0.3)] border border-[#dbeafe] rounded-[10px] p-4 space-y-4 max-h-[565px] overflow-y-auto">
-              {/* 트러블슈팅 등록 폼 */}
-              {!isArchived && (
-                <div className="bg-white border-2 border-[rgba(174,174,174,0.3)] rounded-[10px] shadow-md p-4 mb-4">
-                  <p className="text-xs text-red-600 font-medium mb-2">
-                    새 트러블슈팅 기록
-                  </p>
-                  <textarea
-                    value={problemInput}
-                    onChange={(e) => setProblemInput(e.target.value)}
-                    data-testid="team-trouble-problem-input"
-                    placeholder="발견한 문제를 입력하세요."
-                    rows={2}
-                    className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                  <input
-                    type="text"
-                    value={planInput}
-                    onChange={(e) => setPlanInput(e.target.value)}
-                    data-testid="team-trouble-plan-input"
-                    placeholder="해결 계획 (선택)"
-                    className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                  <input
-                    type="text"
-                    value={solutionInput}
-                    onChange={(e) => setSolutionInput(e.target.value)}
-                    data-testid="team-trouble-solution-input"
-                    placeholder="해결 방법 (입력 시 해결 완료로 저장)"
-                    className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCreateTroubleshootingLog}
-                    disabled={submittingLog}
-                    data-testid="team-trouble-submit"
-                    className="w-full rounded-[5px] bg-[#155dfc] py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                  >
-                    {submittingLog ? "등록 중..." : "기록 등록"}
-                  </button>
-                </div>
-              )}
-
-              {/* 트러블슈팅 로그 목록 */}
+            <div className="bg-[rgba(239,246,255,0.3)] border border-[#dbeafe] rounded-[10px] p-4 max-h-[480px] overflow-y-auto">
               <div className="space-y-4">
+                {aiRecommendedLog && (
+                  <div
+                    data-testid="team-trouble-ai-recommendation"
+                    className="rounded-[10px] border-2 border-dashed border-[#93c5fd] bg-gradient-to-br from-[#eff6ff] to-white p-4 shadow-sm"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded-full bg-[#155dfc] px-2 py-0.5 text-[10px] font-bold text-white">
+                        AI 추천
+                      </span>
+                      <span className="text-xs font-bold text-[#1e2939]">{aiRecommendedLog.author}</span>
+                    </div>
+                    <p className="text-xs">
+                      <span className="font-bold text-[#fb2c36]">🚨 문제:</span> {aiRecommendedLog.problem}
+                    </p>
+                    {aiRecommendedLog.plan && (
+                      <p className="mt-1 text-xs">
+                        <span className="font-bold text-[#2b7fff]">🏃 계획:</span> {aiRecommendedLog.plan}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {troubleshootingLogs.map((log) => {
                   const isEditing = editingLogId === log.id;
                   return (
@@ -975,8 +1070,46 @@ export default function TeamDetailPage() {
                   );
                 })}
               </div>
-
             </div>
+
+            {!isArchived && isStudent && (
+              <div className="mt-4 bg-white border-2 border-[rgba(174,174,174,0.3)] rounded-[10px] shadow-md p-4">
+                <p className="text-xs text-red-600 font-medium mb-2">새 트러블슈팅 기록</p>
+                <textarea
+                  value={problemInput}
+                  onChange={(e) => setProblemInput(e.target.value)}
+                  data-testid="team-trouble-problem-input"
+                  placeholder="발견한 문제를 입력하세요."
+                  rows={2}
+                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <input
+                  type="text"
+                  value={planInput}
+                  onChange={(e) => setPlanInput(e.target.value)}
+                  data-testid="team-trouble-plan-input"
+                  placeholder="해결 계획 (선택)"
+                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <input
+                  type="text"
+                  value={solutionInput}
+                  onChange={(e) => setSolutionInput(e.target.value)}
+                  data-testid="team-trouble-solution-input"
+                  placeholder="해결 방법 (입력 시 해결 완료로 저장)"
+                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateTroubleshootingLog}
+                  disabled={submittingLog}
+                  data-testid="team-trouble-submit"
+                  className="w-full rounded-[5px] bg-[#155dfc] py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {submittingLog ? "등록 중..." : "기록 등록"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1034,10 +1167,15 @@ export default function TeamDetailPage() {
                       selectedFeedbacks.includes(option)
                         ? "bg-[#155dfc] text-white border-[#155dfc]"
                         : "bg-white text-[#364153] border-[rgba(0,0,0,0.1)]"
-                    } px-6 py-2 rounded-[14px] border font-medium hover:opacity-90 transition-all`}
+                    } inline-flex items-center gap-2 px-6 py-2 rounded-[14px] border font-medium hover:opacity-90 transition-all`}
                     onClick={() => toggleFeedback(option)}
                   >
-                    {option}
+                    <span>{option}</span>
+                    {(feedbackCounts[option] ?? 0) > 0 && (
+                      <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-bold">
+                        {feedbackCounts[option]}
+                      </span>
+                    )}
                   </button>
                 ))}
                 <button
@@ -1051,9 +1189,19 @@ export default function TeamDetailPage() {
                     setShowFeedbackCustomModal(true);
                   }}
                 >
-                  {customFeedbackText ? `"${customFeedbackText}"` : "| 기타 입력"}
+                  <span>{customFeedbackText ? `"${customFeedbackText}"` : "| 기타 입력"}</span>
+                  {(feedbackCounts["기타"] ?? 0) > 0 && (
+                    <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-bold">
+                      {feedbackCounts["기타"]}
+                    </span>
+                  )}
                 </button>
               </div>
+              {totalFeedbackCount > 0 && (
+                <p className="mb-3 text-center text-xs text-gray-500">
+                  총 {totalFeedbackCount}명이 피드백을 남겼습니다.
+                </p>
+              )}
               <div className="flex justify-center">
                 <button
                   type="button"
@@ -1175,7 +1323,7 @@ export default function TeamDetailPage() {
       )}
 
       {/* 평가 모달 (교수만) */}
-      {isProfessor && !isArchived && showEvalModal && (
+      {isProfessor && isEvaluationOpen && showEvalModal && (
         <div
           className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
           onClick={() => setShowEvalModal(false)}
@@ -1300,7 +1448,7 @@ export default function TeamDetailPage() {
       )}
 
       {/* 학생 평가 모달 (교수만) */}
-      {isProfessor && !isArchived && showStudentEvalModal && (
+      {isProfessor && isEvaluationOpen && showStudentEvalModal && (
         <div
           className="my-6 flex w-full items-center justify-center rounded-2xl bg-[rgba(79,79,79,0.81)] p-4"
           onClick={() => setShowStudentEvalModal(false)}
@@ -1451,6 +1599,60 @@ export default function TeamDetailPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPeerReviewModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          data-testid="team-peer-review-modal"
+          onClick={() => setShowPeerReviewModal(false)}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPeerReviewModal(false)}
+                className="rounded-lg border border-gray-300 px-3 py-1 text-sm font-bold"
+              >
+                닫기
+              </button>
+            </div>
+            <TeamPeerReviewPage />
+          </div>
+        </div>
+      )}
+
+      {showRetrospectiveModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          data-testid="team-retrospective-modal"
+          onClick={() => {
+            setShowRetrospectiveModal(false);
+            void refreshRetrospectiveStatus();
+          }}
+        >
+          <div
+            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRetrospectiveModal(false);
+                  void refreshRetrospectiveStatus();
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-1 text-sm font-bold"
+              >
+                닫기
+              </button>
+            </div>
+            <TeamRetrospectivePage />
           </div>
         </div>
       )}

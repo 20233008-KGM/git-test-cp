@@ -17,7 +17,14 @@ function asArray<T>(value: unknown): T[] {
 }
 
 function isMissingRelationError(error: { code?: string; message?: string }) {
-  return error.code === "42P01" || (error.message?.includes("does not exist") ?? false);
+  const message = error.message ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    message.includes("does not exist") ||
+    message.includes("Could not find the table") ||
+    message.includes("schema cache")
+  );
 }
 
 function truncateSnippet(text: string, max = 120): string {
@@ -36,6 +43,33 @@ function flattenFeedbackSnippet(row: {
   const custom = row.custom_text?.trim() ?? "";
   const parts = [...options, custom].filter(Boolean);
   return truncateSnippet(parts.join(", "), 120);
+}
+
+function aggregatePeerReviewKeywords(
+  rows: Array<{
+    good_keywords?: unknown;
+    bad_keywords?: unknown;
+    comment?: string | null;
+  }>
+): { text: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const keywords = [
+      ...asArray<string>(row.good_keywords),
+      ...asArray<string>(row.bad_keywords),
+    ];
+    const comment = row.comment?.trim();
+    if (comment) keywords.push(comment);
+    for (const kw of keywords) {
+      const key = kw.trim();
+      if (!key) continue;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([text, count]) => ({ text, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 12);
 }
 
 function flattenPeerReviewsSnippet(
@@ -150,6 +184,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     feedbacksResult,
     retrosResult,
     peerResult,
+    peerReceivedResult,
     profStudentResult,
     profProjectResult,
   ] = await Promise.all([
@@ -182,6 +217,11 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       .eq("reviewer_user_id", userId)
       .in("team_id", teamIds),
     supabase
+      .from("ai_team_detail_peer_reviews")
+      .select("team_id, good_keywords, bad_keywords, comment")
+      .eq("teammate_id", userId)
+      .in("team_id", teamIds),
+    supabase
       .from("ai_team_detail_professor_student_evals")
       .select("team_id, comment")
       .eq("student_row_id", userId)
@@ -203,6 +243,9 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   }
   if (peerResult.error && !isMissingRelationError(peerResult.error)) {
     throw peerResult.error;
+  }
+  if (peerReceivedResult.error && !isMissingRelationError(peerReceivedResult.error)) {
+    throw peerReceivedResult.error;
   }
   if (profStudentResult.error && !isMissingRelationError(profStudentResult.error)) {
     throw profStudentResult.error;
@@ -304,6 +347,25 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     if (snippet) peerSnippetByTeam.set(tid, snippet);
   }
 
+  const peerReceivedRows = (peerReceivedResult.error ? [] : (peerReceivedResult.data ?? [])).filter(
+    (row) => includedTeamIds.has(row.team_id)
+  );
+  const peerReceivedByTeam = new Map<string, typeof peerReceivedRows>();
+  for (const row of peerReceivedRows) {
+    const tid = row.team_id as string;
+    const list = peerReceivedByTeam.get(tid) ?? [];
+    list.push(row);
+    peerReceivedByTeam.set(tid, list);
+  }
+  const peerReceivedKeywordsByTeam = new Map<string, { text: string; count: number }[]>();
+  const peerReceivedSnippetByTeam = new Map<string, string>();
+  for (const [tid, rows] of peerReceivedByTeam) {
+    const keywords = aggregatePeerReviewKeywords(rows);
+    if (keywords.length > 0) peerReceivedKeywordsByTeam.set(tid, keywords);
+    const snippet = flattenPeerReviewsSnippet(rows);
+    if (snippet) peerReceivedSnippetByTeam.set(tid, snippet);
+  }
+
   const profStudentRows = (profStudentResult.error ? [] : (profStudentResult.data ?? [])).filter(
     (row) => includedTeamIds.has(row.team_id)
   );
@@ -402,6 +464,8 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       retrospectiveSnippet: retroSnippetByTeam.get(team.id),
       peerReviewsSubmitted: peerCountByTeam.get(team.id) ?? 0,
       peerReviewSnippet: peerSnippetByTeam.get(team.id),
+      peerReviewsReceived: peerReceivedKeywordsByTeam.get(team.id) ?? [],
+      peerReviewReceivedSnippet: peerReceivedSnippetByTeam.get(team.id),
       professorStudentEvalReceived: Boolean(studentComment),
       professorProjectEvalReceived: Boolean(projectEval),
       professorFeedbackSnippet,
@@ -718,8 +782,15 @@ export function mapReportContextToMyPageProjects(context: AiReportContext): MyPa
             ? ["산출물 업로드"]
             : [],
       insights:
-        "참여 팀·트러블슈팅·산출물·협업 제출 메타를 자동 집계한 카드입니다.",
-      peerReviews: [],
+        team.peerReviewReceivedSnippet
+          ? `동료평가 수신: ${team.peerReviewReceivedSnippet}`
+          : "참여 팀·트러블슈팅·산출물·협업 제출 메타를 자동 집계한 카드입니다.",
+      peerReviews:
+        team.peerReviewsReceived.length > 0
+          ? team.peerReviewsReceived
+          : team.peerReviewSnippet
+            ? [{ text: team.peerReviewSnippet, count: 1 }]
+            : [],
       professorReview: team.professorFeedbackSnippet ?? "",
     };
   });

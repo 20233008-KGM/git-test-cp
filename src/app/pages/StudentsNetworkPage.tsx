@@ -568,11 +568,13 @@ function TeamBox({ teamNumber, members }: { teamNumber: number; members: Student
 function RandomTeamModal({
   courseId,
   allStudents,
+  assignedStudentIds,
   canSave,
   onClose,
 }: {
   courseId: string;
   allStudents: Student[];
+  assignedStudentIds: string[];
   canSave: boolean;
   onClose: () => void;
 }) {
@@ -583,9 +585,11 @@ function RandomTeamModal({
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const unassignedStudents = allStudents.filter((s) => !assignedStudentIds.includes(s.id));
+
   const generate = (kws: string[]) => {
     const size = kws.includes("size3") ? 3 : 4;
-    let pool = [...allStudents];
+    let pool = [...unassignedStudents];
 
     if (kws.includes("career")) {
       const buckets: Student[][] = [[], [], [], []];
@@ -810,6 +814,7 @@ export default function StudentsNetworkPage() {
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRandomTeamModal, setShowRandomTeamModal] = useState(false);
+  const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentExtras, setStudentExtras] = useState<Record<string, StudentExtra>>({});
   const [course, setCourse] = useState<Course | null>(null);
@@ -859,6 +864,14 @@ export default function StudentsNetworkPage() {
       })
       .finally(() => setLoading(false));
   }, [courseId]);
+
+  useEffect(() => {
+    if (!courseId || !(isProfessor || isAdmin)) {
+      setAssignedStudentIds([]);
+      return;
+    }
+    void api.teams.getAssignedStudentIds(courseId).then(setAssignedStudentIds);
+  }, [courseId, isProfessor, isAdmin]);
 
   if (loading) {
     return (
@@ -981,7 +994,7 @@ export default function StudentsNetworkPage() {
 
         {/* 검색 + 랜덤 팀 생성 */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {!isArchived && (
+          {!isArchived && (isProfessor || isAdmin) && (
             <button
               onClick={() => setShowRandomTeamModal(true)}
               className="flex w-full items-center justify-center gap-2 rounded-[8px] bg-[#155dfc] px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 sm:w-auto"
@@ -1066,6 +1079,7 @@ export default function StudentsNetworkPage() {
         <RandomTeamModal
           courseId={courseId}
           allStudents={students}
+          assignedStudentIds={assignedStudentIds}
           canSave={Boolean(isProfessor || isAdmin)}
           onClose={() => setShowRandomTeamModal(false)}
         />

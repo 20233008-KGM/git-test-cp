@@ -39,3 +39,19 @@ export async function openFirstCourse(page: Page) {
   await courseLink.click();
   await expect(page).toHaveURL(/\/app\/courses\/[^/]+/);
 }
+
+/** vision #35·#44 — 종료(archived) 시드 수업이 있으면 우선 진입 */
+export async function openFirstArchivedCourse(page: Page) {
+  const archivedLink = page
+    .locator(
+      'a[href*="/app/courses/course-swe-2025-archived"], a[href*="/app/courses/course-oop-2025-archived"]'
+    )
+    .filter({ has: page.locator("h2") })
+    .first();
+  if (await archivedLink.isVisible().catch(() => false)) {
+    await archivedLink.click();
+  } else {
+    await openFirstCourse(page);
+  }
+  await expect(page).toHaveURL(/\/app\/courses\/[^/]+/);
+}

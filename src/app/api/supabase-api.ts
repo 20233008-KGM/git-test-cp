@@ -480,6 +480,68 @@ async function archiveCourseInDb(courseId: string): Promise<Course> {
   return archivedCourse;
 }
 
+async function deleteCourseInDb(courseId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const course = await getCourseByIdFromDb(courseId);
+  if (!course) throw new Error("수업을 찾을 수 없습니다.");
+
+  if (currentUser.role !== "admin") {
+    if (currentUser.role !== "professor" || course.professorId !== currentUser.id) {
+      throw new Error("수업을 삭제할 권한이 없습니다.");
+    }
+  }
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("ai_teams")
+    .select("id")
+    .eq("course_id", courseId);
+
+  if (teamsError) throw teamsError;
+
+  const teamIds = (teams ?? []).map((team) => team.id);
+
+  if (teamIds.length > 0) {
+    const detailTables = [
+      "ai_team_detail_chat_messages",
+      "ai_team_detail_feedbacks",
+      "ai_team_detail_peer_reviews",
+      "ai_team_detail_retrospectives",
+      "ai_team_detail_professor_student_evals",
+      "ai_team_detail_professor_project_evals",
+      "ai_team_detail_troubleshooting_logs",
+      "ai_team_deliverables",
+      "ai_team_activities",
+      "ai_team_members",
+    ] as const;
+
+    for (const table of detailTables) {
+      const { error } = await supabase.from(table).delete().in("team_id", teamIds);
+      if (error && !isMissingRelationError(error)) throw error;
+    }
+
+    const { error: teamsDeleteError } = await supabase.from("ai_teams").delete().eq("course_id", courseId);
+    if (teamsDeleteError) throw teamsDeleteError;
+  }
+
+  const courseScopedDeletes = [
+    supabase.from("ai_announcements").delete().eq("course_id", courseId),
+    supabase.from("ai_questions").delete().eq("course_id", courseId),
+    supabase.from("ai_projects").delete().eq("course_id", courseId),
+    supabase.from("ai_course_stages").delete().eq("course_id", courseId),
+    supabase.from("ai_course_memberships").delete().eq("course_id", courseId),
+  ];
+
+  for (const op of courseScopedDeletes) {
+    const { error } = await op;
+    if (error && !isMissingRelationError(error)) throw error;
+  }
+
+  const { error: courseDeleteError } = await supabase.from("ai_courses").delete().eq("id", courseId);
+  if (courseDeleteError) throw courseDeleteError;
+}
+
 async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
   const selectedCourseId = await getSelectedCourseId(courseId);
   if (!selectedCourseId) return [];
@@ -535,6 +597,7 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
       }),
     activities: activities
       .filter((activity) => activity.team_id === team.id)
+      .slice(0, 2)
       .map((activity) => ({
         tag: activity.tag,
         title: activity.title,
@@ -544,11 +607,20 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
   }));
 }
 
+async function assertCourseAllowsEvaluations(courseId: string) {
+  const course = await getCourseByIdFromDb(courseId);
+  if (!course) throw new Error("수업을 찾을 수 없습니다.");
+  if (course.status !== "archived") {
+    throw new Error("교수가 수업을 종료(아카이브)한 뒤에만 평가를 진행할 수 있습니다.");
+  }
+  return course;
+}
+
 async function getTeamStagesFromDb(courseId?: string): Promise<string[]> {
   return getCourseStageNamesFromDb(courseId);
 }
 
-async function getAnnouncementsFromDb(courseId?: string): Promise<Announcement[]> {
+async function getAnnouncementsFromDb(courseId?: string, limit?: number): Promise<Announcement[]> {
   const selectedCourseId = await getSelectedCourseId(courseId);
   if (!selectedCourseId) return [];
 
@@ -560,11 +632,48 @@ async function getAnnouncementsFromDb(courseId?: string): Promise<Announcement[]
 
   if (error) throw error;
 
-  return (data ?? []).map((announcement) => ({
+  const mapped = (data ?? []).map((announcement) => ({
     title: announcement.title,
     description: announcement.description,
     dDay: announcement.d_day,
   }));
+
+  return typeof limit === "number" ? mapped.slice(0, limit) : mapped;
+}
+
+async function createAnnouncementInDb(
+  courseId: string,
+  input: { title: string; description: string; dDay: number }
+): Promise<Announcement> {
+  await assertProfessorCanManageCourse(courseId);
+
+  const title = input.title.trim();
+  const description = input.description.trim();
+  if (!title) throw new Error("공지 제목을 입력해주세요.");
+
+  const { data: existing, error: countError } = await supabase
+    .from("ai_announcements")
+    .select("sort_order")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (countError) throw countError;
+
+  const nextOrder = (existing?.[0]?.sort_order ?? 0) + 1;
+  const id = `ann-${courseId}-${Date.now()}`;
+  const { error } = await supabase.from("ai_announcements").insert({
+    id,
+    course_id: courseId,
+    title,
+    description,
+    d_day: Math.max(0, input.dDay),
+    sort_order: nextOrder,
+  });
+
+  if (error) throw error;
+
+  return { title, description, dDay: Math.max(0, input.dDay) };
 }
 
 async function getNetworkStudentsFromDb(courseId?: string): Promise<NetworkStudent[]> {
@@ -779,6 +888,318 @@ async function getProjectsFromDb(): Promise<Project[]> {
   }));
 }
 
+export type MyPageArchivedCourse = {
+  courseId: string;
+  courseName: string;
+  semester?: string;
+  teamId: string;
+  teamName: string;
+};
+
+export type CoursePeerReviewOverviewRow = {
+  teamId: string;
+  teamName: string;
+  reviewerName: string;
+  teammateName: string;
+  goodKeywords: string[];
+  badKeywords: string[];
+  comment?: string;
+};
+
+async function getMyPageArchivedCoursesFromDb(): Promise<MyPageArchivedCourse[]> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) return [];
+
+  const { data: memberships, error: memError } = await supabase
+    .from("ai_team_members")
+    .select("team_id")
+    .eq("user_id", currentUser.id);
+  if (memError) throw memError;
+
+  const teamIds = Array.from(
+    new Set((memberships ?? []).map((m) => m.team_id).filter(Boolean))
+  ) as string[];
+  if (teamIds.length === 0) return [];
+
+  const { data: teams, error: teamError } = await supabase
+    .from("ai_teams")
+    .select("id, name, course_id")
+    .in("id", teamIds);
+  if (teamError) throw teamError;
+
+  const courseIds = Array.from(
+    new Set((teams ?? []).map((t) => t.course_id).filter(Boolean))
+  ) as string[];
+  if (courseIds.length === 0) return [];
+
+  const { data: courses, error: courseError } = await supabase
+    .from("ai_courses")
+    .select("id, name, semester, status")
+    .in("id", courseIds);
+  if (courseError) throw courseError;
+
+  const archivedIds = new Set(
+    (courses ?? []).filter((c) => c.status === "archived").map((c) => c.id)
+  );
+  const courseById = new Map((courses ?? []).map((c) => [c.id, c]));
+
+  return (teams ?? [])
+    .filter((team) => archivedIds.has(team.course_id))
+    .map((team) => {
+      const course = courseById.get(team.course_id);
+      return {
+        courseId: team.course_id,
+        courseName: course?.name ?? "수업",
+        semester: course?.semester ?? undefined,
+        teamId: team.id,
+        teamName: team.name,
+      };
+    });
+}
+
+async function updateMyPageAvatarFromDb(imageDataUrl: string): Promise<string> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!imageDataUrl.startsWith("data:image/")) {
+    throw new Error("이미지 파일만 업로드할 수 있습니다.");
+  }
+  if (imageDataUrl.length > 500_000) {
+    throw new Error("이미지가 너무 큽니다. 500KB 이하로 줄여 주세요.");
+  }
+
+  const { error } = await supabase
+    .from("ai_users")
+    .update({ image: imageDataUrl })
+    .eq("id", currentUser.id);
+  if (error) throw error;
+  return imageDataUrl;
+}
+
+async function getCoursePeerReviewsOverviewFromDb(
+  courseId: string
+): Promise<CoursePeerReviewOverviewRow[]> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || !["professor", "admin"].includes(currentUser.role)) {
+    return [];
+  }
+
+  const course = await getCourseByIdFromDb(courseId);
+  if (!course) return [];
+  if (currentUser.role === "professor" && course.professorId !== currentUser.id) {
+    throw new Error("본인 수업만 조회할 수 있습니다.");
+  }
+
+  const { data: teams, error: teamError } = await supabase
+    .from("ai_teams")
+    .select("id, name")
+    .eq("course_id", courseId);
+  if (teamError) throw teamError;
+
+  const teamIds = (teams ?? []).map((t) => t.id);
+  if (teamIds.length === 0) return [];
+
+  const { data: reviews, error: reviewError } = await supabase
+    .from("ai_team_detail_peer_reviews")
+    .select("team_id, reviewer_user_id, teammate_id, good_keywords, bad_keywords, comment")
+    .in("team_id", teamIds)
+    .order("created_at", { ascending: false });
+  if (reviewError) {
+    if (isMissingRelationError(reviewError)) return [];
+    throw reviewError;
+  }
+
+  const userIds = Array.from(
+    new Set(
+      (reviews ?? []).flatMap((r) => [r.reviewer_user_id, r.teammate_id]).filter(Boolean)
+    )
+  ) as string[];
+
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: users, error: userError } = await supabase
+      .from("ai_users")
+      .select("id, name")
+      .in("id", userIds);
+    if (userError) throw userError;
+    nameById = new Map((users ?? []).map((u) => [u.id, u.name]));
+  }
+
+  const teamNameById = new Map((teams ?? []).map((t) => [t.id, t.name]));
+
+  return (reviews ?? []).map((row) => ({
+    teamId: row.team_id as string,
+    teamName: teamNameById.get(row.team_id as string) ?? row.team_id,
+    reviewerName: nameById.get(row.reviewer_user_id as string) ?? "리뷰어",
+    teammateName: nameById.get(row.teammate_id as string) ?? "피평가자",
+    goodKeywords: asArray<string>(row.good_keywords),
+    badKeywords: asArray<string>(row.bad_keywords),
+    comment: (row.comment as string) ?? undefined,
+  }));
+}
+
+export type MyPeerReviewGivenItem = {
+  teammateName: string;
+  goodKeywords: string[];
+  badKeywords: string[];
+  comment?: string;
+};
+
+export type MyProfessorEvalInCourse = {
+  teamId: string;
+  teamName: string;
+  projectTitle: string;
+  studentComment?: string;
+  projectCompletion?: string;
+  projectProblemSolving?: string;
+  projectHolistic?: string;
+};
+
+export type MyPageStudentProfileInput = {
+  name: string;
+  major: string;
+  bio: string;
+  skills: string[];
+};
+
+async function getMyPeerReviewsGivenInCourseFromDb(
+  courseId: string
+): Promise<MyPeerReviewGivenItem[]> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || currentUser.role !== "student") return [];
+
+  const teamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  if (!teamId) return [];
+
+  const { data, error } = await supabase
+    .from("ai_team_detail_peer_reviews")
+    .select("teammate_id, good_keywords, bad_keywords, comment")
+    .eq("team_id", teamId)
+    .eq("reviewer_user_id", currentUser.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  const teammateIds = Array.from(
+    new Set((data ?? []).map((row) => row.teammate_id).filter(Boolean))
+  ) as string[];
+
+  let nameById = new Map<string, string>();
+  if (teammateIds.length > 0) {
+    const { data: users, error: userError } = await supabase
+      .from("ai_users")
+      .select("id, name")
+      .in("id", teammateIds);
+    if (userError) throw userError;
+    nameById = new Map((users ?? []).map((u) => [u.id, u.name]));
+  }
+
+  return (data ?? []).map((row) => ({
+    teammateName: nameById.get(row.teammate_id as string) ?? "팀원",
+    goodKeywords: asArray<string>(row.good_keywords),
+    badKeywords: asArray<string>(row.bad_keywords),
+    comment: (row.comment as string) ?? undefined,
+  }));
+}
+
+async function getMyProfessorEvalsInCourseFromDb(
+  courseId: string
+): Promise<MyProfessorEvalInCourse | null> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || currentUser.role !== "student") return null;
+
+  const teamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  if (!teamId) return null;
+
+  const { data: team, error: teamError } = await supabase
+    .from("ai_teams")
+    .select("id, name, project_title")
+    .eq("id", teamId)
+    .maybeSingle();
+  if (teamError) throw teamError;
+  if (!team) return null;
+
+  const [studentEvalResult, projectEvalResult] = await Promise.all([
+    supabase
+      .from("ai_team_detail_professor_student_evals")
+      .select("comment")
+      .eq("team_id", teamId)
+      .eq("student_row_id", currentUser.id)
+      .maybeSingle(),
+    supabase
+      .from("ai_team_detail_professor_project_evals")
+      .select("completion_comment, problem_solving_comment, holistic_comment")
+      .eq("team_id", teamId)
+      .maybeSingle(),
+  ]);
+
+  if (studentEvalResult.error && !isMissingRelationError(studentEvalResult.error)) {
+    throw studentEvalResult.error;
+  }
+  if (projectEvalResult.error && !isMissingRelationError(projectEvalResult.error)) {
+    throw projectEvalResult.error;
+  }
+
+  const studentRow = studentEvalResult.error ? null : studentEvalResult.data;
+  const projectRow = projectEvalResult.error ? null : projectEvalResult.data;
+
+  const hasContent =
+    Boolean(studentRow?.comment?.trim()) ||
+    Boolean(projectRow?.completion_comment?.trim()) ||
+    Boolean(projectRow?.problem_solving_comment?.trim()) ||
+    Boolean(projectRow?.holistic_comment?.trim());
+
+  if (!hasContent) {
+    return {
+      teamId,
+      teamName: team.name,
+      projectTitle: team.project_title ?? team.name,
+    };
+  }
+
+  return {
+    teamId,
+    teamName: team.name,
+    projectTitle: team.project_title ?? team.name,
+    studentComment: studentRow?.comment?.trim() || undefined,
+    projectCompletion: projectRow?.completion_comment?.trim() || undefined,
+    projectProblemSolving: projectRow?.problem_solving_comment?.trim() || undefined,
+    projectHolistic: projectRow?.holistic_comment?.trim() || undefined,
+  };
+}
+
+async function saveMyPageStudentProfileFromDb(
+  input: MyPageStudentProfileInput
+): Promise<MyPageStudentProfileInput> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") throw new Error("학생만 프로필을 수정할 수 있습니다.");
+
+  const name = input.name.trim();
+  const major = input.major.trim();
+  const bio = input.bio.trim();
+  const skills = input.skills.map((s) => s.trim()).filter(Boolean).slice(0, 12);
+
+  if (!name) throw new Error("이름을 입력해주세요.");
+  if (!major) throw new Error("전공을 입력해주세요.");
+
+  const { error } = await supabase
+    .from("ai_users")
+    .update({
+      name,
+      major,
+      bio: bio || null,
+      skills,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", currentUser.id);
+
+  if (error) throw error;
+  return { name, major, bio, skills };
+}
+
 async function getMyPageProfileFromDb(): Promise<MyPageProfile> {
   const currentUser = await getCurrentAiUser();
 
@@ -788,6 +1209,7 @@ async function getMyPageProfileFromDb(): Promise<MyPageProfile> {
       name: currentUser.name,
       email: currentUser.email,
       schoolAndMajor: currentUser.role === "professor" ? "컴퓨터공학부 교수" : "컴퓨터공학과 학생",
+      imageUrl: currentUser.image ?? currentUser.avatar ?? undefined,
     };
   }
 
@@ -1029,7 +1451,47 @@ function mapTeamFeedbackRow(row: TeamFeedbackRow): TeamFeedback {
 }
 
 function isMissingRelationError(error: { code?: string; message?: string }) {
-  return error.code === "42P01" || (error.message?.includes("does not exist") ?? false);
+  const message = error.message ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST205" ||
+    message.includes("does not exist") ||
+    message.includes("Could not find the table") ||
+    message.includes("schema cache")
+  );
+}
+
+export type EvalSchemaStatus = {
+  ready: boolean;
+  missingTables: string[];
+  /** 구버전 팀 상세 표시용 테이블(시드에 포함, 평가 조회 API와 별개) */
+  legacyPeerDisplayTable: boolean;
+};
+
+async function probeTableReachable(table: string): Promise<boolean> {
+  const { error } = await supabase.from(table).select("id").limit(1);
+  if (!error) return true;
+  if (isMissingRelationError(error)) return false;
+  throw error;
+}
+
+async function getEvalSchemaStatusFromDb(): Promise<EvalSchemaStatus> {
+  const probes: { label: string; table: string }[] = [
+    { label: "동료평가", table: "ai_team_detail_peer_reviews" },
+    { label: "교수 학생 평가", table: "ai_team_detail_professor_student_evals" },
+    { label: "교수 프로젝트 평가", table: "ai_team_detail_professor_project_evals" },
+  ];
+  const missingTables: string[] = [];
+  for (const probe of probes) {
+    const ok = await probeTableReachable(probe.table);
+    if (!ok) missingTables.push(probe.label);
+  }
+  const legacyPeerDisplayTable = await probeTableReachable("ai_team_detail_peer_review_students");
+  return {
+    ready: missingTables.length === 0,
+    missingTables,
+    legacyPeerDisplayTable,
+  };
 }
 
 function createTeamFeedbackId(teamId: string, userId: string): string {
@@ -1265,10 +1727,7 @@ async function submitTeamRetrospectiveInDb(
   }
 
   const { courseId } = await assertTeamDeliverableAccess(teamId);
-  const course = await getCourseByIdFromDb(courseId);
-  if (course?.status === "archived") {
-    throw new Error("종료된 수업에서는 회고록을 새로 작성할 수 없습니다.");
-  }
+  await assertCourseAllowsEvaluations(courseId);
 
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -1344,10 +1803,7 @@ async function assertProfessorTeamAccess(teamId: string): Promise<void> {
   }
   await assertTeamDeliverableAccess(teamId);
   const courseId = await getTeamCourseIdFromDb(teamId);
-  const course = courseId ? await getCourseByIdFromDb(courseId) : null;
-  if (course?.status === "archived") {
-    throw new Error("종료된 수업에서는 평가를 저장할 수 없습니다.");
-  }
+  if (courseId) await assertCourseAllowsEvaluations(courseId);
 }
 
 function createProfessorStudentEvalId(
@@ -1660,10 +2116,7 @@ async function submitPeerReviewInDb(
   }
 
   const { courseId } = await assertTeamDeliverableAccess(teamId);
-  const course = await getCourseByIdFromDb(courseId);
-  if (course?.status === "archived") {
-    throw new Error("종료된 수업에서는 동료평가를 제출할 수 없습니다.");
-  }
+  await assertCourseAllowsEvaluations(courseId);
 
   const now = new Date().toISOString();
   const { error } = await supabase.from("ai_team_detail_peer_reviews").upsert(
@@ -1736,7 +2189,123 @@ async function getTeamDetailTeammatesFromDb(teamId?: string): Promise<PeerReview
 
   if (error) throw error;
 
-  return data ?? [];
+  if ((data ?? []).length > 0) {
+    return data ?? [];
+  }
+
+  const { data: members, error: membersError } = await supabase
+    .from("ai_team_members")
+    .select("id, user_id, role, sort_order")
+    .eq("team_id", teamId)
+    .order("sort_order", { ascending: true });
+
+  if (membersError) throw membersError;
+
+  const users = await getUsersByIds(
+    Array.from(new Set((members ?? []).map((member) => member.user_id).filter(Boolean)))
+  );
+
+  return (members ?? []).map((member) => {
+    const user = users.find((item) => item.id === member.user_id);
+    return {
+      id: member.user_id ?? member.id,
+      name: user?.name ?? "팀원",
+      contribution: member.role === "leader" ? 100 : 80,
+      sort_order: member.sort_order,
+      team_id: teamId,
+    };
+  });
+}
+
+async function getTeamFeedbackCountsFromDb(teamId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from("ai_team_detail_feedbacks")
+    .select("selected_options, custom_text")
+    .eq("team_id", teamId);
+
+  if (error) {
+    if (isMissingRelationError(error)) return {};
+    throw error;
+  }
+
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    for (const option of asArray<string>(row.selected_options)) {
+      if (!option) continue;
+      counts[option] = (counts[option] ?? 0) + 1;
+    }
+    if (row.custom_text) {
+      counts["기타"] = (counts["기타"] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+async function updateTeamCompletedStagesInDb(
+  teamId: string,
+  completedStages: number
+): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") {
+    throw new Error("학생만 팀 진행 단계를 수정할 수 있습니다.");
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) throw new Error("팀을 찾을 수 없습니다.");
+
+  await assertActiveCourseMembership(courseId);
+
+  const myTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  if (myTeamId !== teamId) {
+    throw new Error("내가 속한 팀만 진행 단계를 수정할 수 있습니다.");
+  }
+
+  const stageNames = await getCourseStageNamesFromDb(courseId);
+  const clamped = Math.max(0, Math.min(completedStages, stageNames.length));
+
+  const { error } = await supabase
+    .from("ai_teams")
+    .update({
+      completed_stages: clamped,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", teamId);
+
+  if (error) throw error;
+}
+
+async function saveProfessorProfileInDb(input: {
+  department: string;
+  office: string;
+  officeHours: string;
+  researchAreas: string[];
+}): Promise<ProfessorProfile> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "professor" && currentUser.role !== "admin") {
+    throw new Error("교수만 프로필을 수정할 수 있습니다.");
+  }
+
+  const department = input.department.trim();
+  if (!department) throw new Error("소속을 입력해주세요.");
+
+  const { error } = await supabase
+    .from("ai_users")
+    .update({
+      department,
+      office: input.office.trim(),
+      office_hours: input.officeHours.trim(),
+      research_areas: input.researchAreas.filter(Boolean),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", currentUser.id);
+
+  if (error) throw error;
+
+  const updated = await getProfessorByIdFromDb(currentUser.id);
+  if (!updated) throw new Error("프로필을 다시 불러오지 못했습니다.");
+  return updated;
 }
 
 export type CreateTroubleshootingLogInput = {
@@ -1785,6 +2354,15 @@ async function createTroubleshootingLogInDb(
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
   if (!teamId) throw new Error("팀 정보가 없습니다.");
+  if (currentUser.role === "professor") {
+    throw new Error("트러블슈팅 기록은 해당 팀 학생만 작성할 수 있습니다.");
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  const course = courseId ? await getCourseByIdFromDb(courseId) : null;
+  if (course?.status === "archived") {
+    throw new Error("종료된 수업에서는 트러블슈팅을 새로 작성할 수 없습니다.");
+  }
 
   const problem = input.problem.trim();
   if (!problem) throw new Error("문제 내용을 입력해주세요.");
@@ -2688,6 +3266,193 @@ async function assertProfessorCanManageCourse(courseId: string) {
   return currentUser;
 }
 
+async function assertActiveCourseMembership(courseId: string) {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const course = await getCourseByIdFromDb(courseId);
+  if (!course) throw new Error("수업을 찾을 수 없습니다.");
+  if (course.status !== "active") throw new Error("종료된 수업에서는 팀을 변경할 수 없습니다.");
+
+  if (currentUser.role === "admin") return { currentUser, course };
+
+  const accessible = await getAccessibleCourseIds();
+  if (!accessible.includes(courseId)) {
+    throw new Error("이 수업에 접근할 수 없습니다.");
+  }
+
+  return { currentUser, course };
+}
+
+async function getAssignedStudentIdsInCourseFromDb(courseId: string): Promise<string[]> {
+  const { data: teams, error: teamsError } = await supabase
+    .from("ai_teams")
+    .select("id")
+    .eq("course_id", courseId);
+
+  if (teamsError) throw teamsError;
+
+  const teamIds = (teams ?? []).map((team) => team.id);
+  if (teamIds.length === 0) return [];
+
+  const { data: members, error: membersError } = await supabase
+    .from("ai_team_members")
+    .select("user_id")
+    .in("team_id", teamIds);
+
+  if (membersError) throw membersError;
+
+  return Array.from(new Set((members ?? []).map((member) => member.user_id).filter(Boolean)));
+}
+
+async function getMyTeamIdInCourseFromDb(courseId: string, userId: string): Promise<string | null> {
+  const { data: teams, error: teamsError } = await supabase
+    .from("ai_teams")
+    .select("id")
+    .eq("course_id", courseId);
+
+  if (teamsError) throw teamsError;
+
+  const teamIds = (teams ?? []).map((team) => team.id);
+  if (teamIds.length === 0) return null;
+
+  const { data: member, error: memberError } = await supabase
+    .from("ai_team_members")
+    .select("team_id")
+    .eq("user_id", userId)
+    .in("team_id", teamIds)
+    .maybeSingle();
+
+  if (memberError) throw memberError;
+  return member?.team_id ?? null;
+}
+
+async function createTeamInDb(
+  courseId: string,
+  input: { name: string; projectTitle?: string }
+): Promise<{ teamId: string }> {
+  const { currentUser } = await assertActiveCourseMembership(courseId);
+
+  const name = input.name.trim();
+  if (!name) throw new Error("팀 이름을 입력해주세요.");
+
+  const now = new Date().toISOString();
+  const teamId = `team-${courseId}-manual-${Date.now()}`;
+  const projectTitle = (input.projectTitle?.trim() || "팀 프로젝트").slice(0, 200);
+
+  const { data: orderRows, error: orderError } = await supabase
+    .from("ai_teams")
+    .select("sort_order")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (orderError) throw orderError;
+  const sortOrder = (orderRows?.[0]?.sort_order ?? 0) + 1;
+
+  const { error: teamError } = await supabase.from("ai_teams").insert({
+    id: teamId,
+    name,
+    course_id: courseId,
+    badge: "",
+    project_title: projectTitle,
+    progress: 0,
+    completed_stages: 0,
+    sort_order: sortOrder,
+    created_at: now,
+    updated_at: now,
+  });
+
+  if (teamError) throw teamError;
+
+  if (currentUser.role === "student") {
+    const existingTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+    if (existingTeamId) {
+      throw new Error("이미 다른 팀에 속해 있습니다. 탈퇴 후 새 팀을 만들 수 있습니다.");
+    }
+
+    const { error: memberError } = await supabase.from("ai_team_members").insert({
+      id: `tm-${teamId}-1`,
+      team_id: teamId,
+      user_id: currentUser.id,
+      initial: currentUser.name?.slice(0, 1) ?? "?",
+      color: TEAM_MEMBER_COLORS[0],
+      role: "leader",
+      sort_order: 1,
+      created_at: now,
+    });
+
+    if (memberError) throw memberError;
+  }
+
+  return { teamId };
+}
+
+async function joinTeamInDb(teamId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") {
+    throw new Error("학생만 팀에 참여할 수 있습니다.");
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) throw new Error("팀을 찾을 수 없습니다.");
+
+  await assertActiveCourseMembership(courseId);
+
+  const existingTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  if (existingTeamId) {
+    if (existingTeamId === teamId) throw new Error("이미 이 팀에 참여 중입니다.");
+    throw new Error("다른 팀에 속해 있습니다. 먼저 탈퇴한 뒤 참여해주세요.");
+  }
+
+  const { data: members, error: membersError } = await supabase
+    .from("ai_team_members")
+    .select("sort_order")
+    .eq("team_id", teamId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (membersError) throw membersError;
+
+  const nextOrder = (members?.[0]?.sort_order ?? 0) + 1;
+  const now = new Date().toISOString();
+
+  const { error } = await supabase.from("ai_team_members").insert({
+    id: `tm-${teamId}-${nextOrder}`,
+    team_id: teamId,
+    user_id: currentUser.id,
+    initial: currentUser.name?.slice(0, 1) ?? "?",
+    color: TEAM_MEMBER_COLORS[nextOrder % TEAM_MEMBER_COLORS.length],
+    role: "member",
+    sort_order: nextOrder,
+    created_at: now,
+  });
+
+  if (error) throw error;
+}
+
+async function leaveTeamInDb(teamId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") {
+    throw new Error("학생만 팀에서 탈퇴할 수 있습니다.");
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) throw new Error("팀을 찾을 수 없습니다.");
+
+  await assertActiveCourseMembership(courseId);
+
+  const { error } = await supabase
+    .from("ai_team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("user_id", currentUser.id);
+
+  if (error) throw error;
+}
+
 async function saveRandomTeamsInDb(
   courseId: string,
   groups: string[][]
@@ -2701,9 +3466,35 @@ async function saveRandomTeamsInDb(
   const courseStudents = await getCourseUsers(courseId, "student");
   const allowedIds = new Set(courseStudents.map((user) => user.id));
 
+  const { data: manualTeams, error: manualTeamsError } = await supabase
+    .from("ai_teams")
+    .select("id")
+    .eq("course_id", courseId)
+    .neq("badge", AUTO_TEAM_BADGE);
+
+  if (manualTeamsError) throw manualTeamsError;
+
+  const manualTeamIds = (manualTeams ?? []).map((team) => team.id);
+  let lockedStudentIds = new Set<string>();
+
+  if (manualTeamIds.length > 0) {
+    const { data: lockedMembers, error: lockedError } = await supabase
+      .from("ai_team_members")
+      .select("user_id")
+      .in("team_id", manualTeamIds);
+
+    if (lockedError) throw lockedError;
+    lockedStudentIds = new Set(
+      (lockedMembers ?? []).map((member) => member.user_id).filter(Boolean)
+    );
+  }
+
   for (const studentId of flatIds) {
     if (!allowedIds.has(studentId)) {
       throw new Error("수업에 등록되지 않은 학생이 포함되어 있습니다.");
+    }
+    if (lockedStudentIds.has(studentId)) {
+      throw new Error("이미 다른 팀에 속한 학생은 랜덤 배정에서 제외해야 합니다.");
     }
   }
 
@@ -2779,6 +3570,7 @@ export const api = {
     getById: getCourseByIdFromDb,
     create: createCourseInDb,
     archive: archiveCourseInDb,
+    delete: deleteCourseInDb,
   },
   memberships: {
     joinByCode: joinCourseByCodeInDb,
@@ -2789,11 +3581,18 @@ export const api = {
   },
   professors: {
     getById: getProfessorByIdFromDb,
+    saveProfile: saveProfessorProfileInDb,
   },
   teamCards: {
     getAll: getTeamCardsFromDb,
   },
   teams: {
+    getAssignedStudentIds: getAssignedStudentIdsInCourseFromDb,
+    getMyTeamIdInCourse: getMyTeamIdInCourseFromDb,
+    create: createTeamInDb,
+    join: joinTeamInDb,
+    leave: leaveTeamInDb,
+    updateCompletedStages: updateTeamCompletedStagesInDb,
     saveRandomAssignment: saveRandomTeamsInDb,
   },
   teamStages: {
@@ -2802,6 +3601,7 @@ export const api = {
   },
   announcements: {
     getAll: getAnnouncementsFromDb,
+    create: createAnnouncementInDb,
   },
   studentNetwork: {
     getStudents: getNetworkStudentsFromDb,
@@ -2814,9 +3614,20 @@ export const api = {
     getProjects: getMyPageProjectsFromDb,
     getProjectsForUser: getMyPageProjectsForUserFromDb,
     getProfile: getMyPageProfileFromDb,
+    getArchivedCourses: getMyPageArchivedCoursesFromDb,
+    updateAvatar: updateMyPageAvatarFromDb,
+    saveStudentProfile: saveMyPageStudentProfileFromDb,
     getSideNavItems: getMyPageSideNavItemsFromDb,
     getReportStats: getMyPageReportStatsFromDb,
     getReportHeader: getMyPageReportHeaderFromDb,
+  },
+  coursePeerReviews: {
+    getOverview: getCoursePeerReviewsOverviewFromDb,
+  },
+  courseEvals: {
+    getSchemaStatus: getEvalSchemaStatusFromDb,
+    getMyPeerReviewsGiven: getMyPeerReviewsGivenInCourseFromDb,
+    getMyProfessorEvals: getMyProfessorEvalsInCourseFromDb,
   },
   teamDetail: {
     getFeedbackOptions: getTeamDetailFeedbackOptionsFromDb,
@@ -2838,6 +3649,7 @@ export const api = {
     submitPeerReview: submitPeerReviewInDb,
     getReviewKeywords: getTeamDetailReviewKeywordsFromDb,
     getTeammates: getTeamDetailTeammatesFromDb,
+    getFeedbackCounts: getTeamFeedbackCountsFromDb,
     getTroubleshootingLogs: getTeamDetailTroubleshootingLogsFromDb,
     createTroubleshootingLog: createTroubleshootingLogInDb,
     updateTroubleshootingLog: updateTroubleshootingLogInDb,
