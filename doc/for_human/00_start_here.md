@@ -31,7 +31,8 @@ AI에게 시킬 때: **「doc/starter.txt 읽고 이어서 해줘」**
 |------|-----------|
 | **런칭 전 할 일 순서** | **`00_pre_launch_order`** |
 | 처음 | 본 문서 → `04_project_intro` |
-| vision 기능 됐나 | `26_vision_features_status` |
+| vision·채팅 요청 처리 | `29_vision_requests_report` (vision # + **대화창에서 요청한 내용**) |
+| vision 기능 요약 | `26_vision_features_status` |
 | 진행률 | `01_project_status` |
 | AI가 뭘 했나 | `25_ai_work_log` |
 | Supabase SQL 5분 | `29_supabase_bundle_sql` |
@@ -50,11 +51,12 @@ AI에게 시킬 때: **「doc/starter.txt 읽고 이어서 해줘」**
 ## 문서 읽는 추천 순서
 
 1. **04_project_intro.md**
-2. **26_vision_features_status.md**
-3. **01_project_status.md**
-4. **05_how_this_system_works.md**
-5. **24_how_to_read_docs.md**
-6. 필요한 주제만 (프론트, DB, AI, 배포 등)
+2. **29_vision_requests_report.md** (vision # 처리 + **대화창에서 요청한 내용**)
+3. **26_vision_features_status.md**
+4. **01_project_status.md**
+5. **05_how_this_system_works.md**
+6. **24_how_to_read_docs.md**
+7. 필요한 주제만 (프론트, DB, AI, 배포 등)
 
 ## AI가 최근에 한 일
 

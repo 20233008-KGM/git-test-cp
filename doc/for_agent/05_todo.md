@@ -53,14 +53,14 @@
 
 | ID | 작업 | 상태 | 비고 |
 |----|------|------|------|
-| T-030 | AI 리포트 | in_progress | DB·UI·Edge 코드 완료; deploy·OPENAI → H-002 |
+| T-030 | AI 리포트 | done | DB·Edge Gemini·마이페이지 자동 채움 (H-002) |
 | T-031 | A4 리포트 템플릿 | done | `AiReportPrintView`, MyPage 1–3페이지 DB |
 
 ## P4 — 품질·배포
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-040 | Playwright 핵심 플로우 | done | 47플로우 + 인증 가드 (`14_testing.md`) |
+| T-040 | Playwright 핵심 플로우 | done | 49건 (48플로우 + 인증 가드, `14_testing.md`) |
 | T-041 | GitHub Actions CI | done | `.github/workflows/e2e.yml` |
 | T-042 | 프로덕션 배포 | in_progress | `vercel.json` + `deploy_vercel_checklist.md`, 실행 H-005 |
 | T-057 | Playwright 스모크 회귀 커맨드 정리 | done | `npm run test:e2e:smoke` + E2E #31 |
@@ -187,9 +187,12 @@
 | T-179 | verify:archived-kim teammates 표시 행 검사 | done | `teammateDisplayResolvable` |
 | T-180 | 17_handoff·#1~#53 동기화 | done | plans/260522-2 |
 | T-181 | vision #54 워크스페이스 더미 스크린샷 제거 | done | TeamDetailPage · E2E #47 |
+| T-182 | E2E #6 A4 testid · ai-report·Edge README 구 라벨 | done | `mypage-a4-print-button` |
+| T-183 | vision #55 빈 수업 목록 수업코드 등록 UI 이중 제거 | done | `CoursesPage` · E2E #48 |
 
 ## 완료됨 (최근)
 
+- [o] T-182~T-183 E2E A4·vision #55 (2026-05-22, plans/260522-5.md)
 - [o] T-181 vision #54 더미 스크린샷 칸 제거 (2026-05-22, plans/260522-3.md)
 - [o] T-178~T-180 peer_review id·verify·handoff (2026-05-22, plans/260522-2.md)
 - [o] T-177 vision #53 내 팀 TS 작성 (2026-05-22, plans/260522-1.md)

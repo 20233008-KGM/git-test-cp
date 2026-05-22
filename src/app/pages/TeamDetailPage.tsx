@@ -3,6 +3,12 @@ import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { api, buildTeamProgressSummary } from "../api/supabase-api";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
+import TeamDeliverableSubmitModal, {
+  type TeamDeliverableFormPayload,
+} from "../components/TeamDeliverableSubmitModal";
+import TeamTroubleshootingSubmitModal, {
+  type TroubleshootingFormPayload,
+} from "../components/TeamTroubleshootingSubmitModal";
 import { supabase } from "../supabase";
 import TeamPeerReviewPage from "./TeamPeerReviewPage";
 import TeamRetrospectivePage from "./TeamRetrospectivePage";
@@ -33,9 +39,12 @@ export default function TeamDetailPage() {
   const [showChatModal, setShowChatModal] = useState(false);
   const [showPeerReviewModal, setShowPeerReviewModal] = useState(false);
   const [showRetrospectiveModal, setShowRetrospectiveModal] = useState(false);
-  const [problemInput, setProblemInput] = useState("");
-  const [planInput, setPlanInput] = useState("");
   const [course, setCourse] = useState<Course | null>(null);
+  const [teamHeader, setTeamHeader] = useState<{
+    name: string;
+    projectTitle: string;
+    badge?: string;
+  } | null>(null);
 
   // 피드백 상태
   const [feedbackOptions, setFeedbackOptions] = useState<string[]>([]);
@@ -72,23 +81,18 @@ export default function TeamDetailPage() {
   const [isMyTeamFromApi, setIsMyTeamFromApi] = useState(false);
   const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
 
-  const handleCreateTroubleshootingLog = async () => {
-    if (!selectedTeamId || !problemInput.trim()) {
-      alert("문제 내용을 입력해주세요.");
-      return;
-    }
+  const handleCreateTroubleshootingLog = async (payload: TroubleshootingFormPayload) => {
+    if (!selectedTeamId) return;
 
     setSubmittingLog(true);
     try {
       const created = await api.teamDetail.createTroubleshootingLog(selectedTeamId, {
-        problem: problemInput,
-        plan: planInput,
-        solution: solutionInput,
+        problem: payload.problem,
+        plan: payload.plan,
+        solution: payload.solution,
       });
       setTroubleshootingLogs((prev) => [...prev, created]);
-      setProblemInput("");
-      setPlanInput("");
-      setSolutionInput("");
+      setShowTroubleshootingModal(false);
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "트러블슈팅 등록에 실패했습니다.");
@@ -183,15 +187,14 @@ export default function TeamDetailPage() {
 
   const [allStudents, setAllStudents] = useState<PeerReviewStudent[]>([]);
   const [troubleshootingLogs, setTroubleshootingLogs] = useState<TroubleshootingLog[]>([]);
-  const [solutionInput, setSolutionInput] = useState("");
   const [submittingLog, setSubmittingLog] = useState(false);
   const [editingLogId, setEditingLogId] = useState<string | null>(null);
   const [editLogForm, setEditLogForm] = useState({ problem: "", plan: "", solution: "" });
   const [deliverables, setDeliverables] = useState<TeamDeliverable[]>([]);
   const [uploadingDeliverable, setUploadingDeliverable] = useState(false);
-  const deliverableInputRef = useRef<HTMLInputElement>(null);
-  const [deliverableLinkUrl, setDeliverableLinkUrl] = useState("");
-  const [deliverableLinkTitle, setDeliverableLinkTitle] = useState("");
+  const [showDeliverableModal, setShowDeliverableModal] = useState(false);
+  const [editingDeliverable, setEditingDeliverable] = useState<TeamDeliverable | null>(null);
+  const [showTroubleshootingModal, setShowTroubleshootingModal] = useState(false);
 
   const isMyTeamMemberFromRoster = useMemo(
     () => Boolean(user?.id && teammates.some((member) => member.id === user.id)),
@@ -307,19 +310,82 @@ export default function TeamDetailPage() {
     }
   };
 
-  const handleDeliverableUpload = async (fileList: FileList | null) => {
-    if (!selectedTeamId || !fileList?.[0]) return;
+  const openCreateDeliverableModal = () => {
+    setEditingDeliverable(null);
+    setShowDeliverableModal(true);
+  };
+
+  const openEditDeliverableModal = (item: TeamDeliverable) => {
+    setEditingDeliverable(item);
+    setShowDeliverableModal(true);
+  };
+
+  const closeDeliverableModal = () => {
+    setShowDeliverableModal(false);
+    setEditingDeliverable(null);
+  };
+
+  const handleSubmitDeliverableModal = async (payload: TeamDeliverableFormPayload) => {
+    if (!selectedTeamId) return;
 
     setUploadingDeliverable(true);
     try {
-      const created = await api.teamDetail.uploadDeliverable(selectedTeamId, fileList[0]);
-      setDeliverables((prev) => [created, ...prev]);
+      if (editingDeliverable) {
+        const updated = await api.teamDetail.updateDeliverable(editingDeliverable.id, {
+          title: payload.title || undefined,
+          description: payload.description,
+          url: editingDeliverable.kind === "link" ? payload.linkUrl : undefined,
+          file: editingDeliverable.kind === "file" ? payload.files[0] : undefined,
+        });
+        setDeliverables((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        closeDeliverableModal();
+        return;
+      }
+
+      const metaBase = {
+        title: payload.title || undefined,
+        description: payload.description || undefined,
+      };
+
+      const created: TeamDeliverable[] = [];
+
+      if (payload.linkUrl) {
+        created.push(
+          await api.teamDetail.addDeliverableLink(selectedTeamId, {
+            url: payload.linkUrl,
+            title: payload.title || undefined,
+            description: payload.description || undefined,
+          })
+        );
+      }
+
+      for (let i = 0; i < payload.files.length; i++) {
+        const file = payload.files[i];
+        const fileMeta =
+          payload.files.length === 1
+            ? metaBase
+            : {
+                title: payload.title ? `${payload.title} · ${file.name}` : file.name,
+                description: payload.description || undefined,
+              };
+        created.push(await api.teamDetail.uploadDeliverable(selectedTeamId, file, fileMeta));
+      }
+
+      if (created.length > 0) {
+        setDeliverables((prev) => [...created, ...prev]);
+      }
+      closeDeliverableModal();
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error ? error.message : "파일 업로드에 실패했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : editingDeliverable
+            ? "산출물 수정에 실패했습니다."
+            : "산출물 등록에 실패했습니다."
+      );
     } finally {
       setUploadingDeliverable(false);
-      if (deliverableInputRef.current) deliverableInputRef.current.value = "";
     }
   };
 
@@ -333,25 +399,6 @@ export default function TeamDetailPage() {
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "파일 삭제에 실패했습니다.");
-    } finally {
-      setUploadingDeliverable(false);
-    }
-  };
-
-  const handleAddDeliverableLink = async () => {
-    if (!selectedTeamId || !deliverableLinkUrl.trim()) return;
-    setUploadingDeliverable(true);
-    try {
-      const created = await api.teamDetail.addDeliverableLink(selectedTeamId, {
-        url: deliverableLinkUrl,
-        title: deliverableLinkTitle,
-      });
-      setDeliverables((prev) => [created, ...prev]);
-      setDeliverableLinkUrl("");
-      setDeliverableLinkTitle("");
-    } catch (error) {
-      console.error(error);
-      alert(error instanceof Error ? error.message : "링크 등록에 실패했습니다.");
     } finally {
       setUploadingDeliverable(false);
     }
@@ -580,6 +627,22 @@ export default function TeamDetailPage() {
   }, [selectedTeamId, user?.name]);
 
   useEffect(() => {
+    if (!selectedTeamId) {
+      setTeamHeader(null);
+      return;
+    }
+
+    let isCancelled = false;
+    void api.teams.getWorkspaceHeader(selectedTeamId).then((header) => {
+      if (!isCancelled) setTeamHeader(header);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedTeamId]);
+
+  useEffect(() => {
     if (!courseId) return;
 
     api.courses.getById(courseId).then((courseData) => {
@@ -605,24 +668,54 @@ export default function TeamDetailPage() {
     });
   }, [selectedTeamId, isProfessor, isAdmin]);
 
-  const aiRecommendedLog = useMemo((): TroubleshootingLog | null => {
-    const inProgress = troubleshootingLogs.find((log) => log.status === "in-progress");
-    if (inProgress) {
-      return {
-        ...inProgress,
-        id: "ai-recommendation",
-        author: "AI 추천",
-      };
+  const [aiRecommendation, setAiRecommendation] = useState<{
+    problem: string;
+    plan: string;
+    rationale?: string;
+    model: string;
+  } | null>(null);
+  const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
+  const [aiRecommendationError, setAiRecommendationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedTeamId) {
+      setAiRecommendation(null);
+      setAiRecommendationError(null);
+      return;
     }
-    return {
-      id: "ai-recommendation",
-      author: "AI 추천",
-      status: "in-progress",
-      timestamp: "지금",
-      problem: "배포 환경과 로컬 환경 차이로 E2E·빌드가 불안정할 수 있습니다.",
-      plan: "환경 변수·시드 데이터를 맞추고, flaky 테스트에는 retry를 적용해 보세요.",
+
+    let cancelled = false;
+    setAiRecommendationLoading(true);
+    setAiRecommendationError(null);
+
+    void api.teamDetail
+      .recommendTroubleshootingAi({ teamId: selectedTeamId, locale: "ko" })
+      .then((result) => {
+        if (!cancelled) {
+          setAiRecommendation({
+            problem: result.problem,
+            plan: result.plan,
+            rationale: result.rationale,
+            model: result.model,
+          });
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setAiRecommendation(null);
+          setAiRecommendationError(
+            error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAiRecommendationLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
     };
-  }, [troubleshootingLogs]);
+  }, [selectedTeamId, troubleshootingLogs.length, deliverables.length]);
 
   const totalFeedbackCount = useMemo(
     () => Object.values(feedbackCounts).reduce((sum, count) => sum + count, 0),
@@ -641,7 +734,25 @@ export default function TeamDetailPage() {
             ← 뒤로가기
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="break-words text-2xl font-black text-[#155dfc] sm:text-[30px]">{selectedTeamId}</h1>
+            <div className="min-w-0">
+              <h1
+                className="break-words text-2xl font-black text-[#155dfc] sm:text-[30px]"
+                data-testid="team-workspace-title"
+              >
+                {teamHeader?.name ?? "팀 워크스페이스"}
+              </h1>
+              {teamHeader?.projectTitle ? (
+                <p
+                  className="mt-1 text-base font-bold text-[#334155] sm:text-lg"
+                  data-testid="team-workspace-project-title"
+                >
+                  {teamHeader.projectTitle}
+                </p>
+              ) : null}
+              {teamHeader?.badge ? (
+                <p className="mt-1 text-sm font-medium text-[#64748b]">{teamHeader.badge}</p>
+              ) : null}
+            </div>
             {isProfessor ? (
               isEvaluationOpen ? (
                 <div className="flex flex-col gap-3 sm:flex-row">
@@ -695,25 +806,11 @@ export default function TeamDetailPage() {
                       {retrospectiveSubmitted ? "회고록 수정" : "회고록 작성"}
                     </button>
                   </>
-                ) : (
-                  <span className="rounded-[10px] border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-800">
-                    교수가 수업을 종료하면 조원평가·회고록이 열립니다
-                  </span>
-                )}
+                ) : null}
               </div>
             ) : null}
           </div>
         </div>
-
-        {isArchived ? (
-          <div className="mb-6 rounded-[14px] border border-blue-200 bg-blue-50 px-5 py-4 text-sm font-bold text-blue-900 shadow-sm">
-            종료된 수업입니다. 조원평가·회고록·교수 평가를 진행할 수 있습니다. 트러블슈팅·산출물 업로드는 읽기 전용입니다.
-          </div>
-        ) : (
-          <div className="mb-6 rounded-[14px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-bold text-amber-900 shadow-sm">
-            진행 중인 수업입니다. 협업(트러블슈팅·산출물)은 가능하며, 조원평가·회고록·교수 평가는 수업 종료 후에만 열립니다.
-          </div>
-        )}
 
         {teammates.length > 0 && (
           <div
@@ -722,24 +819,50 @@ export default function TeamDetailPage() {
           >
             <h3 className="mb-3 text-base font-bold text-[#1c398e]">👥 팀원</h3>
             <div className="flex flex-wrap gap-3">
-              {teammates.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  data-testid={`team-workspace-member-${member.id}`}
-                  onClick={() => void openMemberProfile(member.id)}
-                  disabled={member.id === user?.id}
-                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-[#f8fafc] px-3 py-2 transition-colors hover:border-[#155dfc] hover:bg-[#eff6ff] disabled:cursor-default disabled:opacity-80"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#155dfc] text-xs font-bold text-white">
-                    {(member.name ?? "?").charAt(0)}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-gray-900">{member.name}</p>
-                    <p className="text-[10px] text-gray-500">{member.contribution ?? "팀원"}</p>
-                  </div>
-                </button>
-              ))}
+              {teammates.map((member) => {
+                const isLeader = member.role === "leader";
+                return (
+                  <button
+                    key={member.id}
+                    type="button"
+                    data-testid={`team-workspace-member-${member.id}`}
+                    onClick={() => void openMemberProfile(member.id)}
+                    disabled={member.id === user?.id}
+                    className={`flex items-center gap-2 rounded-full border px-3 py-2 transition-colors disabled:cursor-default disabled:opacity-80 ${
+                      isLeader
+                        ? "border-[#155dfc] bg-[#eff6ff] hover:border-[#155dfc] hover:bg-[#dbeafe]"
+                        : "border-gray-200 bg-[#f8fafc] hover:border-[#155dfc] hover:bg-[#eff6ff]"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white ${
+                        isLeader ? "bg-[#155dfc]" : "bg-gray-400"
+                      }`}
+                    >
+                      {(member.name ?? "?").charAt(0)}
+                    </span>
+                    <div className="text-left">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="text-sm font-bold text-gray-900">{member.name}</p>
+                        {isLeader && (
+                          <span
+                            className="rounded-full bg-[#155dfc] px-2 py-0.5 text-[10px] font-bold text-white"
+                            data-testid={`team-workspace-leader-badge-${member.id}`}
+                          >
+                            팀장
+                          </span>
+                        )}
+                        {member.id === user?.id && (
+                          <span className="text-[10px] text-[#64748b]">(나)</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500">
+                        {isLeader ? "팀 리더" : "팀원"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -833,32 +956,7 @@ export default function TeamDetailPage() {
               📁 프로젝트 산출물 & 공간
             </h2>
 
-            {/* 배포된 서비스 */}
-            <div className="bg-[#eff6ff] border border-[#bedbff] rounded-[10px] p-3 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🌐</span>
-                  <div>
-                    <p className="text-sm font-bold text-[#1c398e]">
-                      실제 배포된 서비스 (v1.0)
-                    </p>
-                    <a
-                      href="https://campus-connect.vercel.app"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[#155dfc] hover:underline"
-                    >
-                      https://campus-connect.vercel.app
-                    </a>
-                  </div>
-                </div>
-                <button className="bg-[#155dfc] text-white text-xs font-medium px-4 py-2 rounded-[10px] hover:bg-blue-700 transition-colors shadow-sm">
-                  바로가기 ↗
-                </button>
-              </div>
-            </div>
-
-            {/* 팀 산출물 파일 */}
+            {/* 팀 산출물 */}
             <div className="space-y-3">
               {deliverables.length === 0 ? (
                 <p className="rounded-[10px] border border-dashed border-gray-300 bg-[#f9fafb] px-3 py-4 text-center text-sm text-[#6a7282]">
@@ -866,46 +964,66 @@ export default function TeamDetailPage() {
                 </p>
               ) : (
                 deliverables.map((item) => {
-                  const canDelete =
+                  const isLinkItem = item.kind === "link";
+                  const canModifyDeliverable =
                     !isArchived &&
-                    (user?.id === item.uploaderId || isProfessor || isAdmin);
+                    (isProfessor ||
+                      isAdmin ||
+                      (canUploadDeliverable &&
+                        Boolean(user?.id) &&
+                        String(user.id) === String(item.uploaderId)));
 
                   return (
                     <div
                       key={item.id}
                       data-testid={`team-deliverable-item-${item.id}`}
-                      className="bg-[#f9fafb] border border-[rgba(0,0,0,0.1)] rounded-[10px] p-3 flex items-center justify-between gap-3"
+                      data-deliverable-kind={isLinkItem ? "link" : "file"}
+                      className="bg-[#f9fafb] border border-[rgba(0,0,0,0.1)] rounded-[10px] p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-sm shrink-0">{item.kind === "link" ? "🔗" : "📄"}</span>
                           <span className="text-sm font-medium text-[#1e2939] truncate">{item.fileName}</span>
                         </div>
+                        {item.description && (
+                          <p className="mt-1 text-xs text-[#4a5565] line-clamp-2">{item.description}</p>
+                        )}
                         <p className="mt-1 text-xs text-[#6a7282]">
                           {item.uploaderName} · {item.kind === "link" ? "링크" : formatFileSize(item.fileSize)} ·{" "}
                           {new Date(item.createdAt).toLocaleString("ko-KR")}
                         </p>
                       </div>
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
                         <a
                           href={item.publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          download={item.kind === "link" ? undefined : item.fileName}
+                          download={isLinkItem ? undefined : item.fileName}
                           className="bg-[#e5e7eb] text-[#1e2939] text-xs font-medium px-3 py-2 rounded hover:bg-gray-300 transition-colors"
                         >
-                          {item.kind === "link" ? "열기" : "다운로드"}
+                          {isLinkItem ? "열기" : "다운로드"}
                         </a>
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDeliverable(item)}
-                            disabled={uploadingDeliverable}
-                            data-testid={`team-deliverable-delete-${item.id}`}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-60"
-                          >
-                            삭제
-                          </button>
+                        {canModifyDeliverable && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openEditDeliverableModal(item)}
+                              disabled={uploadingDeliverable}
+                              data-testid={`team-deliverable-edit-${item.id}`}
+                              className="rounded border border-[#93c5fd] bg-white px-3 py-2 text-xs font-bold text-[#155dfc] hover:bg-[#eff6ff] disabled:opacity-60"
+                            >
+                              수정
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDeliverable(item)}
+                              disabled={uploadingDeliverable}
+                              data-testid={`team-deliverable-delete-${item.id}`}
+                              className="rounded border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                            >
+                              삭제
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -914,57 +1032,15 @@ export default function TeamDetailPage() {
               )}
 
               {canUploadDeliverable && (
-                <>
-                  <div className="grid grid-cols-1 gap-2 rounded-[10px] border border-[#dbeafe] bg-[#f8fbff] p-3">
-                    <input
-                      type="text"
-                      value={deliverableLinkUrl}
-                      onChange={(e) => setDeliverableLinkUrl(e.target.value)}
-                      data-testid="team-deliverable-link-url-input"
-                      placeholder="배포 링크 URL (예: https://example.com)"
-                      className="w-full rounded-[8px] border border-[#bfdbfe] bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={deliverableLinkTitle}
-                        onChange={(e) => setDeliverableLinkTitle(e.target.value)}
-                        data-testid="team-deliverable-link-title-input"
-                        placeholder="링크 제목 (선택)"
-                        className="w-full rounded-[8px] border border-[#bfdbfe] bg-white px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => void handleAddDeliverableLink()}
-                        disabled={uploadingDeliverable || !deliverableLinkUrl.trim()}
-                        data-testid="team-deliverable-link-submit"
-                        className="shrink-0 rounded-[8px] bg-[#155dfc] px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-60"
-                      >
-                        링크 등록
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    ref={deliverableInputRef}
-                    type="file"
-                    data-testid="team-deliverable-file-input"
-                    accept=".pdf,.zip,.7z,.rar,.tar,.gz,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.gif,.svg,.txt,.md,.json,.csv,.ts,.tsx,.js,.jsx,.py,.java,.c,.cpp,.go,.rs,.sql,.yaml,.yml,.doc,.docx,.xls,.xlsx"
-                    className="hidden"
-                    onChange={(e) => handleDeliverableUpload(e.target.files)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => deliverableInputRef.current?.click()}
-                    disabled={uploadingDeliverable}
-                    data-testid="team-deliverable-upload-button"
-                    className="w-full bg-[#f9fafb] border border-dashed border-[rgba(0,0,0,0.1)] rounded py-2.5 text-[#4a5565] font-medium hover:bg-gray-100 transition-colors disabled:opacity-60"
-                  >
-                    {uploadingDeliverable ? "업로드 중..." : "+ 파일 업로드 (최대 500MB)"}
-                  </button>
-                  <p className="text-[11px] text-[#64748b]" data-testid="team-deliverable-upload-guide">
-                    허용 형식: 압축(zip/7z/rar), 코드(ts/js/py/java/cpp/go/rs/sql), 문서(pdf/doc/xlsx), 이미지(png/jpg/svg)
-                  </p>
-                </>
+                <button
+                  type="button"
+                  onClick={openCreateDeliverableModal}
+                  disabled={uploadingDeliverable}
+                  data-testid="team-deliverable-upload-button"
+                  className="w-full rounded-[10px] border border-dashed border-[#93c5fd] bg-[#eff6ff] py-3 text-sm font-bold text-[#155dfc] transition-colors hover:bg-[#dbeafe] disabled:opacity-60"
+                >
+                  {uploadingDeliverable ? "등록 중..." : "+ 산출물 등록 (링크 · 파일 · 폴더)"}
+                </button>
               )}
             </div>
           </div>
@@ -980,27 +1056,53 @@ export default function TeamDetailPage() {
 
             <div className="bg-[rgba(239,246,255,0.3)] border border-[#dbeafe] rounded-[10px] p-4 max-h-[480px] overflow-y-auto">
               <div className="space-y-4">
-                {aiRecommendedLog && (
-                  <div
-                    data-testid="team-trouble-ai-recommendation"
-                    className="rounded-[10px] border-2 border-dashed border-[#93c5fd] bg-gradient-to-br from-[#eff6ff] to-white p-4 shadow-sm"
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded-full bg-[#155dfc] px-2 py-0.5 text-[10px] font-bold text-white">
-                        AI 추천
+                <div
+                  data-testid="team-trouble-ai-recommendation"
+                  className="rounded-[10px] border-2 border-dashed border-[#93c5fd] bg-gradient-to-br from-[#eff6ff] to-white p-4 shadow-sm"
+                >
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#155dfc] px-2 py-0.5 text-[10px] font-bold text-white">
+                      AI 추천
+                    </span>
+                    <span className="text-xs font-bold text-[#1e2939]">Gemini</span>
+                    {aiRecommendation?.model &&
+                      !aiRecommendationLoading &&
+                      aiRecommendation.model !== "draft-db-only" && (
+                      <span
+                        className="text-[10px] text-[#6a7282]"
+                        data-testid="team-trouble-ai-model"
+                      >
+                        ({aiRecommendation.model})
                       </span>
-                      <span className="text-xs font-bold text-[#1e2939]">{aiRecommendedLog.author}</span>
-                    </div>
-                    <p className="text-xs">
-                      <span className="font-bold text-[#fb2c36]">🚨 문제:</span> {aiRecommendedLog.problem}
-                    </p>
-                    {aiRecommendedLog.plan && (
-                      <p className="mt-1 text-xs">
-                        <span className="font-bold text-[#2b7fff]">🏃 계획:</span> {aiRecommendedLog.plan}
-                      </p>
                     )}
                   </div>
-                )}
+                  {aiRecommendationLoading && (
+                    <p className="text-xs text-[#6a7282]" data-testid="team-trouble-ai-loading">
+                      팀 활동을 분석해 추천을 생성하는 중…
+                    </p>
+                  )}
+                  {!aiRecommendationLoading && aiRecommendationError && (
+                    <p className="text-xs text-[#dc2626]" data-testid="team-trouble-ai-error">
+                      {aiRecommendationError}
+                    </p>
+                  )}
+                  {!aiRecommendationLoading && !aiRecommendationError && aiRecommendation && (
+                    <>
+                      <p className="text-xs">
+                        <span className="font-bold text-[#fb2c36]">🚨 문제:</span>{" "}
+                        {aiRecommendation.problem}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        <span className="font-bold text-[#2b7fff]">🏃 계획:</span>{" "}
+                        {aiRecommendation.plan}
+                      </p>
+                      {aiRecommendation.rationale &&
+                        !aiRecommendation.rationale.startsWith("DB 초안") && (
+                        <p className="mt-2 text-[10px] text-[#6a7282]">{aiRecommendation.rationale}</p>
+                      )}
+                    </>
+                  )}
+                </div>
 
                 {troubleshootingLogs.map((log) => {
                   const isEditing = editingLogId === log.id;
@@ -1148,45 +1250,15 @@ export default function TeamDetailPage() {
             )}
 
             {canWriteTroubleshooting && (
-              <div
-                className="mt-4 bg-white border-2 border-[rgba(174,174,174,0.3)] rounded-[10px] shadow-md p-4"
-                data-testid="team-trouble-write-form"
+              <button
+                type="button"
+                onClick={() => setShowTroubleshootingModal(true)}
+                disabled={submittingLog}
+                data-testid="team-trouble-register-open"
+                className="mt-4 w-full rounded-[10px] border border-dashed border-[#93c5fd] bg-[#eff6ff] py-3 text-sm font-bold text-[#155dfc] transition-colors hover:bg-[#dbeafe] disabled:opacity-60"
               >
-                <p className="text-xs text-red-600 font-medium mb-2">새 트러블슈팅 기록</p>
-                <textarea
-                  value={problemInput}
-                  onChange={(e) => setProblemInput(e.target.value)}
-                  data-testid="team-trouble-problem-input"
-                  placeholder="발견한 문제를 입력하세요."
-                  rows={2}
-                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <input
-                  type="text"
-                  value={planInput}
-                  onChange={(e) => setPlanInput(e.target.value)}
-                  data-testid="team-trouble-plan-input"
-                  placeholder="해결 계획 (선택)"
-                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <input
-                  type="text"
-                  value={solutionInput}
-                  onChange={(e) => setSolutionInput(e.target.value)}
-                  data-testid="team-trouble-solution-input"
-                  placeholder="해결 방법 (입력 시 해결 완료로 저장)"
-                  className="mb-2 w-full rounded-[5px] border border-gray-200 p-2 text-xs outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <button
-                  type="button"
-                  onClick={handleCreateTroubleshootingLog}
-                  disabled={submittingLog}
-                  data-testid="team-trouble-submit"
-                  className="w-full rounded-[5px] bg-[#155dfc] py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {submittingLog ? "등록 중..." : "기록 등록"}
-                </button>
-              </div>
+                + 기록등록
+              </button>
             )}
           </div>
         </div>
@@ -1769,6 +1841,22 @@ export default function TeamDetailPage() {
         loading={memberProfileLoading}
         errorMessage={memberProfileError}
         onClose={closeMemberProfile}
+      />
+
+      <TeamDeliverableSubmitModal
+        open={showDeliverableModal && (canUploadDeliverable || editingDeliverable != null)}
+        uploading={uploadingDeliverable}
+        mode={editingDeliverable ? "edit" : "create"}
+        editing={editingDeliverable}
+        onClose={closeDeliverableModal}
+        onSubmit={handleSubmitDeliverableModal}
+      />
+
+      <TeamTroubleshootingSubmitModal
+        open={showTroubleshootingModal && canWriteTroubleshooting}
+        submitting={submittingLog}
+        onClose={() => setShowTroubleshootingModal(false)}
+        onSubmit={handleCreateTroubleshootingLog}
       />
     </div>
   );

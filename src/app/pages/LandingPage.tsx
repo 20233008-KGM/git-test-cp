@@ -92,35 +92,48 @@ export default function LandingPage() {
               로그인
             </h2>
 
-            <form onSubmit={handlesubmit} className="space-y-4">
+            <form onSubmit={handlesubmit} className="space-y-4" data-testid="landing-login-form">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                  htmlFor="landing-email"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                   학번 또는 이메일
                 </label>
                 <input
+                  id="landing-email"
                   type="text"
                   name="email"
+                  autoComplete="username"
                   onChange={handlechange}
                   placeholder={pageSummary?.exampleEmail ?? ""}
+                  data-testid="landing-email-input"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label
+                  htmlFor="landing-password"
+                  className="block text-sm font-medium text-gray-700 mb-1.5"
+                >
                   비밀번호
                 </label>
                 <input
+                  id="landing-password"
                   type="password"
                   name="password"
+                  autoComplete="current-password"
                   onChange={handlechange}
                   placeholder="••••••••"
+                  data-testid="landing-password-input"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
 
               <button
                 type="submit"
+                data-testid="landing-login-submit"
                 className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md text-sm"
               >
                 로그인

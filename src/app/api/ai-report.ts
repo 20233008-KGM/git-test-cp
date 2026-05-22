@@ -6,11 +6,22 @@ import type {
   AiReportGenerateRequest,
   AiReportGenerateResponse,
   AiReportNotReadyError,
+  AiReportSection,
   AiReportTeamSnapshot,
   AiReportTroubleshootingCase,
 } from "../types/ai-report";
 
 const FUNCTION_NAME = "generate-report";
+
+/** publishable key + verify_jwt=false 배포 시 Edge 게이트웨이 통과용 */
+function edgeFunctionHeaders(): Record<string, string> | undefined {
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!key || typeof key !== "string") return undefined;
+  return {
+    Authorization: `Bearer ${key}`,
+    apikey: key,
+  };
+}
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -585,14 +596,14 @@ function buildGrowthReflectionDraft(context: AiReportContext): string {
   }
 
   if (lines.length > 0) {
-    return `${lines.join("\n")}\n\n(DB 활동 기반 초안입니다. Edge·Gemini Secret H-002 후 AI가 문단을 다듬습니다.)`;
+    return `${lines.join("\n")}\n\n(팀 활동·평가 기록을 바탕으로 한 DB 초안입니다.)`;
   }
 
   if (context.totalTroubleshootingLogs > 0) {
-    return `트러블슈팅 ${context.totalTroubleshootingLogs}건의 문제 해결 과정이 기록되어 있습니다. 회고·평가를 추가하면 성장 회고 초안이 풍부해집니다. (H-002 후 AI 문단 생성)`;
+    return `트러블슈팅 ${context.totalTroubleshootingLogs}건의 문제 해결 과정이 기록되어 있습니다. 회고·평가를 추가하면 성장 회고 문단이 풍부해집니다.`;
   }
 
-  return "팀 활동·회고·평가 기록을 쌓으면 성장 회고 초안이 채워집니다. Edge·Gemini Secret(H-002) 후 AI 문단 생성을 이용할 수 있습니다.";
+  return "팀 활동·회고·평가 기록을 쌓으면 성장 회고 문단이 채워집니다.";
 }
 
 /** 마이페이지·A4 미리보기 공통 집계 한 줄 */
@@ -803,6 +814,166 @@ export function buildMyPageSummaryParagraph(context: AiReportContext): string {
   return `${base} 평균 진행률은 ${averageTeamProgress(context)}%입니다.`;
 }
 
+/** 마이페이지 3페이지 리포트 UI — DB 집계 + Edge/Gemini 문단 병합 */
+export interface MyPageReportView {
+  summaryParagraph: string;
+  summaryCards: MyPageSummaryCard[];
+  technologyChips: string[];
+  competencyItems: MyPageCompetencyItem[];
+  activityBullets: MyPageActivityBullet[];
+  page3Intro: string;
+  troubleshootingCases: AiReportTroubleshootingCase[];
+  /** teamId → PAGE02 카드 AI 본문 (sections 매칭) */
+  teamDetailBodies: Record<string, string>;
+  usesLlm: boolean;
+  model?: string;
+}
+
+function splitTextBlocks(text: string, maxParts: number): string[] {
+  const blocks = text
+    .split(/\n{2,}|\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (blocks.length >= maxParts) return blocks.slice(0, maxParts);
+  if (blocks.length > 0) return blocks;
+  return [text.trim()].filter(Boolean);
+}
+
+function parseProblemSolvedText(line: string): {
+  problem: string;
+  action: string;
+  result: string;
+} {
+  const stripped = line.replace(/^\[[^\]]+\]\s*/, "").trim();
+  const problemMatch = stripped.match(/^(.+?)(?:\s+—\s+대응:|$)/);
+  const actionMatch = stripped.match(/대응:\s*([^—]+?)(?:\s+—\s+결과:|$)/);
+  const resultMatch = stripped.match(/결과:\s*(.+)$/);
+  return {
+    problem: (problemMatch?.[1] ?? stripped).trim(),
+    action: actionMatch?.[1]?.trim() ?? "",
+    result: resultMatch?.[1]?.trim() ?? "",
+  };
+}
+
+function mapAiProblemsToCases(
+  context: AiReportContext,
+  problems: string[]
+): AiReportTroubleshootingCase[] {
+  if (problems.length === 0) return context.troubleshootingCases;
+
+  const dbCases = context.troubleshootingCases;
+  const defaultTeam = context.teams[0];
+
+  return problems.map((line, index) => {
+    const db = dbCases[index];
+    const parsed = parseProblemSolvedText(line);
+    const problem = parsed.problem || line;
+    const titleSource = db?.title ?? truncateSnippet(problem, 72);
+
+    return {
+      logId: db?.logId ?? `ai-case-${index}`,
+      teamId: db?.teamId ?? defaultTeam?.teamId ?? "",
+      teamName: db?.teamName ?? defaultTeam?.teamName ?? "",
+      projectTitle: db?.projectTitle ?? defaultTeam?.projectTitle ?? "",
+      courseName: db?.courseName ?? defaultTeam?.courseName ?? "",
+      title: titleSource || `문제해결 사례 ${index + 1}`,
+      problem,
+      action: parsed.action || db?.action || "(대응 계획 미기록)",
+      result: parsed.result || db?.result || "진행 중",
+      impact:
+        db?.impact ??
+        truncateSnippet(
+          problems.length > 1 ? `팀 프로젝트 문제해결 사례 ${index + 1}` : "팀 활동 기여",
+          120
+        ),
+      status: db?.status ?? "resolved",
+    };
+  });
+}
+
+function findTeamSectionBody(
+  team: AiReportTeamSnapshot,
+  sections: AiReportSection[] | undefined
+): string | undefined {
+  if (!sections?.length) return undefined;
+  const exact = sections.find((s) => s.title.trim() === team.projectTitle.trim());
+  if (exact?.body) return exact.body;
+  const fuzzy = sections.find(
+    (s) =>
+      s.title.includes(team.projectTitle) ||
+      team.projectTitle.includes(s.title) ||
+      s.title.includes(team.teamName)
+  );
+  return fuzzy?.body;
+}
+
+/**
+ * 마이페이지 리포트 박스 문구 — report가 있으면 AI/초안 JSON을 우선, 숫자 카드는 DB 유지.
+ */
+export function buildMyPageReportView(
+  context: AiReportContext,
+  report?: AiReportGenerateResponse | null
+): MyPageReportView {
+  const effective = report ?? buildDraftReportFromContext(context);
+  const usesLlm = Boolean(report?.model && report.model !== "draft-db-only");
+
+  const growthParts = splitTextBlocks(effective.growth_reflection, 4);
+  const baseCompetency = buildMyPageCompetencyItems(context);
+  const competencyItems = baseCompetency.map((item, index) => ({
+    ...item,
+    desc: growthParts[index] ?? item.desc,
+  }));
+
+  const roleLines = effective.role_description
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const activityTitles = ["프로젝트 역할", "팀 활동", "협업·성장"];
+  const activityBullets: MyPageActivityBullet[] =
+    roleLines.length > 0
+      ? roleLines.slice(0, 3).map((body, index) => ({
+          title: activityTitles[index] ?? `활동 ${index + 1}`,
+          body,
+        }))
+      : buildMyPageActivityBullets(context).map((bullet, index) => ({
+          ...bullet,
+          body: growthParts[index] ?? bullet.body,
+        }));
+
+  const teamDetailBodies: Record<string, string> = {};
+  for (const team of context.teams) {
+    const body = findTeamSectionBody(team, effective.sections);
+    if (body) teamDetailBodies[team.teamId] = body;
+  }
+
+  const aiCases = mapAiProblemsToCases(context, effective.problems_solved);
+  const troubleshootingCases =
+    aiCases.length > 0 ? aiCases : context.troubleshootingCases;
+
+  const page3Intro =
+    effective.growth_reflection.trim() ||
+    buildMyPagePage3Intro(context);
+
+  const technologyChips =
+    effective.technologies.length > 0
+      ? effective.technologies
+      : buildTechnologiesDraft(context);
+
+  return {
+    summaryParagraph:
+      effective.summary.trim() || buildMyPageSummaryParagraph(context),
+    summaryCards: buildMyPageSummaryCards(context),
+    technologyChips,
+    competencyItems,
+    activityBullets,
+    page3Intro,
+    troubleshootingCases,
+    teamDetailBodies,
+    usesLlm,
+    model: effective.model,
+  };
+}
+
 /** LLM 없이 DB 맥락만으로 A4용 초안 JSON 생성 */
 export function buildDraftReportFromContext(
   context: AiReportContext
@@ -844,13 +1015,14 @@ export async function generateAiReport(
 ): Promise<AiReportGenerateResponse> {
   const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, {
     body: request,
+    headers: edgeFunctionHeaders(),
   });
 
   if (error) {
     const message = error.message ?? "AI 리포트 생성 요청에 실패했습니다.";
     if (message.includes("Failed to send") || message.includes("404")) {
       throw notReady(
-        "Edge Function이 아직 배포되지 않았습니다. 「DB 활동 미리보기」를 이용하세요."
+        "Edge Function이 아직 배포되지 않았습니다. 「A4 인쇄 / PDF」로 DB 초안을 확인하세요."
       );
     }
     throw new Error(message);

@@ -219,9 +219,10 @@ export default function CoursesPage() {
         </div>
       )}
 
-      {isStudent && statusFilter === "active" && (
+      {isStudent && statusFilter === "active" && courses.length > 0 && (
         <form
           onSubmit={handleJoinCourse}
+          data-testid="courses-join-by-code-banner"
           className="mb-6 flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 sm:flex-row sm:items-end sm:gap-4 sm:p-5"
         >
           <div className="flex-1">
@@ -247,10 +248,17 @@ export default function CoursesPage() {
       )}
 
       {courses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center sm:p-10">
+        <div
+          data-testid="courses-empty-state"
+          className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center sm:p-10"
+        >
           <p className="text-gray-600">등록된 수업이 없습니다.</p>
           {isStudent && statusFilter === "active" && (
-            <form onSubmit={handleJoinCourse} className="mx-auto mt-6 max-w-sm space-y-3 text-left">
+            <form
+              onSubmit={handleJoinCourse}
+              data-testid="courses-join-by-code-empty"
+              className="mx-auto mt-6 max-w-sm space-y-3 text-left"
+            >
               <p className="text-sm text-gray-500">수업 코드로 등록하세요 (예: WEB-2026, DB-2026)</p>
               <input
                 type="text"

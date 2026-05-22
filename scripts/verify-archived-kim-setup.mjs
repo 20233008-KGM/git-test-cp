@@ -24,7 +24,9 @@ function loadDotEnv(filePath) {
 
 loadDotEnv(envFile);
 
-const KIM_STUDENT_ID = "673b60f9-3c6c-4ed4-847a-e24536c472a5";
+/** 기본 검증 대상: 수동 사용 계정 김학생2 (구 김학생 시드는 673b60f9-…) */
+const KIM_STUDENT_ID =
+  process.env.KIM_STUDENT_VERIFY_ID ?? "c9b6a5ca-110d-40d7-851d-703f077deb81";
 const url = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const key = process.env.VITE_SUPABASE_ANON_KEY;
 

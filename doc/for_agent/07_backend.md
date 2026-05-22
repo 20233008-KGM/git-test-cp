@@ -1,7 +1,7 @@
 ﻿# 07 — 백엔드
 
 > **관련:** `09_database.md` · `11_api_spec.md` · `06_decision_log.md` (ADR-012)  
-> **마지막 갱신:** 2026-05-20
+> **마지막 갱신:** 2026-05-22
 
 ## 현재 상태
 
@@ -11,7 +11,7 @@
 | Firebase Auth | `src/app/firebase.ts` (`VITE_*`) |
 | Supabase Client | `src/app/supabase.ts` (anon key) |
 | 데이터 facade | `supabase-api.ts`, `ai-report.ts` → Supabase `ai_*` |
-| Edge Function | `supabase/functions/generate-report` (코드 완료, deploy·OPENAI → H-002) |
+| Edge Function | `generate-report` — Gemini `GEMINI_API_KEY` · `verify_jwt=false` (H-002 완료) |
 
 ## Firebase → Supabase JWT (RLS Beta, 2026-05-20)
 
@@ -51,9 +51,9 @@ Client → Firebase signIn/signUp
 
 ## 다음 작업
 
-1. 번들 SQL 실행 (`migrations/20260520095400_team_detail_writes_bundle.sql`)
-2. RLS + Third-Party Auth (H-001, T-011)
-3. Edge deploy + `OPENAI_API_KEY` (H-002)
+1. RLS + Third-Party Auth (H-001, T-011)
+2. E2E 자격증명·CI (H-003, H-004)
+3. (선택) Edge 재배포 — Secret `GEMINI_API_KEY` 갱신 시
 
 ## 주의
 

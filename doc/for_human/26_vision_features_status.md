@@ -1,7 +1,8 @@
 # vision.md 기능 — 지금 어디까지 됐나요?
 
 > **원본:** `vision.md` · **기술:** `doc/for_agent/27_vision_feature_matrix.md`  
-> **갱신:** 2026-05-22
+> **갱신:** 2026-05-22  
+> **대화창에서 직접 시킨 일:** [`29_vision_requests_report.md`](./29_vision_requests_report.md) §대화창에서 요청한 내용
 
 - ✅ 동작함 (코드·DB 준비 완료)
 - 🔶 일부만 (인간 키·SQL·배포 대기)
@@ -9,12 +10,12 @@
 
 ---
 
-## 신규 추가요청사항 (vision #1~#54)
+## 신규 추가요청사항 (vision #1~#55)
 
 | 구간 | 상태 | 비고 |
 |------|------|------|
-| #1~#54 (코드) | ✅ | `29_vision_requests_report.md` 상세 |
-| AI 문단 LLM | 🔶 | H-002 Edge 배포 |
+| #1~#55 (코드) | ✅ | `29_vision_requests_report.md` 상세 |
+| AI 문단 LLM | ✅ | 마이페이지 자동 Gemini (H-002) |
 | RLS 강화 | 🔶 | H-001 승인 후 |
 
 **최근 (#49~#54):** 다른 팀 TS 차단 · 프로필 모달 · 팀 탈퇴 UX · 본인 팀 TS (#53) · **더미 스크린샷 제거** (#54)
@@ -55,7 +56,7 @@
 | 리포트 3페이지 | ✅ | DB 우선 |
 | A4 미리보기·인쇄 | ✅ | |
 | 과거 수업 (버튼→전용 페이지) | ✅ | vision #48 |
-| AI 문단 자동 생성 | 🔶 | Edge deploy → H-002 |
+| AI 문단 자동 생성 | ✅ | 진입 시 Gemini Edge (H-002) |
 
 ---
 
@@ -66,12 +67,12 @@
 | 과정 > 결과 | ✅ 트러블슈팅 |
 | 협업 기억 | ✅ DB 저장 |
 | 사람 중심 | ✅ 네트워크 |
-| 성장 데이터 | 🔶 리포트·LLM |
+| 성장 데이터 | ✅ 리포트·Gemini |
 
 ---
 
 ## 다음 (인간)
 
 1. [36_launch_one_pager.md](./36_launch_one_pager.md) · [00_pre_launch_order.md](./00_pre_launch_order.md)  
-2. H-011 `[o]` → `npm run human:verify`  
-3. Edge [30](./30_edge_ai_report.md) · RLS [31](./31_rls_beta_decision.md)
+2. E2E [34](./34_github_ci_secrets.md) (H-003·H-004)  
+3. RLS [31](./31_rls_beta_decision.md) (H-001) · Edge [30](./30_edge_ai_report.md) (H-002 완료 시 생략)

@@ -54,7 +54,7 @@ VITE_SUPABASE_ANON_KEY=
 | 단계 | 명령/위치 |
 |------|-----------|
 | 소스 | `supabase/functions/generate-report/` |
-| Secret | Dashboard → `OPENAI_API_KEY` (H-002) |
+| Secret | Dashboard → **`GEMINI_API_KEY`** (H-002; 레거시 `OPENAI_API_KEY` 선택) |
 | 배포 | `supabase functions deploy generate-report` |
 | 가이드 | `supabase/functions/generate-report/README.md` |
 

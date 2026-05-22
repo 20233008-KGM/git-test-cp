@@ -1,7 +1,7 @@
 ﻿# 27 — vision.md 기능 추적 매트릭스
 
-> **원본:** `vision.md` · **관련:** `02_current_state.md` · `for_human/26_vision_features_status.md`  
-> **갱신:** 2026-05-20 vision 기반 점검
+> **원본:** `vision.md` · **관련:** `02_current_state.md` · `for_human/26_vision_features_status.md` · `for_human/29_vision_requests_report.md` (대화창 요청 §대화창에서 요청한 내용)  
+> **갱신:** 2026-05-22 프로젝트 스캔
 
 ## 문제의식 → 플랫폼 (요약)
 
@@ -46,6 +46,7 @@
 | 팀 탈퇴 버튼은 워크스페이스 내부만 (#51) | ✅ | T-173·T-174 | 하단 소형 탈퇴·팀 있으면 참여 버튼 숨김 |
 | 본인 팀 트러블슈팅 작성 활성화 (#53) | ✅ | T-177 | detail teammates `user_id` 매핑 + `isStudentMember` + E2E #46 |
 | 워크스페이스 더미 스크린샷 칸 제거 (#54) | ✅ | T-181 | FIGMA·중간발표·기말발표 플레이스홀더 삭제 + E2E #47 |
+| 빈 수업 목록 시 수업코드 등록 UI 이중 표시 (#55) | ✅ | T-183 | `courses.length > 0`일 때만 상단 배너 · empty 내부 폼 + E2E #48 |
 
 ---
 
@@ -53,9 +54,9 @@
 
 | 관점 | 점수(체감) | 메모 |
 |------|------------|------|
-| 기존 vision 3축 | ~75% | 핵심 흐름은 동작, RLS/배포는 인간 블로커 |
-| 신규 추가요청 13건 | 100% | 1~13 완료(14 비어 있음) |
-| 전체 vision 기준 | ~70% | 인간 블로커(RLS·배포·키) 제외 기능 요청 완료 |
+| 기존 vision 3축 | ~80% | 핵심 흐름 동작, RLS/배포는 인간 블로커 |
+| 신규 추가요청 #1~#54 | 100% | 코드 반영 완료 |
+| 전체 vision 기준 | ~80% | 기능 요청 완료; RLS·E2E 자격증명·배포만 인간 |
 
 ---
 
@@ -98,14 +99,14 @@
 |-------------|-------------|-----|--------|-----|
 | 종료·진행 프로젝트 표시 | `MyPage` | ✅ | Supabase | 팀 집계·시드 |
 | 리포트 3페이지 | `MyPage` | ✅ | `gatherContext` | DB |
-| A4 인쇄 | `AiReportPrintView` | ✅ | draft | LLM ❌ |
-| AI 문단 생성 | MyPage 버튼 | 🔶 | Edge draft 200 / LLM | deploy·H-002 |
+| A4 인쇄 | `AiReportPrintView` | ✅ | draft + LLM | 「A4 인쇄 / PDF」 |
+| AI 문단 생성 | MyPage 진입 | ✅ | Edge Gemini | 자동 `generateReport` (H-002) |
 | 교수 평가 → 리포트 | `gatherContext` | ✅ | 번들 v2 | 스니펫·건수 |
-| 집계 새로고침 | MyPage 버튼 | ✅ | `resolveReportContext` | 캐시·강제 refresh |
+| 집계·AI (자동) | MyPage 진입 | ✅ | — | 수동 새로고침 버튼 제거(2026-05-22) |
 | 마이페이지 진입 (vision #47) | `MyPage` | ✅ | TDZ 버그 수정 (T-123) | E2E #35 |
 | 과거 수업 전용 페이지 (vision #48) | `MyPageArchivedCoursesPage` | ✅ | 사이드 버튼만 · `/mypage/archived-courses` | E2E #37 |
 
-**달성도:** UI ~80% · 읽기 ~65% · AI ~65% (DB·Edge 초안, LLM deploy 대기)
+**달성도:** UI ~85% · 읽기 ~70% · AI ~75% (DB 집계 + Gemini Edge 자동 채움)
 
 ---
 
@@ -116,10 +117,11 @@
 | 과정 > 결과 | 트러블슈팅 | CRUD ✅ |
 | 협업 기억 | DB 영구 저장 | ✅, RLS 강화 중 |
 | 사람 중심 | 네트워크 | ✅ |
-| 성장 데이터 | 리포트 | DB ✅, LLM 🔶 |
+| 성장 데이터 | 리포트 | DB ✅, Gemini Edge ✅ |
 
 ---
 
 ## 갱신 규칙
 
-기능 완료 시: 표 갱신 → `02` · `05` · `for_human/26_vision_features_status.md`
+기능 완료 시: 표 갱신 → `02` · `05` · `for_human/26_vision_features_status.md`  
+대화창 직접 요청 완료 시: `29` §대화창에서 요청한 내용 (`C-YYMMDD-N`) · `25_ai_work_log` · `plans/`

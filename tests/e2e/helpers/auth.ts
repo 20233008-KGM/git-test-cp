@@ -14,9 +14,10 @@ export async function loginWithCredentials(
   password: string
 ) {
   await page.goto("/");
-  await page.getByLabel("학번 또는 이메일").fill(email);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByRole("button", { name: "로그인" }).click();
+  await page.getByTestId("landing-login-form").waitFor({ state: "visible", timeout: 15_000 });
+  await page.getByTestId("landing-email-input").fill(email);
+  await page.getByTestId("landing-password-input").fill(password);
+  await page.getByTestId("landing-login-submit").click();
   await expect(page).toHaveURL(/\/app\/courses/, { timeout: 20_000 });
 }
 
@@ -54,4 +55,14 @@ export async function openFirstArchivedCourse(page: Page) {
     await openFirstCourse(page);
   }
   await expect(page).toHaveURL(/\/app\/courses\/[^/]+/);
+}
+
+export async function openTeamDeliverableModal(page: Page) {
+  await page.getByTestId("team-deliverable-upload-button").click();
+  await expect(page.getByTestId("team-deliverable-modal")).toBeVisible();
+}
+
+export async function openTeamTroubleshootingModal(page: Page) {
+  await page.getByTestId("team-trouble-register-open").click();
+  await expect(page.getByTestId("team-trouble-write-form")).toBeVisible();
 }

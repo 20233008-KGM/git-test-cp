@@ -13,15 +13,15 @@
 | 인증 | 58 | Firebase + `ai_users` + JWT 스캐폴드(기본 off) + ProtectedRoute |
 | DB / RLS | 45 | 리뷰 패키지·Beta 초안 SQL (T-011, 미적용) |
 | DevOps | 40 | CI build + archived verify + `prelaunch:check` + E2E (`deploy_vercel_checklist`, H-005) |
-| AI 리포트 | 65 | DB·A4·마이페이지 집계; Edge 초안(OPENAI 없음) + LLM deploy H-002 |
-| E2E 테스트 | 85 | Playwright 47플로우 + 인증 가드, GH Actions + smoke #1~#47 |
+| AI 리포트 | 78 | DB 집계 + Gemini Edge; 마이페이지 자동 AI · 팀 상세 트러블슈팅 AI 추천 Edge |
+| E2E 테스트 | 85 | Playwright **49**건 (48플로우 + 인증 가드 1), GH Actions + smoke #1~#47 |
 
 ## vision 기반 이해도 점검 (2026-05-20)
 
 | 항목 | 점검 결과 | 근거 |
 |------|-----------|------|
 | 핵심 3축(네트워크·워크스페이스·마이페이지) | 구현 이해도 높음 | 각 축의 핵심 화면·API·DB 흐름 연결 확인 |
-| 추가요청 1: 대용량+링크 게시물 | 구현 | 업로드 500MB + 링크(URL) 등록/조회/삭제 지원 |
+| 추가요청 1: 대용량+링크 게시물 | 구현 | 앱·Storage 버킷 모두 파일당 500MB + 링크(URL) (C-260522-10) |
 | 추가요청 2: 교수에게 학생용 리포트 비노출 | 구현 | `MyPage` role 가드 + 교수 전용 안내 블록 |
 | 추가요청 3: 수업 코드 자동 생성 | 구현 | `CoursesPage`에서 `CC-XXXX-XXXX` 자동 생성 + 재생성 버튼 |
 | 추가요청 4: 일정 캘린더 입력 | 구현 | `CoursesPage` 일정 입력을 `type="date"`로 전환 |
@@ -40,6 +40,7 @@
 | 추가요청 51: 팀 탈퇴 워크스페이스·소형 / 참여 숨김 | 구현 | 하단 muted 탈퇴·팀 소속 시 join 미노출 (T-173·T-174) |
 | 추가요청 53: 본인 팀 트러블슈팅 작성 비활성 | 구현 | detail teammates `user_id` 매핑 + `isStudentMember` + E2E #46 (T-177) |
 | 추가요청 54: 워크스페이스 더미 스크린샷 칸 제거 | 구현 | FIGMA·중간·기말발표 플레이스홀더 삭제 + E2E #47 (T-181) |
+| 추가요청 55: 빈 수업 목록 시 수업코드 등록 UI 이중 표시 | 구현 | 상단 배너 `courses.length > 0` 조건 + E2E #48 (T-183) |
 
 ## 구현 완료 (기능)
 
@@ -55,7 +56,7 @@
 - [o] 팀 동료평가 DB 저장 (`submitPeerReview`, H-008 SQL)
 - [o] 팀 회고록 DB 저장 (`submitRetrospective`, 트러블슈팅 자동연동, H-009 SQL)
 - [o] 교수 팀 평가 DB·제출 현황 조회·AI 진행 요약 (H-010, 번들 v2)
-- [o] AI 리포트 DB 집계·A4 인쇄·마이페이지 실데이터 (T-030/031, LLM 제외)
+- [o] AI 리포트 DB 집계·A4·마이페이지 자동 Gemini 채움 (T-030/031)
 - [o] Playwright E2E + GitHub Actions (T-040, T-041)
 - [o] 종료 수업 시드 (김학생) — 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
 - [o] vision #47·#48 — 마이페이지 TDZ 수정 · 과거 수업 전용 페이지
@@ -64,10 +65,22 @@
 ## 미완료 / 진행 중
 
 - [ ] RLS 정책 검증·강화·원격 적용 (T-011, H-001)
-- [ ] Edge `generate-report` **배포**·OPENAI Secret (T-030, H-002) — 코드는 `supabase/functions/`
+- [o] Edge `generate-report` Gemini + `verify_jwt=false` + `supabase/config.toml` (H-002 완료)
 - [ ] 프로덕션 배포 실행 (T-042, H-005)
 - [ ] E2E 전체 green (H-003, H-004 시크릿)
 - [o] vision 추가요청 구현 완료 (T-024~T-027·T-050~T-056·T-081~T-083 완료)
+
+## 최근 검증 (2026-05-22)
+
+- 프로젝트 전체 스캔: API·MyPage·Edge·E2E·human items ↔ doc 교차 대조
+- E2E `core-flows.spec.ts` **48** `test()` (47 플로우 + 인증 가드)
+- 마이페이지: 진입 시 `generate-report` 자동 · A4 용지 고정 표시 · 툴바 「A4 인쇄 / PDF」(집계 새로고침 버튼 제거)
+- Edge: Gemini `GEMINI_API_KEY` 우선 · `supabase/config.toml` `verify_jwt=false`
+- H-002·H-003·H-007~H-011 완료 — `28` 미완료는 H-001·H-004~006
+- doc 정리: `01`·`14`·`17`·`27`·`35`·`36`·`07`·`13` 구식 OPENAI·A4 라벨 수정
+- T-182 E2E #6 `mypage-a4-print-button` · ai-report 메시지 정리
+- T-183 vision #55 `CoursesPage` 빈 목록 시 상단 수업코드 배너 숨김 · `vision_snapshot` 동기화
+- C-260522-8~10: `recommend-troubleshooting` Edge · Storage 버킷 500MB · `29`/`25` 백필 (C-260522-11)
 
 ## 최근 검증 (2026-05-20)
 
@@ -158,9 +171,9 @@
 
 1. **RLS:** enabled, 정책 강화 미적용 (T-011 / H-001)
 2. **Figma imports:** `src/imports/` 레거시 유지
-3. **인간:** `28_human_action_items.md` H-001~006
+3. **인간:** `28_human_action_items.md` H-001·H-004~006 (H-002·H-003·H-007~011 완료)
 
 ## 다음 즉시 액션
 
-→ AI 선행: 완료 기능 회귀 안정화 + 일반 품질 개선  
-→ 인간 블로커: T-011(H-001) · T-030 deploy(H-002) · T-042(H-005)
+→ AI 선행: E2E #6 A4 버튼 라벨 정렬 · 완료 기능 회귀  
+→ 인간 블로커: T-011(H-001) · H-004(CI E2E) · T-042(H-005)

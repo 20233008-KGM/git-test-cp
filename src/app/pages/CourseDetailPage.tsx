@@ -242,7 +242,11 @@ export default function CourseDetailPage() {
                     >
                       <span className="font-semibold text-gray-900">{member.name ?? "이름 없음"}</span>
                       {member.studentId && <span className="ml-2 text-gray-500">({member.studentId})</span>}
-                      {member.role && <span className="ml-2 text-blue-700">[{member.role}]</span>}
+                      {member.role === "leader" && (
+                        <span className="ml-2 inline-flex rounded-full bg-[#155dfc] px-2 py-0.5 text-xs font-bold text-white">
+                          팀장
+                        </span>
+                      )}
                       {member.id === user?.id && (
                         <span className="ml-2 text-xs text-[#64748b]">(나)</span>
                       )}
@@ -250,10 +254,19 @@ export default function CourseDetailPage() {
                   ))}
                 </div>
               )}
+              {id && (
+                <Link
+                  to={`/app/courses/${id}/my-team/manage`}
+                  className="mt-4 inline-block rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                  data-testid="course-detail-team-manage-link"
+                >
+                  팀 관리 (팀장 변경 · 탈퇴)
+                </Link>
+              )}
               {myTeamPeerReviewPath && (
                 <Link
                   to={myTeamPeerReviewPath}
-                  className="mt-4 inline-block rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                  className="mt-4 ml-0 inline-block rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 sm:ml-3"
                 >
                   조원평가 페이지로 이동
                 </Link>

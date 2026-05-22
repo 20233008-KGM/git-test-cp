@@ -29,8 +29,6 @@
 | 체크 | ID | 우선순위 | 할 일 | 왜 필요한지 | 완료 확인 방법 |
 |------|----|----------|------|-------------|----------------|
 | [ ] | H-001 | 높음 | RLS Beta 결정 — **[31](./31_rls_beta_decision.md)** · 승인 후 **[33 JWT](./33_firebase_supabase_jwt_setup.md)** | DB 행 단위 보안 | “RLS 적용 승인” 또는 “RLS 보류” |
-| [ ] | H-002 | 높음 | AI 리포트 Edge 배포 — **[30_edge_ai_report.md](./30_edge_ai_report.md)** | 마이페이지 AI 문단 생성 | 「AI 리포트 생성」 501 아님 |
-| [ ] | H-003 | 중간 | 로컬 `.env`에 `E2E_TEST_EMAIL`, `E2E_TEST_PASSWORD` (Firebase **학생** 테스트 계정 권장) | 로컬 E2E 10플로우 | `npm run test:e2e` 전체 통과 (번들 SQL 후) |
 | [ ] | H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
 | [ ] | H-005 | 낮음 | **프로덕션 배포** GO/NO-GO — [`deploy_vercel_checklist.md`](../for_agent/deploy_vercel_checklist.md) 따라 Vercel 연결·`VITE_*` 설정 | 실제 서비스 공개 | 배포 URL 공유 |
 | [ ] | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
@@ -46,6 +44,8 @@
 | H-009 | 2026-05-22 14:13:32 | 회고록 DB·시드 (H-011 포함) |
 | H-008 | 2026-05-22 14:13:32 | 동료평가 DB·시드 (H-011 포함) |
 | H-007 | 2026-05-22 14:13:32 | Supabase 번들 v2·피드백 (H-011 포함) |
+| H-003 | 2026-05-22 | 로컬 `.env` `E2E_TEST_EMAIL` · `E2E_TEST_PASSWORD` (학생 Firebase) |
+| H-002 | 2026-05-22 | Gemini Secret `GEMINI_API_KEY` + Edge deploy + 마이페이지 자동 AI |
 | H-000 | 2026-05-19 (이전) | Firebase·Supabase `.env` 로컬 연결 (`VITE_*`) |
 
 ---
@@ -54,6 +54,7 @@
 
 | 시각 | ID | 결과 | 메모 |
 |------|----|------|------|
+| 2026-05-22 | H-003 | pass | 사용자 「H-003 완료」·`.env` E2E_TEST_* 설정 확인 |
 | 2026-05-22 14:13:32 | H-011 | pass | `verify:archived-kim` ok (evalReady=true, feedback=2) |
 | 2026-05-22 14:13:32 | H-010 | pass | 교수 평가 테이블·시드 확인 |
 | 2026-05-22 14:13:32 | H-009 | pass | 회고록 retrospectiveCount=2 |

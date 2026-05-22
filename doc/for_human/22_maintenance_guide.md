@@ -14,7 +14,9 @@
 
 - [ ] `01_project_status.md` · `for_agent/02_current_state.md` 일치  
 - [ ] `25_ai_work_log.md` — AI가 뭘 했는지 (**맨 위**·`YYYY-MM-DD HH:mm:ss`)  
-- [ ] `26_vision_features_status.md` — vision 기능 상태  
+- [ ] `29_vision_requests_report.md` — vision # 상세 · §대화창에서 요청한 내용 (`C-YYMMDD-N`, 맨 위 = 최신)  
+  · 에이전트 정본: `for_agent/chat_request_recording.md`  
+- [ ] `26_vision_features_status.md` — vision 기능 상태 요약  
 - [ ] AI에게 작업 시키면 끝에 **doc 갱신** (`23` 체크리스트)  
 - [ ] `05_todo.md` 완료 항목 체크  
 - [ ] `28_human_action_items.md` — 사람이 할 일 (H-001~)

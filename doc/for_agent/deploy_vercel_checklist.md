@@ -11,7 +11,7 @@
 | 2 | RLS 리뷰 (`rls_review_packet.md`, H-001) | [ ] |
 | 3 | **`supabase/apply_remote_full.sql`** (`npm run supabase:apply-remote-full`) — v2+김학생 시드+인덱스 · [38](../for_human/38_archived_kim_student_setup.md) | [ ] |
 | 3b | (대안) 번들 v2만 — [29](../for_human/29_supabase_bundle_sql.md) | [ ] |
-| 4 | Edge `generate-report` deploy (+ `OPENAI_API_KEY` 선택 — 없어도 DB 초안 200) | [ ] |
+| 4 | Edge `generate-report` deploy + Secret `GEMINI_API_KEY` (`verify_jwt=false`) | [ ] |
 | 5 | Storage bucket `ai_team_deliverables` 정책 확인 | [ ] |
 
 ## 배포 전 — Firebase
@@ -62,7 +62,7 @@ VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 ```
 
-> `OPENAI_API_KEY`는 **클라이언트에 넣지 않음** — Supabase Edge Secret만 (H-002).
+> `GEMINI_API_KEY`는 **클라이언트에 넣지 않음** — Supabase Edge Secret만 (H-002). Name 정확히.
 
 ## 배포 후 스모크 (5분)
 

@@ -25,8 +25,10 @@ import type {
   TeamSubmissionPeerReviewItem,
   PeerReviewStudent,
   PeerReviewTeammate,
+  TeamManagementInfo,
   TroubleshootingLog,
   TeamDeliverable,
+  TeamDeliverableSubmitMeta,
   Project,
   Question,
   Answer,
@@ -40,12 +42,14 @@ import {
   buildMyPagePage3Intro,
   buildMyPageSummaryCards,
   buildMyPageSummaryParagraph,
+  buildMyPageReportView,
   buildTechnologiesDraft,
   formatReportActivitySummary,
   gatherAiReportContext,
   generateAiReport as generateAiReportFromEdge,
   mapReportContextToMyPageProjects,
 } from "./ai-report";
+import { recommendTroubleshootingFromEdge } from "./ai-troubleshooting";
 
 // Supabase-backed API facade for app pages.
 // Reads ai_* tables and maps rows to UI types in ../types.
@@ -676,23 +680,71 @@ async function createAnnouncementInDb(
   return { title, description, dDay: Math.max(0, input.dDay) };
 }
 
+function mapAiUserToNetworkStudent(student: AiUser, isSelf: boolean): NetworkStudent {
+  const tags = asArray<string>(student.tags);
+  const skills = asArray<string>(student.skills);
+  const mergedTags = tags.length > 0 ? tags : skills.map((skill) => (skill.startsWith("#") ? skill : `#${skill}`));
+  const name = student.name?.trim() || "학생";
+
+  return {
+    id: student.id,
+    name,
+    isSelf,
+    year: student.year ?? undefined,
+    major: student.major?.trim() ?? "",
+    bio: student.bio?.trim() ?? "",
+    tags: mergedTags,
+    avatar: student.avatar?.trim() || name.slice(0, 1),
+    image: student.image ?? undefined,
+  };
+}
+
 async function getNetworkStudentsFromDb(courseId?: string): Promise<NetworkStudent[]> {
   const [currentUser, selectedCourseId] = await Promise.all([getCurrentAiUser(), getSelectedCourseId(courseId)]);
   if (!selectedCourseId) return [];
 
   const students = await getCourseUsers(selectedCourseId, "student");
 
-  return students.map((student) => ({
-    id: student.id,
-    name: student.name,
-    isSelf: currentUser ? student.id === currentUser.id : false,
-    year: student.year ?? undefined,
-    major: student.major ?? "",
-    bio: student.bio ?? "",
-    tags: asArray<string>(student.tags),
-    avatar: student.avatar ?? undefined,
-    image: student.image ?? undefined,
-  }));
+  const result = students.map((student) =>
+    mapAiUserToNetworkStudent(student, currentUser ? student.id === currentUser.id : false)
+  );
+
+  if (currentUser?.role === "student" && !result.some((student) => student.id === currentUser.id)) {
+    return [mapAiUserToNetworkStudent(currentUser, true), ...result];
+  }
+
+  return result;
+}
+
+function mapLearningProfileToStudentExtra(
+  row: {
+    user_id: string;
+    temperature: number | null;
+    team_project_count: number | null;
+    portfolio_file: string | null;
+    detailed_bio: string | null;
+    keywords: unknown;
+  },
+  userBio?: string | null,
+): StudentExtra {
+  const meta = parseNetworkProfileMeta(row.detailed_bio);
+  const detailedRaw = row.detailed_bio?.trim() ?? "";
+  const isMetaJson = detailedRaw.startsWith("{") && Boolean(meta.mbti || meta.careerInterest || meta.hobbies);
+  const metaPreview = [meta.mbti, meta.careerInterest, meta.hobbies]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" · ");
+  const detailedBio = isMetaJson
+    ? userBio?.trim() || metaPreview
+    : detailedRaw || userBio?.trim() || "";
+
+  return {
+    temperature: Number(row.temperature) || 37,
+    teamProjectCount: row.team_project_count ?? 0,
+    portfolioFile: row.portfolio_file?.trim() ?? "",
+    detailedBio,
+    keywords: asArray<{ text: string; count: number }>(row.keywords),
+  };
 }
 
 async function getStudentExtrasFromDb(): Promise<Record<string, StudentExtra>> {
@@ -702,15 +754,14 @@ async function getStudentExtrasFromDb(): Promise<Record<string, StudentExtra>> {
 
   if (error) throw error;
 
-  return (data ?? []).reduce<Record<string, StudentExtra>>((result, extra) => {
-    result[extra.user_id] = {
-      temperature: Number(extra.temperature),
-      teamProjectCount: extra.team_project_count,
-      portfolioFile: extra.portfolio_file,
-      detailedBio: extra.detailed_bio,
-      keywords: asArray<{ text: string; count: number }>(extra.keywords),
-    };
+  const rows = data ?? [];
+  if (rows.length === 0) return {};
 
+  const users = await getUsersByIds(rows.map((row) => row.user_id));
+  const bioByUserId = new Map(users.map((user) => [user.id, user.bio]));
+
+  return rows.reduce<Record<string, StudentExtra>>((result, extra) => {
+    result[extra.user_id] = mapLearningProfileToStudentExtra(extra, bioByUserId.get(extra.user_id));
     return result;
   }, {});
 }
@@ -746,30 +797,36 @@ function parseNetworkProfileMeta(detailedBio: string | null | undefined): Networ
   }
 }
 
-async function getDefaultStudentNetworkEditForm(): Promise<StudentNetworkEditForm> {
-  const { data, error } = await supabase
-    .from("ai_student_network_edit_form")
-    .select("major, mbti, career_interest, hobbies, bio, portfolio_file_name")
-    .eq("id", "default")
-    .maybeSingle();
+const EMPTY_STUDENT_NETWORK_EDIT_FORM: StudentNetworkEditForm = {
+  major: "",
+  mbti: "",
+  careerInterest: "",
+  hobbies: "",
+  bio: "",
+  portfolioFileName: "",
+};
 
-  if (error) throw error;
-  if (!data) throw new Error("Student network edit form data was not found.");
+function buildStudentNetworkEditFormFromUser(
+  user: AiUser,
+  profile?: { portfolio_file?: string | null; detailed_bio?: string | null } | null
+): StudentNetworkEditForm {
+  const meta = parseNetworkProfileMeta(profile?.detailed_bio);
 
   return {
-    major: data.major,
-    mbti: data.mbti,
-    careerInterest: data.career_interest,
-    hobbies: data.hobbies,
-    bio: data.bio,
-    portfolioFileName: data.portfolio_file_name,
+    major: user.major?.trim() ?? "",
+    mbti: meta.mbti?.trim() ?? "",
+    careerInterest: meta.careerInterest?.trim() ?? "",
+    hobbies: meta.hobbies?.trim() ?? "",
+    bio: user.bio?.trim() ?? "",
+    portfolioFileName: profile?.portfolio_file?.trim() ?? "",
   };
 }
 
 async function getStudentNetworkEditFormFromDb(): Promise<StudentNetworkEditForm> {
-  const defaults = await getDefaultStudentNetworkEditForm();
   const currentUser = await getCurrentAiUser();
-  if (!currentUser || currentUser.role !== "student") return defaults;
+  if (!currentUser || currentUser.role !== "student") {
+    return { ...EMPTY_STUDENT_NETWORK_EDIT_FORM };
+  }
 
   const { data: profile, error } = await supabase
     .from("ai_user_learning_profiles")
@@ -779,16 +836,7 @@ async function getStudentNetworkEditFormFromDb(): Promise<StudentNetworkEditForm
 
   if (error) throw error;
 
-  const meta = parseNetworkProfileMeta(profile?.detailed_bio);
-
-  return {
-    major: currentUser.major?.trim() || defaults.major,
-    mbti: meta.mbti?.trim() || defaults.mbti,
-    careerInterest: meta.careerInterest?.trim() || defaults.careerInterest,
-    hobbies: meta.hobbies?.trim() || defaults.hobbies,
-    bio: currentUser.bio?.trim() || defaults.bio,
-    portfolioFileName: profile?.portfolio_file?.trim() || defaults.portfolioFileName,
-  };
+  return buildStudentNetworkEditFormFromUser(currentUser, profile);
 }
 
 async function saveStudentNetworkProfileInDb(input: StudentNetworkEditForm): Promise<StudentNetworkEditForm> {
@@ -2213,10 +2261,12 @@ async function getTeamMembersWithNamesFromDb(teamId: string) {
 
   return (members ?? []).map((member) => {
     const user = users.find((item) => item.id === member.user_id);
+    const role = member.role === "leader" ? "leader" : "member";
     return {
       userId: member.user_id ?? member.id,
       name: user?.name ?? "팀원",
-      contribution: member.role === "leader" ? 100 : 80,
+      contribution: role === "leader" ? 100 : 80,
+      role,
       sort_order: member.sort_order,
       team_id: teamId,
     };
@@ -2242,21 +2292,28 @@ async function getTeamDetailTeammatesFromDb(teamId?: string): Promise<PeerReview
     roster.map((member) => [member.name.trim(), member.userId] as const)
   );
 
+  const roleByUserId = new Map(roster.map((member) => [member.userId, member.role] as const));
+
   const detailRows = detailResult.data ?? [];
   if (detailRows.length > 0) {
-    return detailRows.map((row) => ({
-      id: userIdByName.get(row.name.trim()) ?? row.id,
-      name: row.name,
-      contribution: row.contribution,
-      sort_order: row.sort_order,
-      team_id: teamId,
-    }));
+    return detailRows.map((row) => {
+      const userId = userIdByName.get(row.name.trim()) ?? row.id;
+      return {
+        id: userId,
+        name: row.name,
+        contribution: row.contribution,
+        role: roleByUserId.get(userId) ?? "member",
+        sort_order: row.sort_order,
+        team_id: teamId,
+      };
+    });
   }
 
   return roster.map((member) => ({
     id: member.userId,
     name: member.name,
     contribution: member.contribution,
+    role: member.role,
     sort_order: member.sort_order,
     team_id: teamId,
   }));
@@ -2602,8 +2659,18 @@ const TEAM_DELIVERABLE_ALLOWED_EXT = new Set([
   "xlsx",
 ]);
 
-function sanitizeDeliverableFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9가-힣._-]/g, "_").slice(0, 120);
+/** Storage object key — Supabase/S3 allows only ASCII [A-Za-z0-9._-] (no 한글·spaces). */
+function buildDeliverableStorageFileName(fileName: string, extension: string): string {
+  const base = fileName
+    .slice(0, fileName.length - (extension ? extension.length + 1 : 0))
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 80);
+  const safeBase = base || "file";
+  return extension ? `${safeBase}.${extension}` : safeBase;
 }
 
 function getDeliverableExtension(fileName: string): string {
@@ -2631,6 +2698,30 @@ function normalizeDeliverableUrl(rawUrl: string): string {
   }
 }
 
+const DELIVERABLE_SELECT_COLUMNS =
+  "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, storage_path, description, created_at";
+
+function resolveDeliverableDisplayName(
+  fileName: string,
+  meta?: TeamDeliverableSubmitMeta
+): string {
+  const title = meta?.title?.trim();
+  return title || fileName;
+}
+
+function isDeliverableLinkRow(row: {
+  storage_path?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  public_url?: string | null;
+}): boolean {
+  if ((row.storage_path ?? "").startsWith("link://")) return true;
+  if (row.mime_type === "text/url") return true;
+  const size = Number(row.file_size ?? 0);
+  const url = row.public_url ?? "";
+  return size === 0 && /^https?:\/\//i.test(url);
+}
+
 function mapDeliverableRow(row: {
   id: string;
   team_id: string;
@@ -2642,9 +2733,10 @@ function mapDeliverableRow(row: {
   mime_type: string | null;
   public_url: string;
   storage_path?: string | null;
+  description?: string | null;
   created_at: string;
 }): TeamDeliverable {
-  const isLink = (row.storage_path ?? "").startsWith("link://");
+  const isLink = isDeliverableLinkRow(row);
   return {
     id: row.id,
     teamId: row.team_id,
@@ -2656,6 +2748,7 @@ function mapDeliverableRow(row: {
     mimeType: row.mime_type ?? undefined,
     publicUrl: row.public_url,
     kind: isLink ? "link" : "file",
+    description: row.description?.trim() || undefined,
     createdAt: asDate(row.created_at),
   };
 }
@@ -2699,9 +2792,7 @@ async function getTeamDeliverablesFromDb(teamId: string): Promise<TeamDeliverabl
 
   const { data, error } = await supabase
     .from("ai_team_deliverables")
-    .select(
-      "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, storage_path, created_at"
-    )
+    .select(DELIVERABLE_SELECT_COLUMNS)
     .eq("team_id", teamId)
     .order("created_at", { ascending: false });
 
@@ -2709,7 +2800,11 @@ async function getTeamDeliverablesFromDb(teamId: string): Promise<TeamDeliverabl
   return (data ?? []).map((row) => mapDeliverableRow(row));
 }
 
-async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<TeamDeliverable> {
+async function uploadTeamDeliverableInDb(
+  teamId: string,
+  file: File,
+  meta?: TeamDeliverableSubmitMeta
+): Promise<TeamDeliverable> {
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
   if (!teamId) throw new Error("팀 정보가 없습니다.");
@@ -2725,8 +2820,8 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
   }
 
   const deliverableId = createDeliverableId(teamId);
-  const safeName = sanitizeDeliverableFileName(file.name);
-  const storagePath = `${courseId}/${teamId}/${deliverableId}_${safeName}`;
+  const storageFileName = buildDeliverableStorageFileName(file.name, extension);
+  const storagePath = `${courseId}/${teamId}/${deliverableId}_${storageFileName}`;
 
   const { error: uploadError } = await supabase.storage
     .from(TEAM_DELIVERABLES_BUCKET)
@@ -2740,6 +2835,8 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
 
   const { data: urlData } = supabase.storage.from(TEAM_DELIVERABLES_BUCKET).getPublicUrl(storagePath);
   const now = new Date().toISOString();
+  const description = meta?.description?.trim() || null;
+  const displayName = resolveDeliverableDisplayName(file.name, meta);
 
   const { data, error } = await supabase
     .from("ai_team_deliverables")
@@ -2749,7 +2846,8 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
       course_id: courseId,
       uploaded_by_user_id: currentUser.id,
       uploader_name: currentUser.name,
-      file_name: file.name,
+      file_name: displayName,
+      description,
       storage_path: storagePath,
       file_size: file.size,
       mime_type: file.type || null,
@@ -2757,9 +2855,7 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
       created_at: now,
       updated_at: now,
     })
-    .select(
-      "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, created_at"
-    )
+    .select(DELIVERABLE_SELECT_COLUMNS)
     .single();
 
   if (error) {
@@ -2772,7 +2868,7 @@ async function uploadTeamDeliverableInDb(teamId: string, file: File): Promise<Te
 
 async function addTeamDeliverableLinkInDb(
   teamId: string,
-  input: { url: string; title?: string }
+  input: { url: string; title?: string; description?: string }
 ): Promise<TeamDeliverable> {
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
@@ -2783,6 +2879,7 @@ async function addTeamDeliverableLinkInDb(
   const parsed = new URL(normalizedUrl);
   const fallbackName = `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;
   const title = input.title?.trim() || fallbackName;
+  const description = input.description?.trim() || null;
   const now = new Date().toISOString();
   const deliverableId = createDeliverableId(teamId);
 
@@ -2795,6 +2892,7 @@ async function addTeamDeliverableLinkInDb(
       uploaded_by_user_id: currentUser.id,
       uploader_name: currentUser.name,
       file_name: title,
+      description,
       storage_path: `link://${deliverableId}`,
       file_size: 0,
       mime_type: "text/url",
@@ -2802,9 +2900,7 @@ async function addTeamDeliverableLinkInDb(
       created_at: now,
       updated_at: now,
     })
-    .select(
-      "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, storage_path, created_at"
-    )
+    .select(DELIVERABLE_SELECT_COLUMNS)
     .single();
 
   if (error) throw error;
@@ -2817,7 +2913,9 @@ async function deleteTeamDeliverableInDb(deliverableId: string): Promise<void> {
 
   const { data: existing, error: fetchError } = await supabase
     .from("ai_team_deliverables")
-    .select("id, team_id, uploaded_by_user_id, storage_path")
+    .select(
+      "id, team_id, uploaded_by_user_id, storage_path, mime_type, file_size, public_url"
+    )
     .eq("id", deliverableId)
     .maybeSingle();
 
@@ -2826,14 +2924,14 @@ async function deleteTeamDeliverableInDb(deliverableId: string): Promise<void> {
 
   await assertTeamDeliverableAccess(existing.team_id);
 
-  const isOwner = existing.uploaded_by_user_id === currentUser.id;
+  const isOwner = String(existing.uploaded_by_user_id) === String(currentUser.id);
   const canDeleteAsStaff = ["professor", "admin"].includes(currentUser.role);
   if (!isOwner && !canDeleteAsStaff) {
     throw new Error("본인이 업로드한 파일 또는 교수만 삭제할 수 있습니다.");
   }
 
-  const isLink = existing.storage_path.startsWith("link://");
-  if (!isLink) {
+  const isLink = isDeliverableLinkRow(existing);
+  if (!isLink && existing.storage_path) {
     const { error: storageError } = await supabase.storage
       .from(TEAM_DELIVERABLES_BUCKET)
       .remove([existing.storage_path]);
@@ -2842,6 +2940,139 @@ async function deleteTeamDeliverableInDb(deliverableId: string): Promise<void> {
 
   const { error } = await supabase.from("ai_team_deliverables").delete().eq("id", deliverableId);
   if (error) throw error;
+}
+
+async function assertCanModifyDeliverable(
+  existing: { team_id: string; uploaded_by_user_id: string }
+): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  await assertTeamDeliverableAccess(existing.team_id);
+
+  const isOwner = String(existing.uploaded_by_user_id) === String(currentUser.id);
+  const canModifyAsStaff = ["professor", "admin"].includes(currentUser.role);
+  if (!isOwner && !canModifyAsStaff) {
+    throw new Error("본인이 등록한 산출물 또는 교수만 수정할 수 있습니다.");
+  }
+}
+
+async function updateTeamDeliverableInDb(
+  deliverableId: string,
+  input: {
+    title?: string;
+    description?: string;
+    url?: string;
+    file?: File;
+  }
+): Promise<TeamDeliverable> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("ai_team_deliverables")
+    .select(
+      "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, storage_path, file_size, mime_type, public_url, description"
+    )
+    .eq("id", deliverableId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!existing) throw new Error("산출물을 찾을 수 없습니다.");
+
+  if (currentUser.role === "student") {
+    await assertStudentOwnTeamWrite(existing.team_id);
+  }
+  await assertCanModifyDeliverable(existing);
+
+  const isLink = isDeliverableLinkRow(existing);
+  const now = new Date().toISOString();
+  const title = input.title?.trim();
+  const description =
+    input.description !== undefined ? input.description.trim() || null : existing.description;
+
+  if (isLink) {
+    const url = input.url?.trim();
+    if (!url) throw new Error("배포 링크를 입력해주세요.");
+    const normalizedUrl = normalizeDeliverableUrl(url);
+    const displayTitle = title || existing.file_name;
+
+    const { data, error } = await supabase
+      .from("ai_team_deliverables")
+      .update({
+        file_name: displayTitle,
+        description,
+        public_url: normalizedUrl,
+        updated_at: now,
+      })
+      .eq("id", deliverableId)
+      .select(DELIVERABLE_SELECT_COLUMNS)
+      .single();
+
+    if (error) throw error;
+    return mapDeliverableRow(data);
+  }
+
+  let storagePath = existing.storage_path;
+  let fileSize = Number(existing.file_size ?? 0);
+  let mimeType = existing.mime_type;
+  let publicUrl = existing.public_url;
+  let displayName = title || existing.file_name;
+
+  if (input.file) {
+    const extension = getDeliverableExtension(input.file.name);
+    if (!extension || !TEAM_DELIVERABLE_ALLOWED_EXT.has(extension)) {
+      throw new Error("지원하지 않는 파일 형식입니다. (예: zip, ts, py, pdf, png)");
+    }
+    if (input.file.size > TEAM_DELIVERABLE_MAX_BYTES) {
+      throw new Error("파일 크기는 500MB 이하여야 합니다.");
+    }
+
+    const newId = createDeliverableId(existing.team_id);
+    const storageFileName = buildDeliverableStorageFileName(input.file.name, extension);
+    const newStoragePath = `${existing.course_id}/${existing.team_id}/${newId}_${storageFileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(TEAM_DELIVERABLES_BUCKET)
+      .upload(newStoragePath, input.file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: input.file.type || undefined,
+      });
+    if (uploadError) throw uploadError;
+
+    const { error: removeError } = await supabase.storage
+      .from(TEAM_DELIVERABLES_BUCKET)
+      .remove([existing.storage_path]);
+    if (removeError) throw removeError;
+
+    const { data: urlData } = supabase.storage.from(TEAM_DELIVERABLES_BUCKET).getPublicUrl(newStoragePath);
+    storagePath = newStoragePath;
+    fileSize = input.file.size;
+    mimeType = input.file.type || null;
+    publicUrl = urlData.publicUrl;
+    if (!title) {
+      displayName = resolveDeliverableDisplayName(input.file.name, { title: undefined });
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("ai_team_deliverables")
+    .update({
+      file_name: displayName,
+      description,
+      storage_path: storagePath,
+      file_size: fileSize,
+      mime_type: mimeType,
+      public_url: publicUrl,
+      updated_at: now,
+    })
+    .eq("id", deliverableId)
+    .select(DELIVERABLE_SELECT_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return mapDeliverableRow(data);
 }
 
 type QuestionRow = {
@@ -3317,6 +3548,22 @@ async function getTeamCourseIdFromDb(teamId: string): Promise<string | null> {
   return data?.course_id ?? null;
 }
 
+async function getTeamWorkspaceHeaderFromDb(teamId: string) {
+  const { data, error } = await supabase
+    .from("ai_teams")
+    .select("id, name, project_title, badge")
+    .eq("id", teamId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: (data.name ?? "").trim() || teamId,
+    projectTitle: (data.project_title ?? "").trim(),
+    badge: data.badge?.trim() || undefined,
+  };
+}
+
 const AUTO_TEAM_BADGE = "자동배정";
 const TEAM_MEMBER_COLORS = [
   "bg-blue-100",
@@ -3521,6 +3768,39 @@ async function leaveTeamInDb(teamId: string): Promise<void> {
 
   await assertActiveCourseMembership(courseId);
 
+  const { data: myRow, error: myRowError } = await supabase
+    .from("ai_team_members")
+    .select("role")
+    .eq("team_id", teamId)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (myRowError) throw myRowError;
+  if (!myRow) throw new Error("이 팀의 멤버가 아닙니다.");
+
+  if (myRow.role === "leader") {
+    const { data: nextLeader, error: nextError } = await supabase
+      .from("ai_team_members")
+      .select("user_id")
+      .eq("team_id", teamId)
+      .neq("user_id", currentUser.id)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (nextError) throw nextError;
+
+    if (nextLeader?.user_id) {
+      const { error: promoteError } = await supabase
+        .from("ai_team_members")
+        .update({ role: "leader" })
+        .eq("team_id", teamId)
+        .eq("user_id", nextLeader.user_id);
+
+      if (promoteError) throw promoteError;
+    }
+  }
+
   const { error } = await supabase
     .from("ai_team_members")
     .delete()
@@ -3528,6 +3808,114 @@ async function leaveTeamInDb(teamId: string): Promise<void> {
     .eq("user_id", currentUser.id);
 
   if (error) throw error;
+}
+
+async function transferTeamLeaderInDb(teamId: string, newLeaderUserId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") {
+    throw new Error("학생만 팀장을 변경할 수 있습니다.");
+  }
+
+  const trimmedLeaderId = newLeaderUserId.trim();
+  if (!trimmedLeaderId) throw new Error("새 팀장을 선택해 주세요.");
+  if (trimmedLeaderId === currentUser.id) {
+    throw new Error("이미 팀장입니다.");
+  }
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) throw new Error("팀을 찾을 수 없습니다.");
+
+  await assertActiveCourseMembership(courseId);
+
+  const { data: members, error: membersError } = await supabase
+    .from("ai_team_members")
+    .select("user_id, role")
+    .eq("team_id", teamId);
+
+  if (membersError) throw membersError;
+
+  const rows = members ?? [];
+  const myRow = rows.find((row) => row.user_id === currentUser.id);
+  if (!myRow) throw new Error("이 팀의 멤버가 아닙니다.");
+  if (myRow.role !== "leader") throw new Error("팀장만 팀장을 넘길 수 있습니다.");
+
+  const nextLeader = rows.find((row) => row.user_id === trimmedLeaderId);
+  if (!nextLeader) throw new Error("선택한 학생이 이 팀에 속해 있지 않습니다.");
+
+  const { error: demoteError } = await supabase
+    .from("ai_team_members")
+    .update({ role: "member" })
+    .eq("team_id", teamId)
+    .eq("user_id", currentUser.id);
+
+  if (demoteError) throw demoteError;
+
+  const { error: promoteError } = await supabase
+    .from("ai_team_members")
+    .update({ role: "leader" })
+    .eq("team_id", teamId)
+    .eq("user_id", trimmedLeaderId);
+
+  if (promoteError) throw promoteError;
+}
+
+async function getTeamManagementFromDb(courseId?: string): Promise<TeamManagementInfo | null> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const selectedCourseId = await getSelectedCourseId(courseId);
+  if (!selectedCourseId) return null;
+
+  const course = await getCourseByIdFromDb(selectedCourseId);
+  if (!course) return null;
+
+  const teamId = await getMyTeamIdInCourseFromDb(selectedCourseId, currentUser.id);
+  if (!teamId) return null;
+
+  const { data: team, error: teamError } = await supabase
+    .from("ai_teams")
+    .select("id, name, project_title")
+    .eq("id", teamId)
+    .maybeSingle();
+
+  if (teamError) throw teamError;
+  if (!team) return null;
+
+  const { data: memberRows, error: membersError } = await supabase
+    .from("ai_team_members")
+    .select("user_id, role, sort_order")
+    .eq("team_id", teamId)
+    .order("sort_order", { ascending: true });
+
+  if (membersError) throw membersError;
+
+  const users = await getUsersByIds(
+    Array.from(new Set((memberRows ?? []).map((row) => row.user_id).filter(Boolean))),
+  );
+
+  const members = (memberRows ?? []).map((row) => {
+    const user = users.find((item) => item.id === row.user_id);
+    const role = row.role === "leader" ? "leader" : "member";
+    return {
+      id: row.user_id,
+      name: user?.name ?? "팀원",
+      studentId: user?.student_number ?? undefined,
+      role,
+      isSelf: row.user_id === currentUser.id,
+    };
+  });
+
+  const myRole = members.find((member) => member.isSelf)?.role ?? null;
+
+  return {
+    teamId: team.id,
+    teamName: team.name,
+    projectTitle: team.project_title ?? "",
+    members,
+    myRole,
+    isArchived: course.status === "archived",
+  };
 }
 
 async function saveRandomTeamsInDb(
@@ -3664,12 +4052,15 @@ export const api = {
     getAll: getTeamCardsFromDb,
   },
   teams: {
+    getWorkspaceHeader: getTeamWorkspaceHeaderFromDb,
     getAssignedStudentIds: getAssignedStudentIdsInCourseFromDb,
     getMyTeamIdInCourse: getMyTeamIdInCourseFromDb,
+    getManagement: getTeamManagementFromDb,
     isStudentMember: isStudentMemberOfTeamFromDb,
     create: createTeamInDb,
     join: joinTeamInDb,
     leave: leaveTeamInDb,
+    transferLeader: transferTeamLeaderInDb,
     updateCompletedStages: updateTeamCompletedStagesInDb,
     saveRandomAssignment: saveRandomTeamsInDb,
   },
@@ -3737,6 +4128,8 @@ export const api = {
     uploadDeliverable: uploadTeamDeliverableInDb,
     addDeliverableLink: addTeamDeliverableLinkInDb,
     deleteDeliverable: deleteTeamDeliverableInDb,
+    updateDeliverable: updateTeamDeliverableInDb,
+    recommendTroubleshootingAi: recommendTroubleshootingFromEdge,
   },
   projects: {
     getAll: getProjectsFromDb,
@@ -3763,6 +4156,7 @@ export const api = {
     buildTechnologies: buildTechnologiesDraft,
     formatActivitySummary: formatReportActivitySummary,
     mapToMyPageProjects: mapReportContextToMyPageProjects,
+    buildMyPageReportView,
     generateReport: generateAiReportFromEdge,
   },
 };

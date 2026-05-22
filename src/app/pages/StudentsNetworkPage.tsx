@@ -1,9 +1,22 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "react-router";
 import { Search, BookOpen, Clock, MapPin, FlaskConical, User, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
 import { useAuth } from "../contexts/AuthContext";
 import type { Course, ProfessorProfile } from "../types";
+import {
+  NETWORK_BIO_PLACEHOLDER,
+  NETWORK_MAJOR_PLACEHOLDER,
+  NETWORK_TAGS_EMPTY_LABEL,
+  buildMinimalStudentExtra,
+  displayBio,
+  displayMajor,
+  nameToAvatarInitial,
+  normalizeStudentTags,
+  resolveStudentExtra,
+  tagsFromEditHints,
+  type ResolvedStudentExtra,
+} from "../utils/studentNetworkDisplay";
 
 interface Student {
   id: string;
@@ -257,9 +270,37 @@ const fallbackStudents: Student[] = [
 
 /* ─────────── 공통 컴포넌트 ─────────── */
 
+function enrichStudentForDisplay(student: Student, editForm?: EditForm): Student {
+  const avatar = student.avatar?.trim() || nameToAvatarInitial(student.name);
+  const major = student.major?.trim() || (student.isSelf ? editForm?.major?.trim() : "") || "";
+  const bio = student.bio?.trim() || (student.isSelf ? editForm?.bio?.trim() : "") || "";
+  const tags =
+    student.tags.length > 0
+      ? student.tags
+      : student.isSelf
+        ? tagsFromEditHints(editForm)
+        : [];
+
+  return { ...student, avatar, major, bio, tags: normalizeStudentTags(tags) };
+}
+
+function enrichStudentExtras(
+  studentList: Student[],
+  extras: Record<string, StudentExtra>,
+): Record<string, StudentExtra> {
+  const merged = { ...extras };
+  for (const student of studentList) {
+    if (!merged[student.id]) {
+      merged[student.id] = buildMinimalStudentExtra(student.bio);
+    }
+  }
+  return merged;
+}
+
 function StudentAvatar({ student, size = "md" }: { student: Student; size?: "sm" | "md" | "lg" }) {
-  const sizeClass = size === "sm" ? "w-10 h-10" : "w-16 h-16";
-  const textClass = size === "sm" ? "text-base" : "text-2xl";
+  const sizeClass = size === "sm" ? "w-10 h-10" : size === "lg" ? "w-20 h-20" : "w-16 h-16";
+  const textClass = size === "sm" ? "text-base" : size === "lg" ? "text-3xl" : "text-2xl";
+  const initial = student.avatar?.trim() || nameToAvatarInitial(student.name);
   if (student.image) {
     return (
       <div className={`${sizeClass} rounded-full overflow-hidden flex-shrink-0`}>
@@ -269,12 +310,22 @@ function StudentAvatar({ student, size = "md" }: { student: Student; size?: "sm"
   }
   return (
     <div className={`${sizeClass} rounded-full bg-[#eff6ff] flex items-center justify-center flex-shrink-0`}>
-      <span className={`text-[#2b7fff] ${textClass} font-bold`}>{student.avatar}</span>
+      <span className={`text-[#2b7fff] ${textClass} font-bold`}>{initial}</span>
     </div>
   );
 }
 
-function TemperatureBar({ value }: { value: number }) {
+function TemperatureBar({ extra }: { extra: ResolvedStudentExtra }) {
+  if (!extra.hasLearningProfile) {
+    return (
+      <div className="rounded-[14px] border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
+        <p className="text-sm font-medium text-[#6a7282]">매너온도</p>
+        <p className="mt-1 text-xs text-[#9ca3af]">팀 활동 후 동료 평가가 쌓이면 표시됩니다.</p>
+      </div>
+    );
+  }
+
+  const value = extra.temperature;
   const pct = Math.min(100, Math.max(0, ((value - 36) / 3) * 100));
   const emoji = value >= 38 ? "😄" : value >= 37 ? "😊" : "😐";
   return (
@@ -299,16 +350,20 @@ function TemperatureBar({ value }: { value: number }) {
 function StudentProfileModal({
   student,
   studentExtras,
+  editForm,
   onClose,
   onEditClick,
 }: {
   student: Student;
   studentExtras: Record<string, StudentExtra>;
+  editForm?: EditForm;
   onClose: () => void;
   onEditClick?: () => void;
 }) {
-  const extra = studentExtras[student.id];
-  if (!extra) return null;
+  const displayStudent = enrichStudentForDisplay(student, editForm);
+  const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
+  const majorLabel = displayMajor(displayStudent.major);
+  const bioIsPlaceholder = extra.detailedBio === NETWORK_BIO_PLACEHOLDER;
 
   return (
     <div
@@ -326,13 +381,15 @@ function StudentProfileModal({
         <div className="sticky top-0 bg-white rounded-t-[14px] px-6 pt-5 pb-4 border-b border-gray-100 z-10">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <StudentAvatar student={student} size="md" />
+              <StudentAvatar student={displayStudent} size="md" />
               <div>
                 <p className="text-lg font-bold text-[#101828]">
-                  {student.name}
-                  {student.isSelf && <span className="text-[#6a7282] font-normal text-base"> (나)</span>}
+                  {displayStudent.name}
+                  {displayStudent.isSelf && <span className="text-[#6a7282] font-normal text-base"> (나)</span>}
                 </p>
-                <p className="text-sm text-[#6a7282]">{student.major}</p>
+                <p className={`text-sm ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "text-[#9ca3af] italic" : "text-[#6a7282]"}`}>
+                  {majorLabel}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
@@ -352,27 +409,39 @@ function StudentProfileModal({
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          <TemperatureBar value={extra.temperature} />
+          <TemperatureBar extra={extra} />
 
-          <div className="flex flex-wrap gap-2">
-            {extra.keywords.map((kw) => (
-              <div
-                key={kw.text}
-                className="bg-white border border-gray-200 rounded-[10px] shadow-sm px-3 py-2 flex items-center gap-1.5"
-              >
-                <span className="text-sm text-black">{kw.text}</span>
-                <User className="w-3.5 h-3.5 text-[#1D1B20]" />
-                <span className="text-sm font-medium text-black">{kw.count}</span>
+          <div>
+            <p className="text-base font-bold text-black mb-2">동료 키워드</p>
+            {extra.keywords.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {extra.keywords.map((kw) => (
+                  <div
+                    key={kw.text}
+                    className="bg-white border border-gray-200 rounded-[10px] shadow-sm px-3 py-2 flex items-center gap-1.5"
+                  >
+                    <span className="text-sm text-black">{kw.text}</span>
+                    <User className="w-3.5 h-3.5 text-[#1D1B20]" />
+                    <span className="text-sm font-medium text-black">{kw.count}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <p className="text-sm text-[#9ca3af] rounded-[10px] border border-dashed border-gray-200 px-4 py-3">
+                아직 받은 키워드가 없습니다.
+              </p>
+            )}
           </div>
 
           <div className="border-t border-[rgba(218,218,218,0.55)]" />
 
           <div>
             <p className="text-base font-bold text-black mb-2">자기소개</p>
-            <div className="border border-gray-200 rounded-[10px] px-4 py-3">
-              <p className="text-sm text-[#364153] leading-relaxed" data-testid="student-profile-modal-detailed-bio">
+            <div className={`border rounded-[10px] px-4 py-3 ${bioIsPlaceholder ? "border-dashed border-gray-200 bg-gray-50" : "border-gray-200"}`}>
+              <p
+                className={`text-sm leading-relaxed ${bioIsPlaceholder ? "text-[#9ca3af] italic" : "text-[#364153]"}`}
+                data-testid="student-profile-modal-detailed-bio"
+              >
                 {extra.detailedBio}
               </p>
             </div>
@@ -382,13 +451,17 @@ function StudentProfileModal({
             <p className="text-base font-bold text-black mb-2">포트폴리오 & 첨부파일</p>
             <div className="border border-gray-200 rounded-[10px] px-4 py-2.5 flex items-center gap-2">
               <span className="text-gray-400 text-sm">📎</span>
-              <span className="text-[#155dfc] text-sm underline cursor-pointer hover:text-blue-700">
-                {extra.portfolioFile}
-              </span>
+              {extra.portfolioFile ? (
+                <span className="text-[#155dfc] text-sm underline cursor-pointer hover:text-blue-700">
+                  {extra.portfolioFile}
+                </span>
+              ) : (
+                <span className="text-sm text-[#9ca3af]">등록된 파일 없음</span>
+              )}
             </div>
           </div>
 
-          {student.isSelf ? (
+          {displayStudent.isSelf ? (
             <button
               onClick={() => { onClose(); onEditClick?.(); }}
               className="w-full bg-[#155dfc] text-white py-3 rounded-[10px] font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -430,6 +503,10 @@ function MyInfoEditModal({
   const [form, setForm] = useState<EditForm>(initialForm);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setForm(initialForm);
+  }, [initialForm]);
   const update = (key: keyof EditForm, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -778,8 +855,24 @@ function RandomTeamModal({
 
 /* ─────────── 학생 카드 ─────────── */
 
-function StudentCard({ student, onClick }: { student: Student; onClick?: () => void }) {
-  const isSelf = student.isSelf;
+function StudentCard({
+  student,
+  studentExtras,
+  editForm,
+  onClick,
+}: {
+  student: Student;
+  studentExtras: Record<string, StudentExtra>;
+  editForm?: EditForm;
+  onClick?: () => void;
+}) {
+  const displayStudent = enrichStudentForDisplay(student, editForm);
+  const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
+  const majorLabel = displayMajor(displayStudent.major);
+  const bioLabel = displayBio(displayStudent.bio, extra.detailedBio);
+  const bioIsPlaceholder = bioLabel === NETWORK_BIO_PLACEHOLDER;
+  const isSelf = displayStudent.isSelf;
+
   return (
     <button
       onClick={onClick}
@@ -790,24 +883,44 @@ function StudentCard({ student, onClick }: { student: Student; onClick?: () => v
         }`}
     >
       <div className="flex justify-center">
-        <StudentAvatar student={student} />
+        <StudentAvatar student={displayStudent} />
       </div>
       <div className="text-center">
         <p className="text-[#101828] font-bold text-lg">
-          {student.name}
+          {displayStudent.name}
           {isSelf && <span className="text-[#6a7282] font-normal text-base"> (나)</span>}
         </p>
-        <p className="text-[#6a7282] text-xs mt-0.5">{student.major}</p>
+        <p className={`text-xs mt-0.5 ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "text-[#9ca3af] italic" : "text-[#6a7282]"}`}>
+          {majorLabel}
+        </p>
       </div>
-      <div className="bg-[#eff6ff] border border-[#bedbff] rounded-[10px] px-4 py-3">
-        <p className="text-[#1c398e] text-xs text-center leading-[1.6]">{student.bio}</p>
+      <div
+        className={`rounded-[10px] px-4 py-3 border ${
+          bioIsPlaceholder
+            ? "bg-gray-50 border-dashed border-gray-200"
+            : "bg-[#eff6ff] border-[#bedbff]"
+        }`}
+      >
+        <p
+          className={`text-xs text-center leading-[1.6] ${
+            bioIsPlaceholder ? "text-[#9ca3af] italic" : "text-[#1c398e]"
+          }`}
+        >
+          {bioLabel}
+        </p>
       </div>
-      <div className="flex flex-wrap gap-1.5 justify-center">
-        {student.tags.map((tag) => (
-          <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-[10px] px-3 py-1 rounded-full">
-            {tag}
+      <div className="flex flex-wrap gap-1.5 justify-center min-h-[1.5rem]">
+        {displayStudent.tags.length > 0 ? (
+          displayStudent.tags.map((tag) => (
+            <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-[10px] px-3 py-1 rounded-full">
+              {tag}
+            </span>
+          ))
+        ) : (
+          <span className="bg-[#f9fafb] text-[#9ca3af] text-[10px] px-3 py-1 rounded-full italic">
+            {NETWORK_TAGS_EMPTY_LABEL}
           </span>
-        ))}
+        )}
       </div>
     </button>
   );
@@ -827,19 +940,46 @@ export default function StudentsNetworkPage() {
   const [studentExtras, setStudentExtras] = useState<Record<string, StudentExtra>>({});
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editForm, setEditForm] = useState<EditForm>({
-    major: "벤처중소기업학 / 글로벌미디어 복수전공",
-    mbti: "intp, 꼼꼼함, 완벽주의자",
-    careerInterest: "기획/디자인",
-    hobbies: "기아타이거즈, TFT",
-    bio: "안녕하세요. 저는 벤처중소기업학과 22학번 류지원입니다. 서비스 기획에 관심이 있고 연락 잘 됩니다.",
-    portfolioFileName: "류지원_포트폴리오_2026.pdf",
-  });
+  const emptyEditForm: EditForm = {
+    major: "",
+    mbti: "",
+    careerInterest: "",
+    hobbies: "",
+    bio: "",
+    portfolioFileName: "",
+  };
+  const [editForm, setEditForm] = useState<EditForm>(emptyEditForm);
 
-  const { isProfessor, isStudent, isAdmin, user } = useAuth();
+  const { isProfessor, isStudent, isAdmin, user, refreshProfile } = useAuth();
   const professor = isProfessor ? (user as ProfessorProfile) : null;
-  const selfStudent = students.find((s) => s.isSelf) ?? students[0];
-  const otherStudents = students.filter((s) => !s.isSelf);
+
+  const selfStudent = useMemo(() => {
+    const fromList = students.find((s) => s.isSelf);
+    if (fromList) return fromList;
+    if (isStudent && user?.role === "student") {
+      return {
+        id: user.id,
+        name: user.name,
+        isSelf: true,
+        major: user.major ?? "",
+        bio: user.bio ?? "",
+        tags: normalizeStudentTags([], user.skills),
+        avatar: nameToAvatarInitial(user.name),
+      } satisfies Student;
+    }
+    return null;
+  }, [students, isStudent, user]);
+
+  const displaySelfStudent = useMemo(
+    () => (selfStudent ? enrichStudentForDisplay(selfStudent, editForm) : null),
+    [selfStudent, editForm],
+  );
+
+  const currentStudentId =
+    isStudent && user?.role === "student" ? user.id : selfStudent?.id;
+  const otherStudents = students.filter(
+    (s) => !s.isSelf && s.id !== currentStudentId,
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -852,14 +992,14 @@ export default function StudentsNetworkPage() {
       .then(([studentData, extraData, formData, courseData]) => {
         // vision 추가요청 #13: /courses/:courseId/students 에서는 DB가 비어 있어도 데모 목록으로 대체하지 않음
         const useCourseScope = Boolean(courseId);
-        setStudents(
-          useCourseScope || studentData.length > 0 ? studentData : fallbackStudents,
-        );
-        setStudentExtras(
+        const list =
+          useCourseScope || studentData.length > 0 ? studentData : fallbackStudents;
+        setStudents(list);
+        const baseExtras =
           useCourseScope || Object.keys(extraData).length > 0
             ? extraData
-            : fallbackStudentExtras,
-        );
+            : fallbackStudentExtras;
+        setStudentExtras(enrichStudentExtras(list, baseExtras));
         setCourse(courseData ?? null);
         setEditForm({
           major: formData.major,
@@ -889,7 +1029,17 @@ export default function StudentsNetworkPage() {
     );
   }
 
-  if (!selfStudent) {
+  if (!selfStudent && isStudent) {
+    return (
+      <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center px-4">
+        <p className="text-center text-[#4a5565] font-medium">
+          이 수업 수강자 목록에 본인이 아직 없습니다. 수업 코드로 등록했는지 확인해 주세요.
+        </p>
+      </div>
+    );
+  }
+
+  if (!isStudent && students.length === 0) {
     return (
       <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center">
         <p className="text-[#4a5565] font-medium">이 수업에 등록된 학생이 없습니다.</p>
@@ -908,7 +1058,10 @@ export default function StudentsNetworkPage() {
     );
   });
 
-  const allDisplayStudents = isStudent ? [selfStudent, ...filteredOthers] : filteredOthers;
+  const allDisplayStudents =
+    isStudent && displaySelfStudent
+      ? [displaySelfStudent, ...filteredOthers.map((s) => enrichStudentForDisplay(s))]
+      : filteredOthers.map((s) => enrichStudentForDisplay(s));
   const isArchived = course?.status === "archived";
 
   return (
@@ -972,29 +1125,65 @@ export default function StudentsNetworkPage() {
         )}
 
         {/* 학생 본인 프로필 배너 */}
-        {isStudent && (
+        {isStudent && displaySelfStudent && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-[#101828] text-xl font-bold">{selfStudent.name} (나)</span>
-                  {selfStudent.year && <span className="text-[#6a7282] text-sm">{selfStudent.year}</span>}
-                </div>
-                <p className="text-[#6a7282] text-sm">{editForm.major}</p>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {selfStudent.tags.map((tag) => (
-                    <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-xs px-3 py-1 rounded-full">{tag}</span>
-                  ))}
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+                <StudentAvatar student={displaySelfStudent} size="lg" />
+                <div className="flex flex-col gap-2 min-w-0">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-[#101828] text-xl font-bold">{displaySelfStudent.name} (나)</span>
+                    {displaySelfStudent.year && (
+                      <span className="text-[#6a7282] text-sm">{displaySelfStudent.year}</span>
+                    )}
+                  </div>
+                  <p
+                    className={`text-sm ${
+                      displayMajor(displaySelfStudent.major) === NETWORK_MAJOR_PLACEHOLDER
+                        ? "text-[#9ca3af] italic"
+                        : "text-[#6a7282]"
+                    }`}
+                  >
+                    {displayMajor(displaySelfStudent.major)}
+                  </p>
+                  <p
+                    className={`text-sm leading-relaxed ${
+                      displayBio(displaySelfStudent.bio, null) === NETWORK_BIO_PLACEHOLDER
+                        ? "text-[#9ca3af] italic"
+                        : "text-[#364153]"
+                    }`}
+                  >
+                    {displayBio(displaySelfStudent.bio, null)}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {displaySelfStudent.tags.length > 0 ? (
+                      displaySelfStudent.tags.map((tag) => (
+                        <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-xs px-3 py-1 rounded-full">
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-[#9ca3af] italic">{NETWORK_TAGS_EMPTY_LABEL}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               {!isArchived && (
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  className="bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0 flex items-center gap-1.5"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  내 정보 수정
-                </button>
+                <div className="flex flex-wrap gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => setShowMyProfileModal(true)}
+                    className="bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    내 프로필 보기
+                  </button>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    내 정보 수정
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -1029,10 +1218,12 @@ export default function StudentsNetworkPage() {
             <StudentCard
               key={student.id}
               student={student}
-              onClick={
+              studentExtras={studentExtras}
+              editForm={student.isSelf ? editForm : undefined}
+              onClick={() =>
                 student.isSelf
-                  ? () => setShowMyProfileModal(true)
-                  : () => setSelectedStudent(student)
+                  ? setShowMyProfileModal(true)
+                  : setSelectedStudent(students.find((s) => s.id === student.id) ?? student)
               }
             />
           ))}
@@ -1053,10 +1244,11 @@ export default function StudentsNetworkPage() {
         />
       )}
 
-      {showMyProfileModal && (
+      {showMyProfileModal && displaySelfStudent && (
         <StudentProfileModal
-          student={selfStudent}
+          student={displaySelfStudent}
           studentExtras={studentExtras}
+          editForm={editForm}
           onClose={() => setShowMyProfileModal(false)}
           onEditClick={isArchived ? undefined : () => setShowEditModal(true)}
         />
@@ -1070,10 +1262,19 @@ export default function StudentsNetworkPage() {
             try {
               const saved = await api.studentNetwork.saveProfile(form);
               setEditForm(saved);
-              const refreshed = await api.studentNetwork.getStudents(courseId);
-              setStudents(
-                courseId || refreshed.length > 0 ? refreshed : fallbackStudents,
-              );
+              await refreshProfile();
+              const [refreshed, refreshedExtras] = await Promise.all([
+                api.studentNetwork.getStudents(courseId),
+                api.studentNetwork.getExtras(),
+              ]);
+              const list =
+                courseId || refreshed.length > 0 ? refreshed : fallbackStudents;
+              setStudents(list);
+              const baseExtras =
+                courseId || Object.keys(refreshedExtras).length > 0
+                  ? refreshedExtras
+                  : fallbackStudentExtras;
+              setStudentExtras(enrichStudentExtras(list, baseExtras));
             } catch (error) {
               console.error(error);
               alert(error instanceof Error ? error.message : "프로필 저장에 실패했습니다.");

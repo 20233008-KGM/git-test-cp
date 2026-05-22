@@ -11,7 +11,7 @@
 | 2 | (선택) | 채팅 Realtime | `supabase/migrations/20260520100300_realtime_chat.sql` |
 | 3 | H-003 | 로컬 `.env` + `npm run test:e2e` | `14_testing.md` |
 | 4 | H-004 | GitHub Secrets (CI) | [34_github_ci_secrets.md](./34_github_ci_secrets.md) |
-| 5 | H-002 | Edge AI 리포트 | [30_edge_ai_report.md](./30_edge_ai_report.md) |
+| 5 | H-002 | Edge AI 리포트 (Gemini) | [30_edge_ai_report.md](./30_edge_ai_report.md) — **완료 시 생략** |
 | 6 | H-001 | RLS 적용 여부 결정 | [31](./31_rls_beta_decision.md) → [rls_staging_verification.md](../for_agent/rls_staging_verification.md) |
 | 7 | H-005 | Vercel 배포 GO | [deploy_vercel_checklist.md](../for_agent/deploy_vercel_checklist.md) |
 | 8 | H-006 | 약관·개인정보 | 법무 |

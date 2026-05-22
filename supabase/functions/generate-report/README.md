@@ -2,6 +2,17 @@
 
 마이페이지 AI 리포트 LLM 생성 (`T-030`).
 
+## 401 방지
+
+프로젝트 루트 `supabase/config.toml` 에 `[functions.generate-report] verify_jwt = false` 가 있어야 합니다.  
+`sb_publishable_*` 키 + Firebase 로그인 조합에서 기본 JWT 검증이 켜져 있으면 **401** 이 납니다.
+
+배포:
+
+```bash
+supabase functions deploy generate-report
+```
+
 ## 배포 전 (인간 — H-002)
 
 1. [Google AI Studio](https://aistudio.google.com/apikey) Gemini API Key 발급
@@ -25,7 +36,7 @@ supabase functions deploy generate-report
 | 없음 (`GEMINI`·`OPENAI` 둘 다 없음) | **200** | `draft-db-only` |
 | `GEMINI_API_KEY` | 200 | `gemini-2.5-flash` (또는 `GEMINI_MODEL`) |
 | `OPENAI_API_KEY`만 (레거시) | 200 | `gpt-4o-mini` |
-| 함수 미배포 | (클라이언트) 404 | 「DB 활동 미리보기」 |
+| 함수 미배포 | (클라이언트) 404 | 「A4 인쇄 / PDF」로 DB 초안 확인 |
 
 우선순위: **Gemini → OpenAI → DB 초안**
 

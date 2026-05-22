@@ -5,7 +5,7 @@
 ## 현재
 
 - **Playwright** — `playwright.config.ts`, `tests/e2e/`
-- **핵심 E2E:** `core-flows.spec.ts` — 47플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
+- **핵심 E2E:** `core-flows.spec.ts` — **49** `test()` (48플로우 + 인증 가드 1건; 교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
 - **단위 테스트:** 없음
 
 ## 실행
@@ -63,14 +63,15 @@ E2E_TEST_PASSWORD=...
 3. 팀 목록 → 팀 상세
 4. 마이페이지
 5. 로그아웃 → 랜딩
-6. 마이페이지 DB 리포트 미리보기 (A4) + 활동 집계 + `report-preview-close`로 overlay 닫기
+6. 마이페이지 A4 용지(`mypage-a4-report-sheet`) + 툴바 인쇄 버튼 + `mypage-refresh-report` 없음
+48. vision #55 빈 수업 목록 — 상단 `courses-join-by-code-banner` 없음, empty 내부 폼만 (수업 없을 때 skip)
 7. 마이페이지 리포트 1→2→3 + PAGE02 (`mypage-team-card-db`) + PAGE01·03 testid
 8. 팀 상세 채팅 메시지 전송
 9. 팀 상세 피드백 제출 (`data-testid=team-feedback-submit`)
 10. 수업 상세 사이드바 조원평가 제출 (학생·`peer-review-submit-*`)
 11. 팀 상세 회고록 저장 (학생·`retrospective-submit`)
 12. 교수 팀 제출 현황·프로젝트 평가 (`E2E_PROFESSOR_*`, `professor-team-submissions`)
-13. 마이페이지 AI 리포트 생성 (`ai-report-generate-button`, `ai-report-message`)
+13. 마이페이지 AI 리포트 자동 채움 (`mypage-summary-paragraph`, `ai-report-message`; `ai-report-generate-button` 없음)
 14. 교수 마이페이지 학생 리포트 비노출 (`mypage-professor-report-block`)
 15. 팀 상세 배포 링크 등록 (URL 게시물)
 16. 팀 상세 파일 업로드 (`team-deliverable-file-input`)

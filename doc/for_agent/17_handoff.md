@@ -9,8 +9,8 @@
 - **API:** `supabase-api.ts` — 과목·팀·Q&A·네트워크·Storage·팀 상세 쓰기 전반
 - **인증:** Firebase + `ai_users` + ProtectedRoute + JWT 스캐폴드 (`VITE_ENABLE_SUPABASE_FIREBASE_JWT`, **기본 off**)
 - **팀 상세:** 채팅·Realtime, 피드백·동료평가·회고록 DB, 교수 평가·제출 현황 패널, AI 진행 요약(실데이터)
-- **마이페이지:** 리포트 3페이지 DB 집계 + A4 + Edge `generate-report` (배포 후 OPENAI 없으면도 DB 초안 200)
-- **E2E:** 47플로우 + 인증 가드 · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#47
+- **마이페이지:** 리포트 3페이지 — DB 집계 + **진입 시** Edge Gemini 자동 채움 (`buildMyPageReportView`)
+- **E2E:** **48**건 (47플로우 + 인증 가드 1) · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#47
 - **아카이브 시드:** 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
 - **RLS:** `rls_review_packet.md` + `20260519000000_rls_beta_draft.sql` — **미적용** (H-001)
 - **DB:** bundle v2·인덱스 원격 적용됨(MCP) — 신규 환경은 `apply_remote_full.sql`
@@ -51,12 +51,12 @@
 
 → [`for_human/00_pre_launch_order.md`](../for_human/00_pre_launch_order.md)
 
-1. **H-011** — `verify:archived-kim` 통과 확인 → `28`에서 `[o]` → `npm run human:verify`
-2. **H-007~010** — (선택) 동일하게 `[o]` 후 human:verify (피드백·평가·회고·교수평가 테이블)
-2. **H-003 / H-004** — 로컬 E2E · GitHub Secrets ([34](../for_human/34_github_ci_secrets.md))
-3. **H-002** — Edge `generate-report` + OPENAI ([30](../for_human/30_edge_ai_report.md))
-4. **H-001** — RLS 승인 ([31](../for_human/31_rls_beta_decision.md)) → JWT ([33](../for_human/33_firebase_supabase_jwt_setup.md))
-5. **H-005** — Vercel 배포 (`deploy_vercel_checklist.md`)
+1. **H-004** — GitHub Secrets ([34](../for_human/34_github_ci_secrets.md)) (`E2E_*` = 로컬 `.env`와 동일 값)
+2. **H-001** — RLS 승인 ([31](../for_human/31_rls_beta_decision.md)) → JWT ([33](../for_human/33_firebase_supabase_jwt_setup.md))
+3. **H-005** — Vercel 배포 (`deploy_vercel_checklist.md`)
+4. **H-006** — 약관·개인정보·AI 정책
+
+**완료:** H-002 (Gemini Edge) · H-003 (로컬 E2E `.env`) · H-007~H-011 (번들·시드·`verify:archived-kim`)
 
 ## AI가 다음에 할 수 있는 것 (H-001 승인 후)
 

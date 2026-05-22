@@ -1,13 +1,172 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router";
+import { ChevronDown } from "lucide-react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router";
 import { api } from "../api/supabase-api";
 import { useAuth } from "../contexts/AuthContext";
 import Footer from "../components/Footer";
 import Navigation from "../components/Navigation";
 
+function MyTeamSideNavGroup({
+  courseId,
+  courseTab,
+  myTeamId,
+  disabled,
+}: {
+  courseId: string | undefined;
+  courseTab: string;
+  myTeamId: string | null;
+  disabled: boolean;
+}) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+
+  const teamsListPath = courseId ? `/app/courses/${courseId}/teams` : "/app/courses";
+  const workspacePath =
+    courseId && myTeamId ? `/app/courses/${courseId}/teams/${myTeamId}` : teamsListPath;
+  const membersPath = courseId ? `/app/courses/${courseId}?tab=my-team-members` : "/app/courses";
+  const managePath = courseId ? `/app/courses/${courseId}/my-team/manage` : "/app/courses";
+
+  const isWorkspaceActive =
+    Boolean(courseId && myTeamId) &&
+    (location.pathname === `/app/courses/${courseId}/teams/${myTeamId}` ||
+      location.pathname.startsWith(`/app/courses/${courseId}/teams/${myTeamId}/`));
+  const isMembersActive =
+    Boolean(courseId) &&
+    location.pathname === `/app/courses/${courseId}` &&
+    courseTab === "my-team-members";
+  const isManageActive =
+    Boolean(courseId) && location.pathname === `/app/courses/${courseId}/my-team/manage`;
+  const isGroupActive = isWorkspaceActive || isMembersActive || isManageActive;
+
+  const expanded = (open || isGroupActive) && !disabled;
+
+  const rowActiveClass = isGroupActive
+    ? "bg-[#155dfc] text-white shadow-sm"
+    : disabled
+      ? "cursor-not-allowed bg-gray-100 text-gray-400"
+      : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]";
+
+  const goToWorkspace = () => {
+    if (disabled) return;
+    navigate(workspacePath);
+    setOpen(false);
+  };
+
+  return (
+    <div
+      className="flex w-full flex-col"
+      onMouseEnter={() => !disabled && setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      data-testid="course-detail-side-my-team-group"
+    >
+      <div
+        className={`flex w-full overflow-hidden rounded-xl text-sm font-bold transition-colors duration-200 ${rowActiveClass}`}
+      >
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={goToWorkspace}
+          data-testid="course-detail-side-my-team"
+          aria-expanded={expanded}
+          className="flex flex-1 items-center whitespace-nowrap px-4 py-3 text-left disabled:cursor-not-allowed"
+        >
+          내 팀
+        </button>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((prev) => !prev);
+          }}
+          aria-label="내 팀 하위 메뉴 펼치기"
+          data-testid="course-detail-side-my-team-toggle"
+          className="flex items-center justify-center px-3 py-3 disabled:cursor-not-allowed"
+        >
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 transition-transform duration-300 ease-in-out ${
+              expanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+      </div>
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+        aria-hidden={!expanded}
+      >
+        <div
+          className={`min-h-0 overflow-hidden transition-opacity duration-300 ease-in-out ${
+            expanded ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+        >
+          <div
+            className="mt-1 flex flex-col gap-1 rounded-xl border border-gray-200 bg-white p-1 shadow-sm"
+            data-testid="course-detail-side-my-team-submenu"
+          >
+            {myTeamId ? (
+              <Link
+                to={workspacePath}
+                data-testid="course-detail-side-my-team-workspace"
+                onClick={() => setOpen(false)}
+                tabIndex={expanded ? 0 : -1}
+                className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+                  isWorkspaceActive
+                    ? "bg-[#eff6ff] text-[#155dfc]"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-[#155dfc]"
+                }`}
+              >
+                워크스페이스
+              </Link>
+            ) : (
+              <Link
+                to={teamsListPath}
+                data-testid="course-detail-side-my-team-workspace"
+                onClick={() => setOpen(false)}
+                tabIndex={expanded ? 0 : -1}
+                className="whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-bold text-amber-800 transition-colors hover:bg-amber-50"
+              >
+                팀 참여하기
+              </Link>
+            )}
+            <Link
+              to={membersPath}
+              data-testid="course-detail-side-my-team-members"
+              onClick={() => setOpen(false)}
+              tabIndex={expanded ? 0 : -1}
+              className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+                isMembersActive
+                  ? "bg-[#eff6ff] text-[#155dfc]"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-[#155dfc]"
+              }`}
+            >
+              나의 팀 멤버
+            </Link>
+            <Link
+              to={managePath}
+              data-testid="course-detail-side-team-manage"
+              onClick={() => setOpen(false)}
+              tabIndex={expanded ? 0 : -1}
+              className={`whitespace-nowrap rounded-lg px-3 py-2.5 text-sm font-bold transition-colors ${
+                isManageActive
+                  ? "bg-[#eff6ff] text-[#155dfc]"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-[#155dfc]"
+              }`}
+            >
+              팀 관리
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CourseSideNavigation() {
   const location = useLocation();
-  const { user, isProfessor, isAdmin } = useAuth();
+  const { user, isProfessor, isAdmin, isStudent } = useAuth();
   const courseMatch = location.pathname.match(/^\/app\/courses\/([^/]+)/);
   const courseId = courseMatch?.[1];
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
@@ -55,17 +214,6 @@ function CourseSideNavigation() {
       active: Boolean(courseId) && location.pathname === `/app/courses/${courseId}` && courseTab === "overview",
       disabled: !courseId,
       testId: "course-detail-side-overview",
-    },
-    {
-      key: "my-team-members",
-      label: "나의팀멤버",
-      path: courseId ? `/app/courses/${courseId}?tab=my-team-members` : "/app/courses",
-      active:
-        Boolean(courseId) &&
-        location.pathname === `/app/courses/${courseId}` &&
-        courseTab === "my-team-members",
-      disabled: !courseId,
-      testId: "course-detail-side-my-team-members",
     },
     {
       key: "students",
@@ -138,26 +286,60 @@ function CourseSideNavigation() {
     <aside className="w-full lg:w-[220px] lg:shrink-0">
       <div className="rounded-2xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:p-4">
         <p className="mb-3 px-1 text-sm font-black text-gray-500">수업 메뉴</p>
-        <nav className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-          {sideNavItems.map((item) => (
-            <Link
-              key={item.key}
-              to={item.path || "#"}
-              data-testid={item.testId}
-              onClick={(e) => {
-                if (item.disabled) e.preventDefault();
-              }}
-              className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
-                item.active
-                  ? "bg-[#155dfc] text-white shadow-sm"
-                  : item.disabled
-                    ? "cursor-not-allowed bg-gray-100 text-gray-400"
-                    : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]"
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <nav className="flex flex-col gap-2">
+          {sideNavItems.map((item) => {
+            if (item.key === "overview") {
+              return (
+                <React.Fragment key="nav-block-start">
+                  <Link
+                    key={item.key}
+                    to={item.path || "#"}
+                    data-testid={item.testId}
+                    onClick={(e) => {
+                      if (item.disabled) e.preventDefault();
+                    }}
+                    className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
+                      item.active
+                        ? "bg-[#155dfc] text-white shadow-sm"
+                        : item.disabled
+                          ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                          : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                  {isStudent && (
+                    <MyTeamSideNavGroup
+                      courseId={courseId}
+                      courseTab={courseTab}
+                      myTeamId={myTeamId}
+                      disabled={!courseId}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            return (
+              <Link
+                key={item.key}
+                to={item.path || "#"}
+                data-testid={item.testId}
+                onClick={(e) => {
+                  if (item.disabled) e.preventDefault();
+                }}
+                className={`whitespace-nowrap rounded-xl px-4 py-3 text-sm font-bold transition-colors ${
+                  item.active
+                    ? "bg-[#155dfc] text-white shadow-sm"
+                    : item.disabled
+                      ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                      : "bg-gray-50 text-gray-600 hover:bg-[#eff6ff] hover:text-[#155dfc]"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
     </aside>

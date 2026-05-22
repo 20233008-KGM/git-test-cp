@@ -1,0 +1,9 @@
+# Edge Function: Firebase 로그인 + publishable key(sb_publishable_*) 사용 시
+# 플랫폼 JWT 검증을 끄지 않으면 401 Invalid JWT 가 납니다.
+# https://supabase.com/docs/guides/troubleshooting/edge-function-401-error-response
+
+[functions.generate-report]
+verify_jwt = false
+
+[functions.recommend-troubleshooting]
+verify_jwt = false

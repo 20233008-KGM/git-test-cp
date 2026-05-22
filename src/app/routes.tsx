@@ -18,6 +18,7 @@ import TeamDetailPage from "./pages/TeamDetailPage";
 import TeamPeerReviewPage from "./pages/TeamPeerReviewPage";
 import TeamRetrospectivePage from "./pages/TeamRetrospectivePage";
 import CoursePeerReviewsOverviewPage from "./pages/CoursePeerReviewsOverviewPage";
+import CourseTeamManagePage from "./pages/CourseTeamManagePage";
 import CourseMyPeerReviewsGivenPage from "./pages/CourseMyPeerReviewsGivenPage";
 import CourseProfessorEvalsPage from "./pages/CourseProfessorEvalsPage";
 import MyPage from "./pages/MyPage";
@@ -53,6 +54,10 @@ export const router = createBrowserRouter([
           {
             path: "courses/:courseId/students",
             Component: StudentsNetworkPage,
+          },
+          {
+            path: "courses/:courseId/my-team/manage",
+            Component: CourseTeamManagePage,
           },
           {
             path: "courses/:courseId/teams",

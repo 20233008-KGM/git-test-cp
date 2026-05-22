@@ -20,7 +20,7 @@ npm run prelaunch:check:json
 ## 인간 게이트 (별도)
 
 - `28_human_action_items.md` — H-001~011 `[o]` 후 `npm run human:verify`
-- H-002 Edge — `human:verify`가 URL 프로브 (배포·OPENAI는 인간)
+- H-002 Edge — Gemini `GEMINI_API_KEY` + deploy (완료 시 생략)
 
 ## 관련
 

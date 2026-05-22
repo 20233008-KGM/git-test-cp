@@ -2,7 +2,7 @@
 
 > **관련:** `src/app/api/supabase-api.ts` · `07_backend.md`  
 > Supabase `ai_*` 테이블 facade. 화면은 `api.*` 만 호출합니다.  
-> **마지막 갱신:** 2026-05-20
+> **마지막 갱신:** 2026-05-22
 
 ## `api` 객체 (실제 export)
 
@@ -41,7 +41,10 @@ export const api = {
     getAll, getById, create, update, delete,
     createAnswer, updateAnswer, deleteAnswer, acceptAnswer,
   },
-  aiReport: { gatherContext, buildDraftFromContext, generateReport },
+  aiReport: {
+    gatherContext, buildDraftFromContext, buildMyPageReportView,
+    generateReport, mapToMyPageProjects, formatActivitySummary,
+  },
 };
 ```
 
@@ -81,26 +84,33 @@ export const api = {
 - `answers` jsonb 배열에 저장 (별도 테이블 없음)
 - `createAnswer` / `updateAnswer` / `deleteAnswer` / `acceptAnswer` (질문 작성자만 채택)
 
-## `aiReport.gatherContext` · `buildDraftFromContext`
+## `aiReport` (2026-05-22)
 
-- **gatherContext(userId)** — `AiReportContext`: 팀 스냅샷, `troubleshootingCases`, 산출물·피드백·회고·동료평가·교수 평가 **팀별 스니펫**. 테이블 없으면 0.
-- **buildDraftFromContext(context)** — LLM 없이 A4용 `AiReportGenerateResponse` 초안 (`model: draft-db-only`); `problems_solved`는 트러블슈팅 problem·plan·solution, `technologies`는 skills + 산출물 확장자
-- **formatActivitySummary** · **buildSummaryParagraph** · **buildSummaryCards** · **buildPage3Intro** · **buildCompetencyItems** · **buildActivityBullets** · **buildTechnologies** · **mapToMyPageProjects** — 마이페이지·A4 공통 집계
-- UI: `MyPage` 「DB 활동 미리보기 (A4)」·`data-testid=report-activity-summary` · `AiReportPrintView`
-- 인간 확인: [37_verify_ai_report.md](../for_human/37_verify_ai_report.md)
+- **gatherContext(userId)** — `AiReportContext` (팀·트러블슈팅·평가 스니펫)
+- **generateReport** — Edge `generate-report` (Gemini `GEMINI_API_KEY` 우선)
+- **buildMyPageReportView(context, report?)** — PAGE 1·2·3 **박스 문장**에 LLM/초안 병합 (숫자 카드는 DB)
+- **buildDraftFromContext** — Edge 실패 시 로컬·서버 DB 초안
+- **mapToMyPageProjects** · **formatActivitySummary** 등
 
-## `aiReport.generateReport`
+### MyPage UX
 
-- **호출:** `supabase.functions.invoke('generate-report', { body })`
-- **요청:** `AiReportGenerateRequest` — `userId`, `projectIds?`, `locale?`
-- **응답:** `AiReportGenerateResponse` (summary, problems_solved, technologies, …)
-- **현재:** `supabase/functions/generate-report/index.ts` — `OPENAI_API_KEY` 없으면 501 `NOT_IMPLEMENTED`; 배포는 H-002
+- 학생 리포트 섹션: `gatherContext` 후 **자동** `generateReport` (수동 새로고침 버튼 없음)
+- **A4 용지** (`mypage-a4-report-sheet`, 210×297mm) + 툴바 **A4 인쇄 / PDF** (용지 밖)
+- `data-testid`: `mypage-summary-paragraph`, `ai-report-message`, `mypage-a4-print-button`, `report-activity-summary`
+
+### Edge `generate-report`
+
+- Secret: `GEMINI_API_KEY` (Name 정확히) · 선택 `GEMINI_MODEL`
+- `supabase/config.toml` → `[functions.generate-report] verify_jwt = false`
+- 없으면 200 + `draft-db-only` (DB 초안)
+
+- 인간 확인: [37_verify_ai_report.md](../for_human/37_verify_ai_report.md) · [30_edge_ai_report.md](../for_human/30_edge_ai_report.md)
 
 ## 미구현
 
 - 기타 리소스 CRUD 일부
 - Express `/api/v1/*`
-- Edge Function **배포**·OPENAI (집계 로직은 `generate-report`에 구현됨 → H-002)
+- **recommendTroubleshootingAi** — Edge `recommend-troubleshooting` (`teamId`, Gemini)
 
 ## 인증
 

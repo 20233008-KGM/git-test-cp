@@ -275,6 +275,25 @@ export interface PeerReviewTeammate {
   id: string;
   name: string;
   contribution: number;
+  role?: "leader" | "member";
+}
+
+/** 수업별 내 팀 관리 화면 */
+export interface TeamManagementMember {
+  id: string;
+  name: string;
+  studentId?: string;
+  role: "leader" | "member";
+  isSelf: boolean;
+}
+
+export interface TeamManagementInfo {
+  teamId: string;
+  teamName: string;
+  projectTitle: string;
+  members: TeamManagementMember[];
+  myRole: "leader" | "member" | null;
+  isArchived: boolean;
 }
 
 /** 학생이 팀원에게 제출한 동료평가 (DB) */
@@ -297,6 +316,11 @@ export interface TroubleshootingLog {
   solution?: string;
 }
 
+export interface TeamDeliverableSubmitMeta {
+  title?: string;
+  description?: string;
+}
+
 export interface TeamDeliverable {
   id: string;
   teamId: string;
@@ -308,6 +332,7 @@ export interface TeamDeliverable {
   mimeType?: string;
   publicUrl: string;
   kind?: "file" | "link";
+  description?: string;
   createdAt: Date;
 }
 
