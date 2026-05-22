@@ -7,6 +7,36 @@
 
 ---
 
+## 2026-05-22 13:29:50 — vision #54 더미 스크린샷 제거 (T-181)
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260522-3.md`](doc/for_agent/plans/260522-3.md) |
+| **한 일** | `TeamDetailPage` FIGMA·중간·기말발표 플레이스홀더 삭제 · E2E #3·#47 · doc·snapshot |
+| **당신이 할 일** | 팀 워크스페이스에서 더미 카드 없는지 확인 |
+
+---
+
+## 2026-05-22 13:27:04 — 팀 상세 id 매핑·verify·handoff (T-178~T-180)
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260522-2.md`](doc/for_agent/plans/260522-2.md) |
+| **한 일** | `getTeamDetailPeerReviewStudentsFromDb` user_id 매핑 · `verify:archived-kim` `teammateDisplayResolvable` · `17_handoff` #1~#53·E2E 46 |
+| **당신이 할 일** | 없음 (인간: H-011·H-002·H-005) |
+
+---
+
+## 2026-05-22 13:23:11 — vision #53 본인 팀 트러블슈팅 작성 (T-177)
+
+| 항목 | 내용 |
+|------|------|
+| **계획** | [`260522-1.md`](doc/for_agent/plans/260522-1.md) |
+| **한 일** | `getTeamDetailTeammatesFromDb`가 `ai_team_members.user_id`로 id 매핑 · `api.teams.isStudentMember` · TeamDetail 이중 확인 · E2E #46 · doc·snapshot |
+| **당신이 할 일** | **진행 중(active) 수업**·내 팀 워크스페이스에서 TS 작성 폼 확인 (종료 수업은 조회만) |
+
+---
+
 ## 2026-05-21 12:59:00 — 조원 프로필 모달·E2E 문서 (T-175·T-176)
 
 | 항목 | 내용 |

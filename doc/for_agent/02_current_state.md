@@ -1,7 +1,7 @@
 ﻿# 02 — 현재 상태 (항상 최신 유지)
 
 > **관련:** `05_todo.md` · `17_handoff.md` · `27_vision_feature_matrix.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-21 · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~80%
+> **마지막 갱신:** 2026-05-22 · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~80%
 
 ## 스냅샷
 
@@ -14,7 +14,7 @@
 | DB / RLS | 45 | 리뷰 패키지·Beta 초안 SQL (T-011, 미적용) |
 | DevOps | 40 | CI build + archived verify + `prelaunch:check` + E2E (`deploy_vercel_checklist`, H-005) |
 | AI 리포트 | 65 | DB·A4·마이페이지 집계; Edge 초안(OPENAI 없음) + LLM deploy H-002 |
-| E2E 테스트 | 84 | Playwright 40플로우 + 인증 가드, GH Actions + smoke #1~#39 |
+| E2E 테스트 | 85 | Playwright 47플로우 + 인증 가드, GH Actions + smoke #1~#47 |
 
 ## vision 기반 이해도 점검 (2026-05-20)
 
@@ -38,6 +38,8 @@
 | 추가요청 50: 수강생 프로필 fixed 모달 (#8·#18 별도) | 구현 | `StudentsNetworkPage` 프로필·수정·랜덤팀 모달 `fixed inset-0` + E2E #43 (T-171) |
 | 추가요청 18·25·38: 모달이 페이지 하단 인라인 | 구현 | `TeamDetailPage`·`MyPage` 프로젝트 상세 `fixed` 오버레이 (T-172) |
 | 추가요청 51: 팀 탈퇴 워크스페이스·소형 / 참여 숨김 | 구현 | 하단 muted 탈퇴·팀 소속 시 join 미노출 (T-173·T-174) |
+| 추가요청 53: 본인 팀 트러블슈팅 작성 비활성 | 구현 | detail teammates `user_id` 매핑 + `isStudentMember` + E2E #46 (T-177) |
+| 추가요청 54: 워크스페이스 더미 스크린샷 칸 제거 | 구현 | FIGMA·중간·기말발표 플레이스홀더 삭제 + E2E #47 (T-181) |
 
 ## 구현 완료 (기능)
 

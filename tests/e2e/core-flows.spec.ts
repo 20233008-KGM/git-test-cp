@@ -33,6 +33,18 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     await page.getByRole("button", { name: "입장하기" }).first().click();
     await expect(page).toHaveURL(/\/teams\//);
     await expect(page.getByText("프로젝트 산출물 & 공간")).toBeVisible();
+    await expect(page.getByText("1조 - FIGMA")).toHaveCount(0);
+    await expect(page.getByText("1조 - 중간발표")).toHaveCount(0);
+    await expect(page.getByText("1조 - 기말발표")).toHaveCount(0);
+  });
+
+  test("47. 팀 워크스페이스 더미 스크린샷 칸 없음 (vision #54)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+    await page.getByRole("button", { name: "입장하기" }).first().click();
+    await expect(page.getByText("프로젝트 산출물 & 공간")).toBeVisible();
+    await expect(page.getByText(/1조 - FIGMA|1조 - 중간발표|1조 - 기말발표/)).toHaveCount(0);
   });
 
   test("4. 마이페이지 프로필 조회", async ({ page }) => {
@@ -63,6 +75,23 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
     if ((await cards.count()) > 0) {
       await expect(page.getByTestId("mypage-archived-my-peer-reviews").first()).toBeVisible();
     }
+  });
+
+  test("46. 내 팀 상세에서 트러블슈팅 작성 폼 노출 (vision #53)", async ({ page }) => {
+    await loginViaLanding(page);
+    await openFirstCourse(page);
+    await page.getByRole("link", { name: "팀", exact: true }).click();
+
+    const myTeamCard = page
+      .locator('[data-testid="teams-card-grid"] > div')
+      .filter({ has: page.getByTestId("team-card-my-team-badge") })
+      .first();
+    test.skip(!(await myTeamCard.isVisible().catch(() => false)), "내 팀 카드 없음");
+    await myTeamCard.getByRole("button", { name: "입장하기" }).click();
+
+    await expect(page.getByTestId("team-trouble-write-form")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("team-trouble-problem-input")).toBeVisible();
+    await expect(page.getByTestId("team-trouble-readonly-notice")).toHaveCount(0);
   });
 
   test("42. 다른 팀 상세에서 트러블슈팅 작성 폼 비노출 (vision #49)", async ({ page }) => {

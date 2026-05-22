@@ -1,7 +1,7 @@
 ﻿# 05 — TODO (우선순위)
 
 > **관련:** `02_current_state.md` · `17_handoff.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-21
+> **마지막 갱신:** 2026-05-22
 
 ## P0 — 즉시 (데이터 기반)
 
@@ -60,7 +60,7 @@
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-040 | Playwright 핵심 플로우 | done | 41플로우 + 인증 가드 (`14_testing.md`) |
+| T-040 | Playwright 핵심 플로우 | done | 47플로우 + 인증 가드 (`14_testing.md`) |
 | T-041 | GitHub Actions CI | done | `.github/workflows/e2e.yml` |
 | T-042 | 프로덕션 배포 | in_progress | `vercel.json` + `deploy_vercel_checklist.md`, 실행 H-005 |
 | T-057 | Playwright 스모크 회귀 커맨드 정리 | done | `npm run test:e2e:smoke` + E2E #31 |
@@ -182,9 +182,17 @@
 | T-174 | vision #51 보강: 탈퇴 소형·참여버튼 숨김 | done | 하단 muted 탈퇴·`hasMyTeamInCourse` |
 | T-175 | 조원 클릭 프로필 fixed 모달 (나의팀멤버·워크스페이스) | done | `StudentQuickProfileModal` + E2E #45 |
 | T-176 | E2E·handoff 문서 #42~45 동기화 | done | `14_testing`·`17_handoff` |
+| T-177 | vision #53 본인 팀 트러블슈팅 작성 활성화 | done | teammates `user_id` 매핑 · `isStudentMember` · E2E #46 |
+| T-178 | peer_review_students 행 id→`user_id` 매핑 | done | `getTeamDetailPeerReviewStudentsFromDb` (T-177 후속) |
+| T-179 | verify:archived-kim teammates 표시 행 검사 | done | `teammateDisplayResolvable` |
+| T-180 | 17_handoff·#1~#53 동기화 | done | plans/260522-2 |
+| T-181 | vision #54 워크스페이스 더미 스크린샷 제거 | done | TeamDetailPage · E2E #47 |
 
 ## 완료됨 (최근)
 
+- [o] T-181 vision #54 더미 스크린샷 칸 제거 (2026-05-22, plans/260522-3.md)
+- [o] T-178~T-180 peer_review id·verify·handoff (2026-05-22, plans/260522-2.md)
+- [o] T-177 vision #53 내 팀 TS 작성 (2026-05-22, plans/260522-1.md)
 - [o] T-175·T-176 조원 프로필 모달·문서 (2026-05-21, plans/260521-26.md)
 - [o] T-174 vision #51 탈퇴 스타일·참여 숨김 (2026-05-21, plans/260521-25.md)
 - [o] T-173 vision #51 팀 탈퇴 워크스페이스 전용 (2026-05-21, plans/260521-24.md)

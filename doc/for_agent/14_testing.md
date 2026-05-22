@@ -5,7 +5,7 @@
 ## 현재
 
 - **Playwright** — `playwright.config.ts`, `tests/e2e/`
-- **핵심 E2E:** `core-flows.spec.ts` — 45플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
+- **핵심 E2E:** `core-flows.spec.ts` — 47플로우 + 인증 가드 1건 (교수 #12·#14·#40은 `E2E_PROFESSOR_*`)
 - **단위 테스트:** 없음
 
 ## 실행
@@ -103,6 +103,8 @@ E2E_TEST_PASSWORD=...
 43. 수강생 프로필 fixed 오버레이 (vision #50)
 44. 팀 탈퇴 워크스페이스 전용·참여 숨김 (vision #51)
 45. 나의팀멤버 클릭 프로필 모달 (`student-quick-profile-modal`)
+46. 내 팀 트러블슈팅 작성 폼 노출 (vision #53, `team-trouble-write-form`)
+47. 팀 워크스페이스 더미 스크린샷 칸 없음 (vision #54, FIGMA·중간·기말발표)
 
 **로컬 시드 점검:** `npm run verify:archived-kim` — `ok: true` 이면 #35·#46·H-007~011 준비 완료
 

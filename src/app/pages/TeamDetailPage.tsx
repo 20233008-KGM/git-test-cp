@@ -69,6 +69,7 @@ export default function TeamDetailPage() {
   const isArchived = course?.status === "archived";
   const isEvaluationOpen = isArchived;
   const [teammates, setTeammates] = useState<PeerReviewTeammate[]>([]);
+  const [isMyTeamFromApi, setIsMyTeamFromApi] = useState(false);
   const [feedbackCounts, setFeedbackCounts] = useState<Record<string, number>>({});
 
   const handleCreateTroubleshootingLog = async () => {
@@ -192,10 +193,11 @@ export default function TeamDetailPage() {
   const [deliverableLinkUrl, setDeliverableLinkUrl] = useState("");
   const [deliverableLinkTitle, setDeliverableLinkTitle] = useState("");
 
-  const isMyTeamMember = useMemo(
+  const isMyTeamMemberFromRoster = useMemo(
     () => Boolean(user?.id && teammates.some((member) => member.id === user.id)),
     [teammates, user?.id]
   );
+  const isMyTeamMember = isMyTeamFromApi || isMyTeamMemberFromRoster;
 
   const canEditLog = (log: TroubleshootingLog) => log.author === myName;
   const canResolveLog = (log: TroubleshootingLog) =>
@@ -455,6 +457,22 @@ export default function TeamDetailPage() {
       setSubmittingFeedback(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedTeamId || !isStudent) {
+      setIsMyTeamFromApi(false);
+      return;
+    }
+
+    let isCancelled = false;
+    void api.teams.isStudentMember(selectedTeamId).then((isMember) => {
+      if (!isCancelled) setIsMyTeamFromApi(isMember);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedTeamId, isStudent, user?.id]);
 
   useEffect(() => {
     if (!selectedTeamId) return;
@@ -837,25 +855,6 @@ export default function TeamDetailPage() {
                 <button className="bg-[#155dfc] text-white text-xs font-medium px-4 py-2 rounded-[10px] hover:bg-blue-700 transition-colors shadow-sm">
                   바로가기 ↗
                 </button>
-              </div>
-            </div>
-
-            {/* 프로젝트 스크린샷 */}
-            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-gradient-to-br from-[#dbeafe] to-[#bfdbfe] shadow-md">
-                  <div className="bg-white px-4 py-1 rounded-[10px]">
-                    <p className="text-lg font-semibold text-black">1조 - FIGMA</p>
-                  </div>
-              </div>
-              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-gradient-to-br from-[#ede9fe] to-[#c4b5fd] shadow-md">
-                  <div className="bg-white px-4 py-1 rounded-[10px]">
-                    <p className="text-lg font-semibold text-black">1조 - 중간발표</p>
-                  </div>
-              </div>
-              <div className="flex h-[137px] items-center justify-center overflow-hidden rounded-[10px] bg-[#eee] shadow-md">
-                  <div className="bg-white px-4 py-1 rounded-[10px]">
-                    <p className="text-lg font-semibold text-black">1조 - 기말발표</p>
-                  </div>
               </div>
             </div>
 

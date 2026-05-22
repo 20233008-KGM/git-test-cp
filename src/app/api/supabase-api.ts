@@ -2143,24 +2143,44 @@ async function submitPeerReviewInDb(
   }
 }
 
+/** vision #53 후속 — peer_review_students 행 id도 user_id 로 정규화 (교수 평가·동료평가 키 일치) */
 async function getTeamDetailPeerReviewStudentsFromDb(teamId?: string): Promise<PeerReviewStudent[]> {
   if (!teamId) return [];
 
-  const { data, error } = await supabase
-    .from("ai_team_detail_peer_review_students")
-    .select("id, name, contribution, peer_keywords, peer_comment, roles, sort_order, team_id")
-    .eq("team_id", teamId)
-    .order("sort_order", { ascending: true });
+  const [detailResult, roster] = await Promise.all([
+    supabase
+      .from("ai_team_detail_peer_review_students")
+      .select("id, name, contribution, peer_keywords, peer_comment, roles, sort_order, team_id")
+      .eq("team_id", teamId)
+      .order("sort_order", { ascending: true }),
+    getTeamMembersWithNamesFromDb(teamId),
+  ]);
 
-  if (error) throw error;
+  if (detailResult.error) throw detailResult.error;
 
-  return (data ?? []).map((student) => ({
-    id: student.id,
-    name: student.name,
-    contribution: student.contribution,
-    peerKeywords: asArray<string>(student.peer_keywords),
-    peerComment: student.peer_comment,
-    roles: asArray<string>(student.roles),
+  const userIdByName = new Map(
+    roster.map((member) => [member.name.trim(), member.userId] as const)
+  );
+
+  const detailRows = detailResult.data ?? [];
+  if (detailRows.length > 0) {
+    return detailRows.map((student) => ({
+      id: userIdByName.get(student.name.trim()) ?? student.id,
+      name: student.name,
+      contribution: student.contribution,
+      peerKeywords: asArray<string>(student.peer_keywords),
+      peerComment: student.peer_comment,
+      roles: asArray<string>(student.roles),
+    }));
+  }
+
+  return roster.map((member) => ({
+    id: member.userId,
+    name: member.name,
+    contribution: member.contribution,
+    peerKeywords: [] as string[],
+    peerComment: "",
+    roles: [] as string[],
   }));
 }
 
@@ -2178,21 +2198,7 @@ async function getTeamDetailFeedbackOptionsFromDb(teamId?: string): Promise<stri
   return asArray<string>(config.feedback_options);
 }
 
-async function getTeamDetailTeammatesFromDb(teamId?: string): Promise<PeerReviewTeammate[]> {
-  if (!teamId) return [];
-
-  const { data, error } = await supabase
-    .from("ai_team_detail_teammates")
-    .select("id, name, contribution, sort_order, team_id")
-    .eq("team_id", teamId)
-    .order("sort_order", { ascending: true });
-
-  if (error) throw error;
-
-  if ((data ?? []).length > 0) {
-    return data ?? [];
-  }
-
+async function getTeamMembersWithNamesFromDb(teamId: string) {
   const { data: members, error: membersError } = await supabase
     .from("ai_team_members")
     .select("id, user_id, role, sort_order")
@@ -2208,13 +2214,63 @@ async function getTeamDetailTeammatesFromDb(teamId?: string): Promise<PeerReview
   return (members ?? []).map((member) => {
     const user = users.find((item) => item.id === member.user_id);
     return {
-      id: member.user_id ?? member.id,
+      userId: member.user_id ?? member.id,
       name: user?.name ?? "팀원",
       contribution: member.role === "leader" ? 100 : 80,
       sort_order: member.sort_order,
       team_id: teamId,
     };
   });
+}
+
+/** vision #53 — detail teammates 행 id(예: team-swe-schedule-mate-1)가 아닌 Firebase user id 로 반환 */
+async function getTeamDetailTeammatesFromDb(teamId?: string): Promise<PeerReviewTeammate[]> {
+  if (!teamId) return [];
+
+  const [detailResult, roster] = await Promise.all([
+    supabase
+      .from("ai_team_detail_teammates")
+      .select("id, name, contribution, sort_order, team_id")
+      .eq("team_id", teamId)
+      .order("sort_order", { ascending: true }),
+    getTeamMembersWithNamesFromDb(teamId),
+  ]);
+
+  if (detailResult.error) throw detailResult.error;
+
+  const userIdByName = new Map(
+    roster.map((member) => [member.name.trim(), member.userId] as const)
+  );
+
+  const detailRows = detailResult.data ?? [];
+  if (detailRows.length > 0) {
+    return detailRows.map((row) => ({
+      id: userIdByName.get(row.name.trim()) ?? row.id,
+      name: row.name,
+      contribution: row.contribution,
+      sort_order: row.sort_order,
+      team_id: teamId,
+    }));
+  }
+
+  return roster.map((member) => ({
+    id: member.userId,
+    name: member.name,
+    contribution: member.contribution,
+    sort_order: member.sort_order,
+    team_id: teamId,
+  }));
+}
+
+async function isStudentMemberOfTeamFromDb(teamId: string): Promise<boolean> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser || currentUser.role !== "student" || !teamId) return false;
+
+  const courseId = await getTeamCourseIdFromDb(teamId);
+  if (!courseId) return false;
+
+  const myTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+  return myTeamId === teamId;
 }
 
 async function getTeamFeedbackCountsFromDb(teamId: string): Promise<Record<string, number>> {
@@ -3610,6 +3666,7 @@ export const api = {
   teams: {
     getAssignedStudentIds: getAssignedStudentIdsInCourseFromDb,
     getMyTeamIdInCourse: getMyTeamIdInCourseFromDb,
+    isStudentMember: isStudentMemberOfTeamFromDb,
     create: createTeamInDb,
     join: joinTeamInDb,
     leave: leaveTeamInDb,

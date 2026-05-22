@@ -185,11 +185,38 @@ try {
     Object.keys(evalByArchivedTeam).length === 0 ||
     Object.values(evalByArchivedTeam).every((v) => v.ready);
 
+  let teammateDisplayResolvable = true;
+  const teammateDisplayChecks = [];
+  if (teamIds.length > 0) {
+    const userRows = await rest(`ai_users`, `id=eq.${KIM_STUDENT_ID}&select=name`);
+    const kimName = (userRows[0]?.name ?? "김학생").trim();
+
+    for (const tid of teamIds) {
+      const inMembers = await tryCount(
+        "ai_team_members",
+        `team_id=eq.${tid}&user_id=eq.${KIM_STUDENT_ID}&select=user_id`
+      );
+      const inDetail = await tryCount(
+        "ai_team_detail_teammates",
+        `team_id=eq.${tid}&name=eq.${encodeURIComponent(kimName)}&select=id`
+      );
+      const ok = (inMembers.count ?? 0) > 0 && (inDetail.count ?? 0) > 0;
+      teammateDisplayChecks.push({
+        teamId: tid,
+        ok,
+        inMembers: (inMembers.count ?? 0) > 0,
+        inDetailTeammates: (inDetail.count ?? 0) > 0,
+      });
+      if (!ok) teammateDisplayResolvable = false;
+    }
+  }
+
   const missingTables = Object.entries(tableChecks)
     .filter(([, v]) => v.missing)
     .map(([name]) => name);
 
-  const evalReady = missingTables.length === 0 && allArchivedTeamsHaveEval;
+  const evalReady =
+    missingTables.length === 0 && allArchivedTeamsHaveEval && teammateDisplayResolvable;
   const reportOk = archivedTeamCount > 0;
 
   const report = {
@@ -208,6 +235,8 @@ try {
       professorProjectEvals: tableChecks.ai_team_detail_professor_project_evals.count ?? 0,
     },
     evalByArchivedTeam,
+    teammateDisplayResolvable,
+    teammateDisplayChecks,
     retrospectiveCount: Object.values(evalByArchivedTeam).filter(
       (v) => v.retrospectiveSubmitted
     ).length,
@@ -229,6 +258,11 @@ try {
         : []),
       ...(!allArchivedTeamsHaveEval
         ? ["archived_evals_kim_student.sql — 종료 팀마다 peer·교수 평가 시드 확인"]
+        : []),
+      ...(!teammateDisplayResolvable
+        ? [
+            "김학생 팀: ai_team_members + ai_team_detail_teammates(이름 일치) 확인 — vision #53 트러블슈팅 UI",
+          ]
         : []),
       ...(reportOk
         ? ["마이페이지 「집계 새로고침」 후 PAGE 02 팀 카드 확인"]
