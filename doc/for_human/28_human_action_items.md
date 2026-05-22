@@ -34,11 +34,6 @@
 | [ ] | H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
 | [ ] | H-005 | 낮음 | **프로덕션 배포** GO/NO-GO — [`deploy_vercel_checklist.md`](../for_agent/deploy_vercel_checklist.md) 따라 Vercel 연결·`VITE_*` 설정 | 실제 서비스 공개 | 배포 URL 공유 |
 | [ ] | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
-| [ ] | H-007 | 중간 | Supabase **번들 v2** — **H-011 `apply_remote_full.sql` 권장** (피드백·평가·회고 포함) · [38](./38_archived_kim_student_setup.md) | 팀 상세 쓰기 테이블 | `npm run human:verify` (H-007 `[o]`) |
-| [ ] | H-008 | 중간 | 동료평가 — **H-011에 포함** · 개별: `20260520094800_ai_team_detail_peer_reviews.sql` | 팀 동료평가 DB | `npm run human:verify` (H-008 `[o]`) |
-| [ ] | H-009 | 중간 | 회고록 — **H-011에 포함** · [32](./32_retrospective_sql.md) | 회고록 DB | `npm run human:verify` (H-009 `[o]`) |
-| [ ] | H-010 | 중간 | 교수 평가 — **H-011에 포함** | 교수 학생·프로젝트 평가 | `npm run human:verify` (H-010 `[o]`) |
-| [ ] | H-011 | 높음 | **원클릭 SQL** — `npm run supabase:apply-remote-full` 후 Supabase에서 **`supabase/apply_remote_full.sql`** Run · 가이드 [38](./38_archived_kim_student_setup.md) | vision #35·#46 평가·아카이브 리포트 | `npm run verify:archived-kim` → `evalReady: true` (2026-05-21 MCP 적용·검증 통과 — 인간 `[o]` 확인) |
 
 ---
 
@@ -46,6 +41,11 @@
 
 | ID | 완료 시각 | 할 일 |
 |----|-----------|------|
+| H-011 | 2026-05-22 14:13:32 | **원클릭 SQL** — MCP 적용·`verify:archived-kim` evalReady·reportOk |
+| H-010 | 2026-05-22 14:13:32 | 교수 평가 DB·시드 (H-011 포함) |
+| H-009 | 2026-05-22 14:13:32 | 회고록 DB·시드 (H-011 포함) |
+| H-008 | 2026-05-22 14:13:32 | 동료평가 DB·시드 (H-011 포함) |
+| H-007 | 2026-05-22 14:13:32 | Supabase 번들 v2·피드백 (H-011 포함) |
 | H-000 | 2026-05-19 (이전) | Firebase·Supabase `.env` 로컬 연결 (`VITE_*`) |
 
 ---
@@ -54,7 +54,12 @@
 
 | 시각 | ID | 결과 | 메모 |
 |------|----|------|------|
-| 2026-05-21 | H-011 | pass (agent) | `verify:archived-kim` evalReady·reportOk true — 인간 `[o]` 대기 |
+| 2026-05-22 14:13:32 | H-011 | pass | `verify:archived-kim` ok (evalReady=true, feedback=2) |
+| 2026-05-22 14:13:32 | H-010 | pass | 교수 평가 테이블·시드 확인 |
+| 2026-05-22 14:13:32 | H-009 | pass | 회고록 retrospectiveCount=2 |
+| 2026-05-22 14:13:32 | H-008 | pass | 동료평가 peerReviewsGiven=2 |
+| 2026-05-22 14:13:32 | H-007 | pass | 피드백 feedbackCount=2 |
+| 2026-05-21 | H-011 | pass (agent) | MCP 적용·evalReady·reportOk |
 
 ---
 
@@ -100,5 +105,6 @@ CI용(선택): `npm run human:verify:ci`
 | `25_ai_work_log.md` | AI가 한 일 (시간순, 최신 위) |
 | `01_project_status.md` | 프로젝트 전체 상태 |
 | `doc/for_agent/25_human_collaboration.md` | 인간 전용 작업 12가지 유형 |
+
 
 

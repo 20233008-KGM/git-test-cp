@@ -585,14 +585,14 @@ function buildGrowthReflectionDraft(context: AiReportContext): string {
   }
 
   if (lines.length > 0) {
-    return `${lines.join("\n")}\n\n(DB 활동 기반 초안입니다. Edge·OpenAI 배포 H-002 후 AI가 문단을 다듬습니다.)`;
+    return `${lines.join("\n")}\n\n(DB 활동 기반 초안입니다. Edge·Gemini Secret H-002 후 AI가 문단을 다듬습니다.)`;
   }
 
   if (context.totalTroubleshootingLogs > 0) {
     return `트러블슈팅 ${context.totalTroubleshootingLogs}건의 문제 해결 과정이 기록되어 있습니다. 회고·평가를 추가하면 성장 회고 초안이 풍부해집니다. (H-002 후 AI 문단 생성)`;
   }
 
-  return "팀 활동·회고·평가 기록을 쌓으면 성장 회고 초안이 채워집니다. Edge·OpenAI 배포(H-002) 후 AI 문단 생성을 이용할 수 있습니다.";
+  return "팀 활동·회고·평가 기록을 쌓으면 성장 회고 초안이 채워집니다. Edge·Gemini Secret(H-002) 후 AI 문단 생성을 이용할 수 있습니다.";
 }
 
 /** 마이페이지·A4 미리보기 공통 집계 한 줄 */

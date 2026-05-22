@@ -124,13 +124,13 @@ export default function MyPage() {
       setReportPreview({ context, report: result });
       setAiReportMessage(
         result.model === "draft-db-only"
-          ? "DB 집계 초안이 생성되었습니다. OPENAI 연동(H-002) 후 AI 문단을 받을 수 있습니다."
-          : "AI 리포트가 생성되었습니다."
+          ? "DB 집계 초안이 생성되었습니다. Supabase Secret GEMINI_API_KEY(H-002) 등록 후 AI 문단을 받을 수 있습니다."
+          : `AI 리포트가 생성되었습니다. (${result.model ?? "LLM"})`
       );
     } catch (err) {
       if (err instanceof Error && err.name === "AiReportNotReady") {
         setAiReportMessage(
-          `${err.message} Edge·OpenAI 설정(H-002) 전까지 DB 미리보기를 엽니다.`
+          `${err.message} Edge·Gemini Secret(H-002) 전까지 DB 미리보기를 엽니다.`
         );
         await openDbReportPreview();
         return;
@@ -1204,8 +1204,8 @@ export default function MyPage() {
 
             <div className="border-t border-gray-200 pt-4 text-center space-y-3">
               <p className="text-[9px] font-bold leading-4 text-[#64748b]">
-                1·2·3페이지·A4는 Supabase 집계를 반영합니다. Edge 배포 후 「AI 리포트 생성」은 OPENAI 없어도 DB
-                초안(200)이며, 키 등록 시 LLM 문단(H-002)이 적용됩니다.
+                1·2·3페이지·A4는 Supabase 집계를 반영합니다. Edge 배포 후 「AI 리포트 생성」은 Gemini Secret 없어도 DB
+                초안(200)이며, GEMINI_API_KEY 등록 시 LLM 문단(H-002)이 적용됩니다.
               </p>
               {reportActivitySummary && (
                 <p className="text-[9px] text-[#155dfc]" data-testid="report-activity-summary">
