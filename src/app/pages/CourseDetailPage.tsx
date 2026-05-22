@@ -18,7 +18,7 @@ export default function CourseDetailPage() {
   const [selectedMemberProfile, setSelectedMemberProfile] = useState<StudentProfile | null>(null);
   const [memberProfileLoading, setMemberProfileLoading] = useState(false);
   const [memberProfileError, setMemberProfileError] = useState<string | null>(null);
-  const { isProfessor, isAdmin, user } = useAuth();
+  const { isProfessor, isAdmin, isStudent, user } = useAuth();
 
   const openMemberProfile = async (memberId: string) => {
     if (memberId === user?.id) return;
@@ -70,11 +70,11 @@ export default function CourseDetailPage() {
 
   const activeTab = useMemo(() => {
     const tab = searchParams.get("tab");
-    if (tab === "my-team-members") return "my-team-members";
+    if (tab === "my-team-members" && isStudent) return "my-team-members";
     if (tab === "students") return "students";
     if (tab === "teams") return "teams";
     return "overview";
-  }, [searchParams]);
+  }, [searchParams, isStudent]);
 
   const handleArchiveCourse = async () => {
     if (!course || !window.confirm(`'${course.name}' 수업을 종료하고 아카이브로 전환할까요?`)) return;
@@ -114,7 +114,7 @@ export default function CourseDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-black text-gray-900 sm:text-3xl">{course.name}</h1>
-              <span className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded">
+              <span className="cc-course-code cc-course-code--badge">
                 {course.code}
               </span>
             </div>
@@ -217,7 +217,7 @@ export default function CourseDetailPage() {
             </div>
           )}
 
-          {activeTab === "my-team-members" && (
+          {activeTab === "my-team-members" && isStudent && (
             <div>
               <h2 className="text-xl font-bold mb-4" data-testid="course-detail-my-team-members-title">
                 나의 팀 멤버

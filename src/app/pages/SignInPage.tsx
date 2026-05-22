@@ -141,24 +141,6 @@ export default function SignInPage() {
           환영합니다
         </div>
 
-        {/* 왼쪽 상단 카드 - 수강인원 */}
-        <div className="hidden w-32 rounded-xl bg-white p-4 shadow-lg sm:col-start-1 sm:row-start-1 sm:mt-12 sm:ml-8 sm:block sm:w-40 sm:self-start sm:justify-self-start">
-          <div className="text-center">
-            <div className="text-2xl mb-2">👥</div>
-            <p className="text-xs font-bold text-gray-900 mb-1">수강인원</p>
-            <p className="text-[10px] text-gray-600">45명이 수강중입니다</p>
-          </div>
-        </div>
-
-        {/* 오른쪽 상단 카드 - Q&A 게시판 */}
-        <div className="hidden w-32 rounded-xl bg-white p-4 shadow-lg sm:col-start-1 sm:row-start-1 sm:mt-12 sm:mr-8 sm:block sm:w-40 sm:self-start sm:justify-self-end">
-          <div className="text-center">
-            <div className="text-2xl mb-2">💬</div>
-            <p className="text-xs font-bold text-gray-900 mb-1">Q&A 게시판</p>
-            <p className="text-[10px] text-gray-600">질문하고 답변 공유</p>
-          </div>
-        </div>
-
         {/* 중앙 회원가입 폼 */}
         <div className="z-10 col-start-1 row-start-1 w-full max-w-[380px]">
           <div className="text-center mb-6">

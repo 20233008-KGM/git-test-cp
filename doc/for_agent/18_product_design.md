@@ -57,6 +57,7 @@
 - **네비:** 푸터와 동일 다크 `#111827` + `--cc-on-footer` 텍스트 (2026-05-22~)
 - **본문 배경:** `slate-100` 계열 `--cc-page`
 - **앱 셸:** `.cc-app-shell` — 상단 네비·푸터·수업 사이드+메인 동일 max-width·패딩
+- **광학 정렬:** `.cc-app-shell--optical` — 사이드 네비 화면에서 lg+ 미세 우츙 이동
 - **첫 화면:** `.cc-main-viewport` — 푸터는 스크롤 후 노출
 - **로딩:** `.cc-loading-*` — `PageLoading` 이중 링 스피너 (reduced-motion 대응)
 
@@ -69,9 +70,16 @@
 - [x] M3 토큰·typography·버튼·칩·사이드 네비 (material3.css)
 - [x] 좌측 네비·amber 배너 → `--cc-*` 유틸 통일 (C-260522-35)
 - [x] `SideNavItem` 아이콘·계층 · `m3-nav-item--split` (C-260522-38)
-- [x] `CourseListCard` · 제목+코드 한 줄 (C-260522-37)
-- [x] `PageLoading` · `cc-main-viewport` · 레이아웃 흔들림 완화 (C-260522-36)
-- [ ] 반응형 P1 잔여 — 평가 모달 패딩 (`32` §1)
+- [x] `CourseListCard` · 제목+코드 한 줄 · 코드 pill 클릭 복사 (C-260522-37·42)
+- [x] `cc-app-shell--optical` · 마이페이지 프로필 테두리 (C-260522-40~41)
+- [x] 마이페이지 `/app/mypage/profile` · `MyPageShell` · 학번·학교 (C-45~46 · vision #30)
+- [x] 프로필 폼 여백 · 이메일 hint만 (#56~57 · `260522-47`)
+- [x] 수강자들 「내 정보 수정」→ 프로필 페이지 (#58)
+- [x] 로그인(`/`) 푸터 없음 (#59)
+- [x] `cc-course-code` · 수강자들 UX (C-47~48)
+- [x] `PageLoading` · `cc-main-viewport` (C-36)
+- [x] 교수 평가 모달 반응형 패딩 (`32` §1 · `260522-46`)
+- [ ] 반응형 P1 잔여 — MyPage·QnA 이중 `max-w-*` (`32` §2)
 - [ ] `TeamDetailPage`·`StudentsNetwork` 등 hex `#155dfc` 잔여 통일
 - [ ] CourseDetail·StudentsNetwork PageHeader 적용
 - [ ] 포커스 링 전역 `ring-[var(--cc-primary)]`

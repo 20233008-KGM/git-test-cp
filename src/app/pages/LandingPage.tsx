@@ -1,7 +1,6 @@
 ﻿import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "../api/supabase-api";
-import Footer from "../components/Footer";
 import M3Button from "../components/layout/M3Button";
 import PlaceholderFooterLink from "../components/PlaceholderFooterLink";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
@@ -72,28 +71,6 @@ export default function LandingPage() {
           환영합니다
         </div>
 
-        <div className="m3-surface-card--elevated hidden w-32 p-4 sm:col-start-1 sm:row-start-1 sm:mt-12 sm:ml-8 sm:block sm:w-40 sm:self-start sm:justify-self-start">
-          <div className="text-center">
-            <div className="mb-2 text-2xl" aria-hidden>
-              👥
-            </div>
-            <p className="cc-text-primary mb-1 text-xs font-bold">수강인원</p>
-            <p className="cc-text-secondary text-[10px]">
-              {pageSummary?.activeCourseStudentCount ?? 0}명이 수강중입니다
-            </p>
-          </div>
-        </div>
-
-        <div className="m3-surface-card--elevated hidden w-32 p-4 sm:col-start-1 sm:row-start-1 sm:mt-12 sm:mr-8 sm:block sm:w-40 sm:self-start sm:justify-self-end">
-          <div className="text-center">
-            <div className="mb-2 text-2xl" aria-hidden>
-              💬
-            </div>
-            <p className="cc-text-primary mb-1 text-xs font-bold">Q&A 게시판</p>
-            <p className="cc-text-secondary text-[10px]">질문하고 답변 공유</p>
-          </div>
-        </div>
-
         <main id="main-content" className="z-10 col-start-1 row-start-1 w-full max-w-[380px]" tabIndex={-1}>
           <div className="text-center mb-6">
             <h1 className="m3-headline-medium cc-text-primary mb-1 font-bold sm:text-4xl">
@@ -160,8 +137,6 @@ export default function LandingPage() {
           </div>
         </main>
       </div>
-
-      <Footer variant="compact" />
     </div>
   );
 }

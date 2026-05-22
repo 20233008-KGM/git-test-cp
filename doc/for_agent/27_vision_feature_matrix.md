@@ -1,7 +1,7 @@
 ﻿# 27 — vision.md 기능 추적 매트릭스
 
 > **원본:** `vision.md` · **관련:** `02_current_state.md` · `for_human/26_vision_features_status.md` · `for_human/29_vision_requests_report.md` (대화창 요청 §대화창에서 요청한 내용)  
-> **갱신:** 2026-05-22 프로젝트 스캔
+> **갱신:** 2026-05-22 23:30 (vision #56~#59 · doc 동기화)
 
 ## 문제의식 → 플랫폼 (요약)
 
@@ -47,6 +47,10 @@
 | 본인 팀 트러블슈팅 작성 활성화 (#53) | ✅ | T-177 | detail teammates `user_id` 매핑 + `isStudentMember` + E2E #46 |
 | 워크스페이스 더미 스크린샷 칸 제거 (#54) | ✅ | T-181 | FIGMA·중간발표·기말발표 플레이스홀더 삭제 + E2E #47 |
 | 빈 수업 목록 시 수업코드 등록 UI 이중 표시 (#55) | ✅ | T-183 | `courses.length > 0`일 때만 상단 배너 · empty 내부 폼 + E2E #48 |
+| 내 정보 페이지 입력·라벨 여백 (#56) | ✅ | T-184 | `cc-input` 패딩 · `ProfileFieldLabel` · `MyPageProfilePage` |
+| 이메일 안내 문구 제거 (#57) | ✅ | T-184 | 안내 문단 삭제 · `hint="변경 불가"` |
+| 수강자들·마이페이지 내 정보 일치 (#58) | ✅ | T-184 | `/app/mypage/profile` · `MyInfoEditModal` 제거 |
+| 로그인 페이지 푸터 숨김 (#59) | ✅ | T-184 | `LandingPage` Footer 제거 |
 
 ---
 
@@ -68,7 +72,7 @@
 | 기술 스택 태그 | 프로필·네트워크 | ✅ | Supabase | `saveProfile` |
 | 상세 프로필 | `OtherStudentProfilePage` | ✅ | Supabase | |
 | 1:1 채팅 | TeamDetail 모달 | ✅ | Supabase CRUD + Realtime | 팀 스코프; RLS T-011 |
-| 내 정보 수정·저장 | 네트워크 모달 | ✅ | Supabase | |
+| 내 정보 수정·저장 | 네트워크 모달 · 마이페이지 `?tab=profile` | ✅ | Supabase | 수강자들 「내 프로필 보기」버튼 제거(C-48) |
 
 **달성도:** UI ~80% · 읽기 ~55% · 쓰기 ~45%
 
@@ -105,8 +109,9 @@
 | 집계·AI (자동) | MyPage 진입 | ✅ | — | 수동 새로고침 버튼 제거(2026-05-22) |
 | 마이페이지 진입 (vision #47) | `MyPage` | ✅ | TDZ 버그 수정 (T-123) | E2E #35 |
 | 과거 수업 전용 페이지 (vision #48) | `MyPageArchivedCoursesPage` | ✅ | 사이드 버튼만 · `/mypage/archived-courses` | E2E #37 |
+| 학생 프로필 조회·수정 | `MyPage` `?tab=profile` | ✅ | `saveStudentProfile` | 리포트 탭과 분리 · E2E #34 (C-45~46) |
 
-**달성도:** UI ~85% · 읽기 ~70% · AI ~75% (DB 집계 + Gemini Edge 자동 채움)
+**달성도:** UI ~88% · 읽기 ~70% · AI ~75% (DB 집계 + Gemini Edge 자동 채움)
 
 ---
 

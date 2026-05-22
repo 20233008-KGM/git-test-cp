@@ -7,6 +7,7 @@ const TITLE_BY_PATH: Array<{ match: (path: string) => boolean; title: string }> 
   { match: (p) => p === "/", title: "로그인" },
   { match: (p) => p === "/signin", title: "회원가입" },
   { match: (p) => p === "/app/courses", title: "수업 목록" },
+  { match: (p) => p === "/app/mypage/profile", title: "내 정보" },
   { match: (p) => p.startsWith("/app/mypage"), title: "마이페이지" },
   { match: (p) => p.includes("/teams/") && !p.endsWith("/teams"), title: "팀 워크스페이스" },
   { match: (p) => p.endsWith("/teams"), title: "팀 목록" },

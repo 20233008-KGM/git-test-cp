@@ -1483,7 +1483,7 @@ export default function TeamDetailPage() {
           >
             {/* 헤더 */}
             <div className="sticky top-0 bg-white flex justify-between items-center p-6 border-b border-gray-200 rounded-t-[10px] z-10">
-              <h2 className="text-[25px] font-bold text-black">
+              <h2 className="text-xl font-bold text-black sm:text-2xl">
                 학생 및 프로젝트 평가
               </h2>
               <button
@@ -1495,10 +1495,10 @@ export default function TeamDetailPage() {
               </button>
             </div>
 
-            <div className="px-16 py-12 space-y-8">
+            <div className="space-y-8 px-4 py-8 sm:px-8 sm:py-10 lg:px-16 lg:py-12">
               {/* 1. 작업 완성도 */}
               <div className="space-y-4">
-                <h3 className="text-[25px] font-medium text-black text-center">
+                <h3 className="text-center text-lg font-medium text-black sm:text-xl">
                   작업 완성도
                 </h3>
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
@@ -1528,7 +1528,7 @@ export default function TeamDetailPage() {
 
               {/* 2. 문제 해결력 */}
               <div className="space-y-4">
-                <h3 className="text-[25px] font-medium text-black text-center">
+                <h3 className="text-center text-lg font-medium text-black sm:text-xl">
                   문제 해결력
                 </h3>
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
@@ -1558,7 +1558,7 @@ export default function TeamDetailPage() {
 
               {/* 3. 총체적 평가 */}
               <div className="space-y-4">
-                <h3 className="text-[25px] font-medium text-black text-center">
+                <h3 className="text-center text-lg font-medium text-black sm:text-xl">
                   총체적 평가
                 </h3>
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">

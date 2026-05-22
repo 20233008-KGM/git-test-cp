@@ -54,23 +54,22 @@ export default function CourseListCard({
 
           <div className="cc-course-card__title-row">
             <h2 className="cc-course-card__title">{course.name}</h2>
-            <span className="cc-course-card__code">{course.code}</span>
-          </div>
-
-          {canManageCourses && course.status === "active" && (
             <button
               type="button"
+              className="cc-course-card__code cc-course-code"
+              title="수업 코드 복사"
+              aria-label={`수업 코드 ${course.code} 복사`}
+              data-testid={`course-card-copy-code-${course.id}`}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 onCopyCode(course.code);
               }}
-              className="cc-course-card__copy cc-course-card__copy--below"
             >
-              <Copy className="h-3.5 w-3.5" aria-hidden />
-              코드 복사
+              <Copy className="cc-course-card__code-icon" strokeWidth={1.5} aria-hidden />
+              <span>{course.code}</span>
             </button>
-          )}
+          </div>
         </div>
 
         {course.description ? (

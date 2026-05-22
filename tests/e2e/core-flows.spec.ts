@@ -575,13 +575,13 @@ test.describe("CampusConnect — 핵심 E2E (T-040)", () => {
   test("34. 마이페이지 학생 프로필 수정", async ({ page }) => {
     await loginViaLanding(page);
     await page.locator('a[href="/app/mypage"]').click();
-    await page.getByRole("button", { name: "내 정보 수정" }).click();
+    await page.goto("/app/mypage/profile");
     const form = page.getByTestId("mypage-profile-edit-form");
     await expect(form).toBeVisible();
 
     const uniqueMajor = `E2E전공-${Date.now()}`;
-    await form.locator("label").filter({ hasText: "전공" }).locator("input").fill(uniqueMajor);
-    await form.getByRole("button", { name: "저장" }).click();
+    await page.getByTestId("mypage-profile-major").fill(uniqueMajor);
+    await page.getByTestId("mypage-profile-save").click();
     await expect(page.getByText("프로필이 저장되었습니다.")).toBeVisible({ timeout: 10_000 });
   });
 

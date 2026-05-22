@@ -40,9 +40,10 @@
 |--------|------|
 | `.cc-app-shell` | `max-width: 80rem` + `px-4` / `sm:px-6` / `lg:px-8` |
 | `.cc-app-shell--wide` | 팀 목록 URL — `min(100%, 1920px)` |
+| `.cc-app-shell--optical` | 사이드 네비 레이아웃 — lg+에서 shell ~10px 우츙 (광학적 중앙) |
 | `.cc-main-viewport` | `main` 최소 높이 = 뷰포트−네비 (첫 화면 푸터는 스크롤 후) |
 | `.cc-page-main` | shell 안 본문 열 (이중 max-width 없음) |
-| `getAppShellClassName()` | `src/app/layouts/appShell.ts` — `Navigation`·`MainLayout`·`Footer` 공유 |
+| `hasSideNavLayout()` / `getAppShellClassName()` | `appShell.ts` — 수업·마이페이지 등에서 `--optical` 자동 |
 
 ## 공통 컴포넌트
 
@@ -79,7 +80,8 @@
 | `.m3-nav-item--split` | 「내 팀」+ ▼ 토글 한 줄 (display:flex 고정) |
 | `.m3-nav-item--attention` | `--cc-warning-*` (팀 미배정 등) |
 
-컴포넌트: `AppSideNav` + `SideNavItem` (`MainLayout`, `MyPage`).  
+컴포넌트: `AppSideNav` + `SideNavItem` (`MainLayout`, `MyPageShell` — 「리포트」「내 정보」→ `/app/mypage/profile`).  
+`ProfileFieldLabel` · `cc-input`/`cc-textarea` 패딩 (#56).  
 **금지:** Tailwind `amber-*`, `indigo-*` 등 임의 팔레트.
 
 ## 수업 목록 카드
@@ -88,6 +90,10 @@
 |--------|------|
 | `.cc-course-card` | 상단 컬러 바 · 헤더/메타 구분선 |
 | `.cc-course-card__title-row` | **수업명 + 코드 한 줄** (제목 말줄임) |
+| `.cc-course-card__code` | 클릭 가능 pill — Copy 아이콘 · 클립보드 복사 · `cc-course-code` 타이포 |
+| `.cc-course-code` | 수업코드 공통 — sans 400 · `letter-spacing: 0.1em` · `cc-course-code--badge` (상세) |
+| `.cc-input--readonly` | 마이페이지 등 읽기 전용 필드 (회색 surface, 포커스 링 없음) |
+| `.cc-textarea` | 자기소개 등 다줄 입력 (`cc-input`와 동일 포커스) |
 | `.cc-course-card__meta` | 라벨(대문자+아이콘) / 값 2열 grid |
 
 ## 규칙

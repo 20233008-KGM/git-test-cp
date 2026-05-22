@@ -1,20 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router";
-import {
-  Archive,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  ScrollText,
-  User,
-  UserPen,
-} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
-import AppSideNav from "../components/layout/AppSideNav";
-import SideNavItem from "../components/layout/SideNavItem";
-import { getAppShellClassName } from "../layouts/appShell";
+import MyPageShell from "../components/mypage/MyPageShell";
 import AiReportPrintView from "../components/AiReportPrintView";
 import StudentReportA4Sheet, {
   reportTextToBullets,
@@ -58,31 +48,23 @@ interface Project {
 }
 
 export default function MyPage() {
-  const location = useLocation();
-  const appShellClass = getAppShellClassName(location.pathname);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [reportPage, setReportPage] = useState(1);
   const [aiReportLoading, setAiReportLoading] = useState(false);
   const [aiReportMessage, setAiReportMessage] = useState<string | null>(null);
   const [reportActivitySummary, setReportActivitySummary] = useState<string | null>(null);
   const [aiReport, setAiReport] = useState<AiReportGenerateResponse | null>(null);
-  const { user, isProfessor, refreshProfile } = useAuth();
+  const { user, isProfessor } = useAuth();
   const canViewStudentReport = user?.role === "student";
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [showProfileEdit, setShowProfileEdit] = useState(false);
-  const [profileEditForm, setProfileEditForm] = useState({
-    name: "",
-    major: "",
-    bio: "",
-    skills: [] as string[],
-  });
-  const [profileEditSkillDraft, setProfileEditSkillDraft] = useState("");
-  const [profileSaveMessage, setProfileSaveMessage] = useState<string | null>(null);
-  const [profileSaving, setProfileSaving] = useState(false);
   const [missingEvalTables, setMissingEvalTables] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "profile") {
+      navigate("/app/mypage/profile", { replace: true });
+    }
+  }, [searchParams, navigate]);
   const [legacyPeerDisplayTable, setLegacyPeerDisplayTable] = useState(false);
 
   const loadAiReport = useCallback(
@@ -151,17 +133,6 @@ export default function MyPage() {
   }, []);
 
   useEffect(() => {
-    if (user?.role !== "student") return;
-    const student = user;
-    setProfileEditForm({
-      name: student.name ?? "",
-      major: student.major ?? "",
-      bio: student.bio ?? "",
-      skills: [...(student.skills ?? [])],
-    });
-  }, [user]);
-
-  useEffect(() => {
     if (!user?.id) {
       setReportContext(null);
       setReportLoadError(null);
@@ -206,29 +177,6 @@ export default function MyPage() {
   }, [reportContext, aiReport]);
 
   useEffect(() => {
-    if (!user?.id) {
-      setProfileImageUrl(null);
-      return;
-    }
-    let cancelled = false;
-    void api.myPage
-      .getProfile()
-      .then((profile) => {
-        if (!cancelled) setProfileImageUrl(profile.imageUrl ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setProfileImageUrl(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.imageUrl) setProfileImageUrl(user.imageUrl);
-  }, [user?.imageUrl]);
-
-  useEffect(() => {
     if (user?.role !== "student") {
       setMissingEvalTables([]);
       setLegacyPeerDisplayTable(false);
@@ -246,34 +194,6 @@ export default function MyPage() {
     };
   }, [user?.role]);
 
-  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setAvatarMessage("이미지 파일만 선택할 수 있습니다.");
-      return;
-    }
-    setAvatarUploading(true);
-    setAvatarMessage(null);
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("파일을 읽지 못했습니다."));
-        reader.readAsDataURL(file);
-      });
-      const saved = await api.myPage.updateAvatar(dataUrl);
-      setProfileImageUrl(saved);
-      await refreshProfile();
-      setAvatarMessage("프로필 이미지가 저장되었습니다.");
-    } catch (err) {
-      setAvatarMessage(err instanceof Error ? err.message : "이미지 저장에 실패했습니다.");
-    } finally {
-      setAvatarUploading(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = "";
-    }
-  }
-
   useEffect(() => {
     if (!reportContextReady || projectsLoading) return;
 
@@ -287,36 +207,16 @@ export default function MyPage() {
     }
   }, [reportContext, reportContextReady, projectsLoading]);
 
-  async function handleSaveStudentProfile() {
-    if (user?.role !== "student") return;
-    setProfileSaving(true);
-    setProfileSaveMessage(null);
-    try {
-      const saved = await api.myPage.saveStudentProfile(profileEditForm);
-      setProfileEditForm(saved);
-      await refreshProfile();
-      setProfileSaveMessage("프로필이 저장되었습니다.");
-      setShowProfileEdit(false);
-    } catch (err) {
-      setProfileSaveMessage(err instanceof Error ? err.message : "저장에 실패했습니다.");
-    } finally {
-      setProfileSaving(false);
-    }
-  }
-
-  const sideNavItems = [
-    { label: "요약 리포트", icon: FileText },
-    { label: "상세 리포트", icon: ScrollText },
-    { label: "내 정보 조회", icon: User },
-    { label: "내 정보 수정", icon: UserPen },
-  ] as const;
   const currentReportPage = REPORT_PAGES[reportPage - 1] ?? REPORT_PAGES[0];
   const profileName = user?.name ?? "로그인 사용자";
   const profileEmail = user?.email ?? "-";
   const profileInitial = profileName.slice(0, 1);
+  const profileImageUrl = user?.imageUrl ?? null;
+  const studentId = user?.role === "student" ? user.studentId : "";
+  const studentSchool = user?.role === "student" ? user.school : "";
   const profileSchoolAndMajor =
     user?.role === "student"
-      ? `숭실대학교 ${user.major || "전공 미입력"}`
+      ? `${user.school || "숭실대학교"} ${user.major || "전공 미입력"}`
       : user?.role === "professor"
         ? `숭실대학교 ${user.department || "소속 미입력"} 교수`
         : "로그인 사용자";
@@ -491,56 +391,26 @@ export default function MyPage() {
   }, [reportContext, aiReport]);
 
   return (
-    <div className="cc-page-bg min-h-screen" data-testid="mypage-page">
-      <div
-        className={`${appShellClass} flex w-full flex-col gap-6 py-4 sm:gap-8 sm:py-6 lg:flex-row lg:items-start`}
-      >
-        <AppSideNav
-          label="마이페이지 메뉴"
-          labelId="mypage-side-nav-label"
-          footer={
-            canViewStudentReport ? (
-              <SideNavItem
-                to="/app/mypage/archived-courses"
-                icon={Archive}
-                data-testid="mypage-archived-courses-nav"
-              >
-                과거 수업
-              </SideNavItem>
-            ) : undefined
-          }
-        >
-          {sideNavItems.map((item) => (
-            <SideNavItem
-              key={item.label}
-              as="button"
-              icon={item.icon}
-              active={item.label === "내 정보 수정" && showProfileEdit}
-              onClick={() => {
-                if (item.label === "내 정보 수정" && user?.role === "student") {
-                  setShowProfileEdit(true);
-                  document.getElementById("mypage-profile-section")?.scrollIntoView({
-                    behavior: "smooth",
-                  });
-                }
-              }}
-            >
-              {item.label}
-            </SideNavItem>
-          ))}
-        </AppSideNav>
-
-        <main className="min-w-0 w-full flex-1">
-        <div className="mypage-content-column" data-testid="mypage-content-column">
+    <MyPageShell testId="mypage-page">
+        <div data-testid="mypage-content-column">
         <h1 className="m3-headline-medium cc-text-primary mb-6 font-bold">마이페이지</h1>
 
-        {/* 내 정보 — A4 리포트와 동일 가로 너비 (210mm) */}
         <div
           id="mypage-profile-section"
           className="m3-surface-card mb-8 w-full p-5 sm:p-6"
           data-testid="mypage-profile-summary"
         >
-          <h2 className="m3-title-medium cc-text-primary mb-5 font-bold">내 정보</h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="m3-title-medium cc-text-primary font-bold">내 정보 요약</h2>
+            {canViewStudentReport ? (
+              <Link
+                to="/app/mypage/profile"
+                className="m3-label-large rounded-[var(--m3-shape-medium)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container)] px-4 py-2 font-bold text-[var(--cc-primary)] transition-colors hover:bg-[var(--cc-primary-container)]"
+              >
+                내 정보 수정
+              </Link>
+            ) : null}
+          </div>
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
             <div className="flex shrink-0 flex-col items-center gap-2 md:w-[7.5rem]">
               <div
@@ -560,40 +430,26 @@ export default function MyPage() {
                   profileInitial
                 )}
               </div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleAvatarChange}
-              />
-              <button
-                type="button"
-                disabled={avatarUploading}
-                onClick={() => avatarInputRef.current?.click()}
-                className="flex items-center gap-1 rounded-[var(--m3-shape-full)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container)] px-2 py-1 text-[11px] font-medium leading-tight text-[var(--cc-on-surface-variant)] transition-colors hover:bg-[var(--cc-surface-container-high)] disabled:opacity-50"
-                title="프로필 이미지 변경"
-              >
-                <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24.1667 22.9233" aria-hidden>
-                  <path
-                    d={svgPaths.p38455680}
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                  />
-                </svg>
-                사진 변경
-              </button>
-              {avatarMessage ? (
-                <p className="max-w-[11rem] text-center text-xs font-medium text-[var(--cc-on-surface-variant)]">
-                  {avatarMessage}
-                </p>
-              ) : null}
             </div>
 
             <div className="min-w-0 flex-1 w-full">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {user?.role === "student" && studentId ? (
+                  <div className="space-y-1">
+                    <p className="m3-label-large text-[var(--cc-on-surface-variant)]">학번</p>
+                    <div className="flex min-h-[2.75rem] items-center rounded-[var(--m3-shape-medium)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-lowest)] px-4 py-2">
+                      <p className="m3-body-large font-medium text-[var(--cc-on-surface)]">{studentId}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {user?.role === "student" && studentSchool ? (
+                  <div className="space-y-1">
+                    <p className="m3-label-large text-[var(--cc-on-surface-variant)]">학교</p>
+                    <div className="flex min-h-[2.75rem] items-center rounded-[var(--m3-shape-medium)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-lowest)] px-4 py-2">
+                      <p className="m3-body-large font-medium text-[var(--cc-on-surface)]">{studentSchool}</p>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="space-y-1">
                   <p className="m3-label-large text-[var(--cc-on-surface-variant)]">이름</p>
                   <div className="flex min-h-[2.75rem] items-center rounded-[var(--m3-shape-medium)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-lowest)] px-4 py-2">
@@ -618,120 +474,34 @@ export default function MyPage() {
                     </p>
                   </div>
                 </div>
+                {user?.role === "student" && user.bio ? (
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="m3-label-large text-[var(--cc-on-surface-variant)]">자기소개</p>
+                    <div className="rounded-[var(--m3-shape-medium)] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-lowest)] px-4 py-3">
+                      <p className="m3-body-large whitespace-pre-wrap text-[var(--cc-on-surface)]">
+                        {user.bio}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+                {user?.role === "student" && (user.skills?.length ?? 0) > 0 ? (
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="m3-label-large text-[var(--cc-on-surface-variant)]">기술 태그</p>
+                    <div className="flex flex-wrap gap-2">
+                      {user.skills!.map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-[var(--m3-shape-full)] bg-[var(--cc-primary-container)] px-3 py-1 text-xs font-bold text-[var(--cc-on-primary-container)]"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
-
-          {user?.role === "student" && showProfileEdit ? (
-            <div className="mt-5 border-t border-[var(--cc-outline-variant)] pt-5 sm:mt-6 sm:pt-6">
-              <div
-                className="rounded-[10px] border border-[#dbeafe] bg-[#f8fbff] p-5"
-                data-testid="mypage-profile-edit-form"
-              >
-                <p className="mb-3 text-[16px] font-bold text-[#155dfc]">내 정보 수정</p>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    이름
-                    <input
-                      type="text"
-                      value={profileEditForm.name}
-                      onChange={(e) =>
-                        setProfileEditForm((f) => ({ ...f, name: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-gray-700">
-                    전공
-                    <input
-                      type="text"
-                      value={profileEditForm.major}
-                      onChange={(e) =>
-                        setProfileEditForm((f) => ({ ...f, major: e.target.value }))
-                      }
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-gray-700">
-                    자기소개
-                    <textarea
-                      value={profileEditForm.bio}
-                      onChange={(e) =>
-                        setProfileEditForm((f) => ({ ...f, bio: e.target.value }))
-                      }
-                      rows={3}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">기술 태그</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {profileEditForm.skills.map((skill) => (
-                        <button
-                          key={skill}
-                          type="button"
-                          onClick={() =>
-                            setProfileEditForm((f) => ({
-                              ...f,
-                              skills: f.skills.filter((s) => s !== skill),
-                            }))
-                          }
-                          className="rounded-full bg-[#155dfc] px-3 py-1 text-xs font-bold text-white"
-                        >
-                          {skill} ×
-                        </button>
-                      ))}
-                    </div>
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        type="text"
-                        value={profileEditSkillDraft}
-                        onChange={(e) => setProfileEditSkillDraft(e.target.value)}
-                        placeholder="태그 추가"
-                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const t = profileEditSkillDraft.trim();
-                          if (!t || profileEditForm.skills.includes(t)) return;
-                          if (profileEditForm.skills.length >= 12) return;
-                          setProfileEditForm((f) => ({
-                            ...f,
-                            skills: [...f.skills, t],
-                          }));
-                          setProfileEditSkillDraft("");
-                        }}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold"
-                      >
-                        추가
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <button
-                      type="button"
-                      disabled={profileSaving}
-                      onClick={() => void handleSaveStudentProfile()}
-                      className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-                    >
-                      {profileSaving ? "저장 중…" : "저장"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowProfileEdit(false)}
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700"
-                    >
-                      취소
-                    </button>
-                  </div>
-                  {profileSaveMessage && (
-                    <p className="text-xs font-medium text-[#475569]">{profileSaveMessage}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
 
         {canViewStudentReport ? (
@@ -1318,8 +1088,6 @@ export default function MyPage() {
           </section>
         )}
         </div>
-        </main>
-      </div>
 
       {/* 프로젝트 상세 모달 */}
       {selectedProject && (
@@ -1454,7 +1222,6 @@ export default function MyPage() {
           </div>
         </div>
       )}
-
-    </div>
+    </MyPageShell>
   );
 }

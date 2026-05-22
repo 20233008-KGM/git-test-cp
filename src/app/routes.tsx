@@ -22,6 +22,7 @@ import CourseTeamManagePage from "./pages/CourseTeamManagePage";
 import CourseMyPeerReviewsGivenPage from "./pages/CourseMyPeerReviewsGivenPage";
 import CourseProfessorEvalsPage from "./pages/CourseProfessorEvalsPage";
 import MyPage from "./pages/MyPage";
+import MyPageProfilePage from "./pages/MyPageProfilePage";
 import MyPageArchivedCoursesPage from "./pages/MyPageArchivedCoursesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import StudentsNetworkPage from "./pages/StudentsNetworkPage";
@@ -134,6 +135,10 @@ export const router = createBrowserRouter([
           {
             path: "mypage",
             Component: MyPage,
+          },
+          {
+            path: "mypage/profile",
+            Component: MyPageProfilePage,
           },
           {
             path: "mypage/archived-courses",

@@ -7,9 +7,9 @@
 | 2b | — | 리포트 집계 3분 | [37](./37_verify_ai_report.md) |
 | 3 | H-003 | 로컬 `.env` + `npm run test:e2e` | `14_testing.md` |
 | 4 | H-004 | GitHub Secrets | [34](./34_github_ci_secrets.md) |
-| 5 | H-002 | Edge **deploy** (Gemini `GEMINI_API_KEY`) | [30](./30_edge_ai_report.md) — 완료 시 생략; 키 없으면 DB 초안 200 |
-| 6 | H-001 | RLS 승인 → JWT | [31](./31_rls_beta_decision.md) → [rls_staging_verification](../for_agent/rls_staging_verification.md) → [33](./33_firebase_supabase_jwt_setup.md) |
-| 7 | H-005 | Vercel 배포 GO | [deploy_vercel_checklist](../for_agent/deploy_vercel_checklist.md) |
-| 8 | H-006 | 약관·개인정보 | 법무 |
+| 5 | H-001 | RLS 승인 → JWT | [31](./31_rls_beta_decision.md) → [rls_staging_verification](../for_agent/rls_staging_verification.md) → [33](./33_firebase_supabase_jwt_setup.md) |
+| 6 | H-006 | 약관·개인정보 | 법무 |
+
+**완료:** H-002 Gemini Edge · H-005 https://git-test-cp.vercel.app — AI 이슈 시 [30](./30_edge_ai_report.md)
 
 완료할 때마다 채팅에 **「H-00x 완료」** 또는 **「번들 v2 실행함」** · **「스모크 테스트 OK」**

@@ -69,6 +69,7 @@ type AiUser = {
   name: string;
   role: "student" | "professor" | "admin";
   student_number?: string | null;
+  school?: string | null;
   major?: string | null;
   year?: string | null;
   skills?: unknown;
@@ -98,6 +99,7 @@ function toStudentProfile(user: AiUser): StudentProfile {
     email: user.email,
     role: "student",
     studentId: user.student_number ?? "",
+    school: user.school?.trim() || "숭실대학교",
     major: user.major ?? "",
     skills: asArray<string>(user.skills),
     bio: user.bio ?? undefined,
@@ -1112,6 +1114,8 @@ export type MyProfessorEvalInCourse = {
 
 export type MyPageStudentProfileInput = {
   name: string;
+  studentId: string;
+  school: string;
   major: string;
   bio: string;
   skills: string[];
@@ -1234,17 +1238,23 @@ async function saveMyPageStudentProfileFromDb(
   if (currentUser.role !== "student") throw new Error("학생만 프로필을 수정할 수 있습니다.");
 
   const name = input.name.trim();
+  const studentId = input.studentId.trim();
+  const school = input.school.trim();
   const major = input.major.trim();
   const bio = input.bio.trim();
   const skills = input.skills.map((s) => s.trim()).filter(Boolean).slice(0, 12);
 
   if (!name) throw new Error("이름을 입력해주세요.");
+  if (!studentId) throw new Error("학번을 입력해주세요.");
+  if (!school) throw new Error("학교를 입력해주세요.");
   if (!major) throw new Error("전공을 입력해주세요.");
 
   const { error } = await supabase
     .from("ai_users")
     .update({
       name,
+      student_number: studentId,
+      school,
       major,
       bio: bio || null,
       skills,
@@ -1253,7 +1263,7 @@ async function saveMyPageStudentProfileFromDb(
     .eq("id", currentUser.id);
 
   if (error) throw error;
-  return { name, major, bio, skills };
+  return { name, studentId, school, major, bio, skills };
 }
 
 async function getMyPageProfileFromDb(): Promise<MyPageProfile> {

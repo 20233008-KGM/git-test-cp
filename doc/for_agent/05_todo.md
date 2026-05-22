@@ -3,46 +3,56 @@
 > **관련:** `02_current_state.md` · `17_handoff.md` · `28_human_action_items.md`  
 > **마지막 갱신:** 2026-05-22
 
+## 상태 표기
+
+| 표기 | 의미 |
+|------|------|
+| `[o]` | 완료 (체크됨) |
+| `[ ]` | 미완료 |
+| `진행 중` | 작업 중 |
+
+표기 규칙: [`26_document_standards.md`](./26_document_standards.md) §체크리스트 (`[x]` 미사용)
+
 ## P0 — 즉시 (데이터 기반)
 
 | ID | 작업 | 담당 | 상태 |
 |----|------|------|------|
-| T-001 | Supabase 스키마 설계·마이그레이션 | DB | done |
-| T-002 | `supabase-api.ts` → Supabase courses 연동 | FE+DB | done |
-| T-003 | 환경변수 분리 (`VITE_*`, `.env.example`) | Infra | done |
-| T-004 | 라우트 통합: course-scoped teams only | FE | done |
+| T-001 | Supabase 스키마 설계·마이그레이션 | DB | [o] |
+| T-002 | `supabase-api.ts` → Supabase courses 연동 | FE+DB | [o] |
+| T-003 | 환경변수 분리 (`VITE_*`, `.env.example`) | Infra | [o] |
+| T-004 | 라우트 통합: course-scoped teams only | FE | [o] |
 
 ## P1 — 인증·접근
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-010 | Protected routes | done |
+| T-010 | Protected routes | [o] |
 | T-011 | RLS 정책 초안 + 인간 리뷰 | in_progress | `rls_review_packet.md`, `supabase/migrations/20260519000000_rls_beta_draft.sql` (미적용) |
-| T-012 | 회원가입·수업 코드 멤버십 | done |
+| T-012 | 회원가입·수업 코드 멤버십 | [o] |
 
 ## P2 — 핵심 기능
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-020 | 트러블슈팅 CRUD | done |
-| T-021 | 팀 산출물 Storage | done |
-| T-022 | Q&A CRUD | done |
-| T-023 | 수강생 네트워크 저장 | done |
-| T-024 | 워크스페이스 대용량 업로드 + 링크 게시물 | done |
-| T-025 | 교수 계정 학생용 리포트 비노출 | done |
-| T-026 | 수업 코드 자동 생성(해시형) | done |
-| T-027 | 일정 입력 캘린더 선택 UI | done |
-| T-050 | 트러블슈팅 로그 새로고침 유실 안정화 | done |
-| T-051 | 조원평가·회고록 전용 페이지 전환 | done |
-| T-052 | 수업 상세 네비: 나의팀멤버 추가 + 조원평가 이동 | done |
-| T-053 | 수강생 카드 클릭 상세 프로필 모달 | done |
-| T-054 | 팀 목록에서 내가 속한 팀 강조 UI | done |
-| T-055 | 마이페이지 리포트 팀플 정보 실데이터 검증 | done |
-| T-056 | 수업 상세 내부 네비 제거 + 메인 사이드바 이관 | done |
-| T-058 | human_action_items 체크칸 + AI 체크기반 검증 규칙 | done |
-| T-081 | vision #13 수강자 목록 데모 폴백 제거 | done |
-| T-082 | 랜덤 팀 레거시 라우트 수업 스코프 + Projects 카드 링크 | done |
-| T-083 | 타 학생 프로필 단건 조회 접근 가능 수업 멤버십 기준 | done |
+| T-020 | 트러블슈팅 CRUD | [o] |
+| T-021 | 팀 산출물 Storage | [o] |
+| T-022 | Q&A CRUD | [o] |
+| T-023 | 수강생 네트워크 저장 | [o] |
+| T-024 | 워크스페이스 대용량 업로드 + 링크 게시물 | [o] |
+| T-025 | 교수 계정 학생용 리포트 비노출 | [o] |
+| T-026 | 수업 코드 자동 생성(해시형) | [o] |
+| T-027 | 일정 입력 캘린더 선택 UI | [o] |
+| T-050 | 트러블슈팅 로그 새로고침 유실 안정화 | [o] |
+| T-051 | 조원평가·회고록 전용 페이지 전환 | [o] |
+| T-052 | 수업 상세 네비: 나의팀멤버 추가 + 조원평가 이동 | [o] |
+| T-053 | 수강생 카드 클릭 상세 프로필 모달 | [o] |
+| T-054 | 팀 목록에서 내가 속한 팀 강조 UI | [o] |
+| T-055 | 마이페이지 리포트 팀플 정보 실데이터 검증 | [o] |
+| T-056 | 수업 상세 내부 네비 제거 + 메인 사이드바 이관 | [o] |
+| T-058 | human_action_items 체크칸 + AI 체크기반 검증 규칙 | [o] |
+| T-081 | vision #13 수강자 목록 데모 폴백 제거 | [o] |
+| T-082 | 랜덤 팀 레거시 라우트 수업 스코프 + Projects 카드 링크 | [o] |
+| T-083 | 타 학생 프로필 단건 조회 접근 가능 수업 멤버십 기준 | [o] |
 
 ### vision 점검 후 우선순위 (신규)
 
@@ -53,145 +63,147 @@
 
 | ID | 작업 | 상태 | 비고 |
 |----|------|------|------|
-| T-030 | AI 리포트 | done | DB·Edge Gemini·마이페이지 자동 채움 (H-002) |
-| T-031 | A4 리포트 템플릿 | done | `AiReportPrintView`, MyPage 1–3페이지 DB |
+| T-030 | AI 리포트 | [o] | DB·Edge Gemini·마이페이지 자동 채움 (H-002) |
+| T-031 | A4 리포트 템플릿 | [o] | `AiReportPrintView`, MyPage 1–3페이지 DB |
 
 ## P4 — 품질·배포
 
 | ID | 작업 | 상태 |
 |----|------|------|
-| T-040 | Playwright 핵심 플로우 | done | 49건 (48플로우 + 인증 가드, `14_testing.md`) |
-| T-041 | GitHub Actions CI | done | `.github/workflows/e2e.yml` |
-| T-042 | 프로덕션 배포 | in_progress | `vercel.json` + `deploy_vercel_checklist.md`, 실행 H-005 |
-| T-057 | Playwright 스모크 회귀 커맨드 정리 | done | `npm run test:e2e:smoke` + E2E #31 |
-| T-059 | human_action_items 체크 추출 보조 스크립트 | done | `npm run human:checked` |
-| T-060 | human_action_items 체크 자동 검증 커맨드 | done | `npm run human:verify` (`pass/fail/manual`) |
-| T-061 | human_action_items 엄격 검증 모드 | done | `npm run human:verify:strict` |
-| T-062 | human_action_items JSON/CI 검증 모드 | done | `human:verify:json`, `human:verify:ci` |
-| T-063 | human_action_items 반자동 동기화 루프 | done | `human:sync`, `human:sync:apply`, `human:sync:json` |
-| T-064 | human_action_items 자동 검증 메모 로그 | done | `human:sync:apply` 시 검증 메모 누적 |
-| T-065 | Playwright 스모크에 vision 추가요청 회귀(25~28) 포함 | done | `test:e2e:smoke` grep 확장 |
-| T-066 | Playwright 스모크 자격증명 자동 분기 실행 | done | `run-e2e-smoke.mjs` + `smoke:public/full` |
-| T-067 | Playwright 스모크 full 분기 조건 보정(학생 자격증명 기준) | done | `run-e2e-smoke.mjs` 분기 기준 수정 |
-| T-068 | Playwright 스모크 수동 강제 모드 추가(`--full`/`--public`) | done | `smoke:auto/force-full/force-public` |
-| T-069 | Playwright 스모크 dry-run/JSON 실행 계획 출력 | done | `run-e2e-smoke.mjs --dry-run --json` |
-| T-070 | human verify + smoke dry-run 통합 JSON 리포트 | done | `collect-verification-report.mjs`, `verify:bundle:json` |
-| T-071 | 통합 검증 리포트에 `human:sync` preview 결합 | done | `verify:bundle:json`에 `humanSyncPreview` 추가 |
-| T-072 | 통합 검증 리포트 최신 파일 저장 커맨드 | done | `verify:bundle:save`, `verification_report_latest.json` |
-| T-073 | 통합 검증 리포트 latest+archive 동시 저장 | done | `verify:bundle:save:archive`, `verification_reports/` |
-| T-074 | 통합 검증 리포트 아카이브 최신 N개 유지 정리 | done | `--keep-latest`, `verify:bundle:save:archive:trim` |
-| T-075 | 통합 검증 리포트 아카이브 일수 기준 정리 | done | `--keep-days`, `verify:bundle:save:archive:policy` |
-| T-076 | 통합 검증 리포트 정책값 `.env` 외부화 | done | `VERIFY_BUNDLE_KEEP_*`, `verify:bundle:save:archive:env` |
-| T-077 | 통합 검증 리포트 실행 전 preflight 점검 | done | `--preflight`, `verify:bundle:preflight` |
-| T-078 | 통합 검증 리포트 preflight strict 모드 | done | `--preflight --strict`, `verify:bundle:preflight:strict` |
-| T-079 | 통합 검증 리포트 preflight strict self-test | done | `preflight-strict-selftest.mjs`, `verify:bundle:preflight:selftest` |
-| T-080 | 통합 검증 리포트 실행 파이프라인 자동화 | done | `run-verify-bundle-pipeline.mjs`, `verify:bundle:pipeline` |
-| T-081 | 수강자 네트워크 빈 수업 데모 폴백 제거(vision #13) | done | `StudentsNetworkPage` `courseId` 스코프 시 API 결과 그대로 사용 |
-| T-082 | 랜덤 팀 `courseId` 라우트·Projects 카드 링크 | done | `/courses/:courseId/teams/random`, `ProjectsPage`→팀 상세 |
-| T-083 | `getStudentByIdFromDb` 접근 가능 수업 멤버십 기준 | done | primary 수업에만 속하지 않아도 같은 네트워크면 조회 가능 |
-| T-084 | 팀 수동 생성 API + TeamsPage 「+ 새 팀 만들기」 | done | `api.teams.create`, 생성 모달 |
-| T-085 | 팀 참여·탈퇴 (수업당 1팀) | done | `api.teams.join` / `leave`, 카드 버튼 |
-| T-086 | 랜덤 배정 기존 팀원 제외 + RandomTeamPage DB 저장 | done | #27·#28, `saveRandomAssignment` |
-| T-087 | 학생 랜덤 팀 UI 숨김 | done | StudentsNetwork·RandomTeamPage 교수 전용 |
-| T-088 | 팀 카드 데스크탑 최소 가로 50% | done | `lg:grid-cols-2`, `lg:min-w-[50%]` |
-| T-089 | 교수 공지 작성 + 팀 페이지 최신 3건 | done | `CourseAnnouncementsPage`, 사이드 네비 |
-| T-090 | vision #14 인간 보고서 + agent 유지 규칙 | done | `for_human/29_vision_requests_report.md` |
-| T-091 | TeamDetail UX (#15~#17,#29,#32,#26) | done | 조원평가 순서, TS 폼 하단, AI추천, 팀원, 피드백 수 |
-| T-092 | 팀 카드 활동 2건 + 진행 단계 수정 | done | `updateCompletedStages` |
-| T-093 | 수업 종료 후에만 평가 (vision #43) | done | `assertCourseAllowsEvaluations` |
-| T-094 | 수업 삭제 + 교수 프로필 저장 | done | `courses.delete`, `professors.saveProfile` |
-| T-095 | 아카이브 평가 시드 + 종료 수업 네비 | done | `archived_evals_kim_student.sql`, 사이드 네비 |
-| T-096 | 리포트 수신 동료평가 집계 | done | `gatherAiReportContext` teammate_id |
-| T-097 | 리포트 페이지 동적 네비 | done | `REPORT_PAGES` + Chevron |
-| T-098 | MyPage 과거 수업 사이드 | done | `getArchivedCourses` |
-| T-099 | 프로필 이미지 + 가입 기술 태그 | done | `updateAvatar`, `SignInPage` skills |
-| T-100 | 교수 마이페이지 대시보드 | done | `mypage-professor-dashboard` |
-| T-101 | 조원평가·회고록 모달 | done | `TeamDetailPage` overlay |
-| T-102 | 교수 동료평가 전체 조회 | done | `CoursePeerReviewsOverviewPage` |
-| T-103 | 아카이브 학생 평가 조회 페이지 | done | `CourseMyPeerReviewsGivenPage`, `CourseProfessorEvalsPage` |
-| T-104 | MyPage 학생 프로필 수정 | done | `saveStudentProfile` |
-| T-105 | 리포트 빈 팀플 상태 | done | `teams.length===0` → 빈 카드 |
-| T-106 | E2E 리포트 네비·평가 조회 | done | core-flows #32·#33 |
-| T-107 | 리포트 빈 상태·시드 가이드 | done | `38_archived_kim_student_setup.md` |
-| T-108 | 프로필 저장 후 refreshProfile | done | `AuthContext.refreshProfile` |
-| T-109 | DEMO_PROJECTS 제거 | done | MyPage |
-| T-110 | E2E 프로필 수정 #34 | done | core-flows |
-| T-111 | TeamDetail 회고록 제출 상태 연동 | done | `retrospectiveSubmitted` + 모달 닫을 때 갱신 |
-| T-112 | ProfessorProfile 저장 후 refreshProfile | done | AuthContext |
-| T-113 | MyPage 리포트 DB 없을 때 데모 숨김 | done | 역량·활동·트러블슈팅 |
-| T-114 | smoke full grep #32·#33·#34 | done | package.json |
-| T-115 | 통합 시드·02·29 문서 | done | `archived_kim_student_bundle.sql` |
-| T-116 | bundle SQL UTF-8 재생성 | done | `build-archived-bundle.mjs` |
-| T-117 | `npm run seed:archived-bundle` | done | package.json |
-| T-118 | MyPage 역량·TS 빈 상태 문구 | done | reportContextReady |
-| T-119 | 260521-6·7 doc 마감 | done | plans·current_session_plan |
-| T-120 | vision #20 팀 카드 5열·가로 확대 | done | TeamsPage·MainLayout |
-| T-121 | vision #20 레이아웃 폭 | done | `max-w-[min(100%,1920px)]` 팀 목록 |
-| T-122 | vision_snapshot·27·29 동기화 | done | `sync-vision-snapshot.mjs` |
-| T-123 | vision #47 MyPage TDZ 수정 | done | `reportHasArchivedTeams` 순서 |
-| T-124 | E2E #35 마이페이지 렌더 | done | `mypage-page` testid |
-| T-125 | vision #47 doc·스모크 grep | done | 29·27·snapshot |
-| T-126 | MyPage 리포트 로드 오류·재시도 | done | `mypage-report-load-error` |
-| T-127 | `verify:archived-kim` 스크립트 | done | `verify-archived-kim-setup.mjs` |
-| T-128 | 14·29·38 doc | done | #32~#35·verify 가이드 |
-| T-129 | PGRST205 missing table 감지 | done | supabase-api·ai-report |
-| T-130 | verify:archived-kim 상세 | done | tableChecks·missingTables |
-| T-131 | EvalSchemaNotice·getSchemaStatus | done | 평가 조회 페이지 |
-| T-132 | E2E #36 | done | core-flows |
-| T-133 | 38·14·29 | done | bundle v2 안내 |
-| T-134 | apply_remote_full.sql | done | build-apply-remote-full.mjs |
-| T-135 | legacy peer_review_students 감지 | done | getEvalSchemaStatus |
-| T-136 | EvalSchemaNotice·교수 동료평가 조회 | done | 3 pages |
-| T-137 | seed README·migrations README | done | |
-| T-138 | H-011 human_action_items | done | apply_remote_full |
-| T-139 | E2E openFirstArchivedCourse | done | auth helper |
-| T-140 | MyPage EvalSchemaNotice | done | 학생 리포트 상단 |
-| T-141 | 00·29·28·38 doc | done | |
-| T-142 | MCP bundle v2 마이그레이션 | done | `team_detail_writes_bundle_v2` |
-| T-143 | MCP 평가 시드 | done | `archived_evals_kim_student` |
-| T-144 | vision #48 과거 수업 전용 페이지 | done | `MyPageArchivedCoursesPage` |
-| T-145 | verify·29·snapshot·E2E #37 | done | `evalReady: true` |
-| T-146 | OOP 아카이브 평가 시드 | done | `team-oop-lost` |
-| T-147 | bundle·apply_remote_full 재생성 | done | seed:archived-bundle |
-| T-148 | verify 팀별 eval | done | `evalByArchivedTeam` |
-| T-149 | smoke #37·27 | done | package.json grep |
-| T-150 | 아카이브 회고록 시드 | done | `archived_retrospectives_kim_student.sql` |
-| T-151 | bundle 회고록 포함 | done | `build-archived-bundle.mjs` |
-| T-152 | 교수 평가 E2E #38·testid | done | `CourseProfessorEvalsPage` |
-| T-153 | verify retrospectiveCount | done | verify script |
-| T-154 | 아카이브 피드백 시드 | done | `archived_feedbacks_kim_student.sql` |
-| T-155 | bundle 피드백 포함 | done | build-archived-bundle |
-| T-156 | hot_path_membership_indexes | done | MCP migration |
-| T-157 | E2E #39·#40·testid | done | peer review·professor overview |
-| T-158 | apply_remote_full 인덱스 §3 | done | hot_path_membership_indexes |
-| T-159 | verify:archived-kim:json · verify-bundle | done | archivedKim in report |
-| T-160 | human:verify H-011 | done | verify-archived-kim when [o] |
-| T-161 | seed·migrations README · 02 | done | |
-| T-162 | 14·17·26 문서 동기화 | done | E2E #37~#41 |
-| T-163 | human:verify H-007~011 | done | archived-kim |
-| T-164 | E2E #41 · smoke | done | |
-| T-165 | CI archived verify · snapshot | done | build.yml |
-| T-166 | prelaunch-check 스크립트 | done | build+archived+preflight |
-| T-167 | deploy_vercel·env.example | done | apply_remote_full |
-| T-168 | 28·00_pre_launch H-007~011 | done | human:verify |
-| T-169 | prelaunch_check.md · H-002 probe | done | Edge OPTIONS |
-| T-170 | vision #49 다른 팀 트러블슈팅·산출물 작성 차단 | done | `assertStudentOwnTeamWrite` + TeamDetail UI + E2E #42 |
-| T-171 | vision #50 수강생 프로필 fixed 모달 (#8·#18 별도) | done | `StudentsNetworkPage` 오버레이 `fixed inset-0` + E2E #43 |
-| T-172 | 인라인 모달 → fixed 오버레이 (TeamDetail·MyPage) | done | 채팅·교수평가·피드백·프로젝트상세 + E2E #12 |
-| T-173 | vision #51 팀 탈퇴는 워크스페이스 내부만 | done | TeamsPage 탈퇴 제거·TeamDetail `team-workspace-leave` + E2E #44 |
-| T-174 | vision #51 보강: 탈퇴 소형·참여버튼 숨김 | done | 하단 muted 탈퇴·`hasMyTeamInCourse` |
-| T-175 | 조원 클릭 프로필 fixed 모달 (나의팀멤버·워크스페이스) | done | `StudentQuickProfileModal` + E2E #45 |
-| T-176 | E2E·handoff 문서 #42~45 동기화 | done | `14_testing`·`17_handoff` |
-| T-177 | vision #53 본인 팀 트러블슈팅 작성 활성화 | done | teammates `user_id` 매핑 · `isStudentMember` · E2E #46 |
-| T-178 | peer_review_students 행 id→`user_id` 매핑 | done | `getTeamDetailPeerReviewStudentsFromDb` (T-177 후속) |
-| T-179 | verify:archived-kim teammates 표시 행 검사 | done | `teammateDisplayResolvable` |
-| T-180 | 17_handoff·#1~#53 동기화 | done | plans/260522-2 |
-| T-181 | vision #54 워크스페이스 더미 스크린샷 제거 | done | TeamDetailPage · E2E #47 |
-| T-182 | E2E #6 A4 testid · ai-report·Edge README 구 라벨 | done | `mypage-a4-print-button` |
-| T-183 | vision #55 빈 수업 목록 수업코드 등록 UI 이중 제거 | done | `CoursesPage` · E2E #48 |
+| T-040 | Playwright 핵심 플로우 | [o] | 49건 (48플로우 + 인증 가드, `14_testing.md`) |
+| T-041 | GitHub Actions CI | [o] | `.github/workflows/e2e.yml` |
+| T-042 | 프로덕션 배포 | [o] | `vercel.json` + `deploy_vercel_checklist.md` · H-005 완료 · https://git-test-cp.vercel.app |
+| T-057 | Playwright 스모크 회귀 커맨드 정리 | [o] | `npm run test:e2e:smoke` + E2E #31 |
+| T-059 | human_action_items 체크 추출 보조 스크립트 | [o] | `npm run human:checked` |
+| T-060 | human_action_items 체크 자동 검증 커맨드 | [o] | `npm run human:verify` (`pass/fail/manual`) |
+| T-061 | human_action_items 엄격 검증 모드 | [o] | `npm run human:verify:strict` |
+| T-062 | human_action_items JSON/CI 검증 모드 | [o] | `human:verify:json`, `human:verify:ci` |
+| T-063 | human_action_items 반자동 동기화 루프 | [o] | `human:sync`, `human:sync:apply`, `human:sync:json` |
+| T-064 | human_action_items 자동 검증 메모 로그 | [o] | `human:sync:apply` 시 검증 메모 누적 |
+| T-065 | Playwright 스모크에 vision 추가요청 회귀(25~28) 포함 | [o] | `test:e2e:smoke` grep 확장 |
+| T-066 | Playwright 스모크 자격증명 자동 분기 실행 | [o] | `run-e2e-smoke.mjs` + `smoke:public/full` |
+| T-067 | Playwright 스모크 full 분기 조건 보정(학생 자격증명 기준) | [o] | `run-e2e-smoke.mjs` 분기 기준 수정 |
+| T-068 | Playwright 스모크 수동 강제 모드 추가(`--full`/`--public`) | [o] | `smoke:auto/force-full/force-public` |
+| T-069 | Playwright 스모크 dry-run/JSON 실행 계획 출력 | [o] | `run-e2e-smoke.mjs --dry-run --json` |
+| T-070 | human verify + smoke dry-run 통합 JSON 리포트 | [o] | `collect-verification-report.mjs`, `verify:bundle:json` |
+| T-071 | 통합 검증 리포트에 `human:sync` preview 결합 | [o] | `verify:bundle:json`에 `humanSyncPreview` 추가 |
+| T-072 | 통합 검증 리포트 최신 파일 저장 커맨드 | [o] | `verify:bundle:save`, `verification_report_latest.json` |
+| T-073 | 통합 검증 리포트 latest+archive 동시 저장 | [o] | `verify:bundle:save:archive`, `verification_reports/` |
+| T-074 | 통합 검증 리포트 아카이브 최신 N개 유지 정리 | [o] | `--keep-latest`, `verify:bundle:save:archive:trim` |
+| T-075 | 통합 검증 리포트 아카이브 일수 기준 정리 | [o] | `--keep-days`, `verify:bundle:save:archive:policy` |
+| T-076 | 통합 검증 리포트 정책값 `.env` 외부화 | [o] | `VERIFY_BUNDLE_KEEP_*`, `verify:bundle:save:archive:env` |
+| T-077 | 통합 검증 리포트 실행 전 preflight 점검 | [o] | `--preflight`, `verify:bundle:preflight` |
+| T-078 | 통합 검증 리포트 preflight strict 모드 | [o] | `--preflight --strict`, `verify:bundle:preflight:strict` |
+| T-079 | 통합 검증 리포트 preflight strict self-test | [o] | `preflight-strict-selftest.mjs`, `verify:bundle:preflight:selftest` |
+| T-080 | 통합 검증 리포트 실행 파이프라인 자동화 | [o] | `run-verify-bundle-pipeline.mjs`, `verify:bundle:pipeline` |
+| T-081 | 수강자 네트워크 빈 수업 데모 폴백 제거(vision #13) | [o] | `StudentsNetworkPage` `courseId` 스코프 시 API 결과 그대로 사용 |
+| T-082 | 랜덤 팀 `courseId` 라우트·Projects 카드 링크 | [o] | `/courses/:courseId/teams/random`, `ProjectsPage`→팀 상세 |
+| T-083 | `getStudentByIdFromDb` 접근 가능 수업 멤버십 기준 | [o] | primary 수업에만 속하지 않아도 같은 네트워크면 조회 가능 |
+| T-084 | 팀 수동 생성 API + TeamsPage 「+ 새 팀 만들기」 | [o] | `api.teams.create`, 생성 모달 |
+| T-085 | 팀 참여·탈퇴 (수업당 1팀) | [o] | `api.teams.join` / `leave`, 카드 버튼 |
+| T-086 | 랜덤 배정 기존 팀원 제외 + RandomTeamPage DB 저장 | [o] | #27·#28, `saveRandomAssignment` |
+| T-087 | 학생 랜덤 팀 UI 숨김 | [o] | StudentsNetwork·RandomTeamPage 교수 전용 |
+| T-088 | 팀 카드 데스크탑 최소 가로 50% | [o] | `lg:grid-cols-2`, `lg:min-w-[50%]` |
+| T-089 | 교수 공지 작성 + 팀 페이지 최신 3건 | [o] | `CourseAnnouncementsPage`, 사이드 네비 |
+| T-090 | vision #14 인간 보고서 + agent 유지 규칙 | [o] | `for_human/29_vision_requests_report.md` |
+| T-091 | TeamDetail UX (#15~#17,#29,#32,#26) | [o] | 조원평가 순서, TS 폼 하단, AI추천, 팀원, 피드백 수 |
+| T-092 | 팀 카드 활동 2건 + 진행 단계 수정 | [o] | `updateCompletedStages` |
+| T-093 | 수업 종료 후에만 평가 (vision #43) | [o] | `assertCourseAllowsEvaluations` |
+| T-094 | 수업 삭제 + 교수 프로필 저장 | [o] | `courses.delete`, `professors.saveProfile` |
+| T-095 | 아카이브 평가 시드 + 종료 수업 네비 | [o] | `archived_evals_kim_student.sql`, 사이드 네비 |
+| T-096 | 리포트 수신 동료평가 집계 | [o] | `gatherAiReportContext` teammate_id |
+| T-097 | 리포트 페이지 동적 네비 | [o] | `REPORT_PAGES` + Chevron |
+| T-098 | MyPage 과거 수업 사이드 | [o] | `getArchivedCourses` |
+| T-099 | 프로필 이미지 + 가입 기술 태그 | [o] | `updateAvatar`, `SignInPage` skills |
+| T-100 | 교수 마이페이지 대시보드 | [o] | `mypage-professor-dashboard` |
+| T-101 | 조원평가·회고록 모달 | [o] | `TeamDetailPage` overlay |
+| T-102 | 교수 동료평가 전체 조회 | [o] | `CoursePeerReviewsOverviewPage` |
+| T-103 | 아카이브 학생 평가 조회 페이지 | [o] | `CourseMyPeerReviewsGivenPage`, `CourseProfessorEvalsPage` |
+| T-104 | MyPage 학생 프로필 수정 | [o] | `saveStudentProfile` |
+| T-105 | 리포트 빈 팀플 상태 | [o] | `teams.length===0` → 빈 카드 |
+| T-106 | E2E 리포트 네비·평가 조회 | [o] | core-flows #32·#33 |
+| T-107 | 리포트 빈 상태·시드 가이드 | [o] | `38_archived_kim_student_setup.md` |
+| T-108 | 프로필 저장 후 refreshProfile | [o] | `AuthContext.refreshProfile` |
+| T-109 | DEMO_PROJECTS 제거 | [o] | MyPage |
+| T-110 | E2E 프로필 수정 #34 | [o] | core-flows |
+| T-111 | TeamDetail 회고록 제출 상태 연동 | [o] | `retrospectiveSubmitted` + 모달 닫을 때 갱신 |
+| T-112 | ProfessorProfile 저장 후 refreshProfile | [o] | AuthContext |
+| T-113 | MyPage 리포트 DB 없을 때 데모 숨김 | [o] | 역량·활동·트러블슈팅 |
+| T-114 | smoke full grep #32·#33·#34 | [o] | package.json |
+| T-115 | 통합 시드·02·29 문서 | [o] | `archived_kim_student_bundle.sql` |
+| T-116 | bundle SQL UTF-8 재생성 | [o] | `build-archived-bundle.mjs` |
+| T-117 | `npm run seed:archived-bundle` | [o] | package.json |
+| T-118 | MyPage 역량·TS 빈 상태 문구 | [o] | reportContextReady |
+| T-119 | 260521-6·7 doc 마감 | [o] | plans·current_session_plan |
+| T-120 | vision #20 팀 카드 5열·가로 확대 | [o] | TeamsPage·MainLayout |
+| T-121 | vision #20 레이아웃 폭 | [o] | `max-w-[min(100%,1920px)]` 팀 목록 |
+| T-122 | vision_snapshot·27·29 동기화 | [o] | `sync-vision-snapshot.mjs` |
+| T-123 | vision #47 MyPage TDZ 수정 | [o] | `reportHasArchivedTeams` 순서 |
+| T-124 | E2E #35 마이페이지 렌더 | [o] | `mypage-page` testid |
+| T-125 | vision #47 doc·스모크 grep | [o] | 29·27·snapshot |
+| T-126 | MyPage 리포트 로드 오류·재시도 | [o] | `mypage-report-load-error` |
+| T-127 | `verify:archived-kim` 스크립트 | [o] | `verify-archived-kim-setup.mjs` |
+| T-128 | 14·29·38 doc | [o] | #32~#35·verify 가이드 |
+| T-129 | PGRST205 missing table 감지 | [o] | supabase-api·ai-report |
+| T-130 | verify:archived-kim 상세 | [o] | tableChecks·missingTables |
+| T-131 | EvalSchemaNotice·getSchemaStatus | [o] | 평가 조회 페이지 |
+| T-132 | E2E #36 | [o] | core-flows |
+| T-133 | 38·14·29 | [o] | bundle v2 안내 |
+| T-134 | apply_remote_full.sql | [o] | build-apply-remote-full.mjs |
+| T-135 | legacy peer_review_students 감지 | [o] | getEvalSchemaStatus |
+| T-136 | EvalSchemaNotice·교수 동료평가 조회 | [o] | 3 pages |
+| T-137 | seed README·migrations README | [o] | |
+| T-138 | H-011 human_action_items | [o] | apply_remote_full |
+| T-139 | E2E openFirstArchivedCourse | [o] | auth helper |
+| T-140 | MyPage EvalSchemaNotice | [o] | 학생 리포트 상단 |
+| T-141 | 00·29·28·38 doc | [o] | |
+| T-142 | MCP bundle v2 마이그레이션 | [o] | `team_detail_writes_bundle_v2` |
+| T-143 | MCP 평가 시드 | [o] | `archived_evals_kim_student` |
+| T-144 | vision #48 과거 수업 전용 페이지 | [o] | `MyPageArchivedCoursesPage` |
+| T-145 | verify·29·snapshot·E2E #37 | [o] | `evalReady: true` |
+| T-146 | OOP 아카이브 평가 시드 | [o] | `team-oop-lost` |
+| T-147 | bundle·apply_remote_full 재생성 | [o] | seed:archived-bundle |
+| T-148 | verify 팀별 eval | [o] | `evalByArchivedTeam` |
+| T-149 | smoke #37·27 | [o] | package.json grep |
+| T-150 | 아카이브 회고록 시드 | [o] | `archived_retrospectives_kim_student.sql` |
+| T-151 | bundle 회고록 포함 | [o] | `build-archived-bundle.mjs` |
+| T-152 | 교수 평가 E2E #38·testid | [o] | `CourseProfessorEvalsPage` |
+| T-153 | verify retrospectiveCount | [o] | verify script |
+| T-154 | 아카이브 피드백 시드 | [o] | `archived_feedbacks_kim_student.sql` |
+| T-155 | bundle 피드백 포함 | [o] | build-archived-bundle |
+| T-156 | hot_path_membership_indexes | [o] | MCP migration |
+| T-157 | E2E #39·#40·testid | [o] | peer review·professor overview |
+| T-158 | apply_remote_full 인덱스 §3 | [o] | hot_path_membership_indexes |
+| T-159 | verify:archived-kim:json · verify-bundle | [o] | archivedKim in report |
+| T-160 | human:verify H-011 | [o] | verify-archived-kim when [o] |
+| T-161 | seed·migrations README · 02 | [o] | |
+| T-162 | 14·17·26 문서 동기화 | [o] | E2E #37~#41 |
+| T-163 | human:verify H-007~011 | [o] | archived-kim |
+| T-164 | E2E #41 · smoke | [o] | |
+| T-165 | CI archived verify · snapshot | [o] | build.yml |
+| T-166 | prelaunch-check 스크립트 | [o] | build+archived+preflight |
+| T-167 | deploy_vercel·env.example | [o] | apply_remote_full |
+| T-168 | 28·00_pre_launch H-007~011 | [o] | human:verify |
+| T-169 | prelaunch_check.md · H-002 probe | [o] | Edge OPTIONS |
+| T-170 | vision #49 다른 팀 트러블슈팅·산출물 작성 차단 | [o] | `assertStudentOwnTeamWrite` + TeamDetail UI + E2E #42 |
+| T-171 | vision #50 수강생 프로필 fixed 모달 (#8·#18 별도) | [o] | `StudentsNetworkPage` 오버레이 `fixed inset-0` + E2E #43 |
+| T-172 | 인라인 모달 → fixed 오버레이 (TeamDetail·MyPage) | [o] | 채팅·교수평가·피드백·프로젝트상세 + E2E #12 |
+| T-173 | vision #51 팀 탈퇴는 워크스페이스 내부만 | [o] | TeamsPage 탈퇴 제거·TeamDetail `team-workspace-leave` + E2E #44 |
+| T-174 | vision #51 보강: 탈퇴 소형·참여버튼 숨김 | [o] | 하단 muted 탈퇴·`hasMyTeamInCourse` |
+| T-175 | 조원 클릭 프로필 fixed 모달 (나의팀멤버·워크스페이스) | [o] | `StudentQuickProfileModal` + E2E #45 |
+| T-176 | E2E·handoff 문서 #42~45 동기화 | [o] | `14_testing`·`17_handoff` |
+| T-177 | vision #53 본인 팀 트러블슈팅 작성 활성화 | [o] | teammates `user_id` 매핑 · `isStudentMember` · E2E #46 |
+| T-178 | peer_review_students 행 id→`user_id` 매핑 | [o] | `getTeamDetailPeerReviewStudentsFromDb` (T-177 후속) |
+| T-179 | verify:archived-kim teammates 표시 행 검사 | [o] | `teammateDisplayResolvable` |
+| T-180 | 17_handoff·#1~#53 동기화 | [o] | plans/260522-2 |
+| T-181 | vision #54 워크스페이스 더미 스크린샷 제거 | [o] | TeamDetailPage · E2E #47 |
+| T-182 | E2E #6 A4 testid · ai-report·Edge README 구 라벨 | [o] | `mypage-a4-print-button` |
+| T-183 | vision #55 빈 수업 목록 수업코드 등록 UI 이중 제거 | [o] | `CoursesPage` · E2E #48 |
+| T-184 | vision #56~#59 프로필 여백·이메일 안내·수강자들→profile·로그인 푸터 | [o] | `260522-47.md` · `MyPageProfilePage` · `LandingPage` |
 
 ## 완료됨 (최근)
 
+- [o] T-184 vision #56~59 (2026-05-22, plans/260522-47.md)
 - [o] T-182~T-183 E2E A4·vision #55 (2026-05-22, plans/260522-5.md)
 - [o] T-181 vision #54 더미 스크린샷 칸 제거 (2026-05-22, plans/260522-3.md)
 - [o] T-178~T-180 peer_review id·verify·handoff (2026-05-22, plans/260522-2.md)

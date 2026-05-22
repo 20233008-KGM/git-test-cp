@@ -1,6 +1,7 @@
 # 마이페이지 AI 리포트 — Edge + Gemini (10분)
 
-> **관련:** `28_human_action_items.md` H-002 · 기술: `supabase/functions/generate-report/README.md`
+> **상태:** **H-002 완료** (2026-05-22) — 런칭 체크리스트에서 제외. Secret 재설정·401·문단 미생성 시에만 이 문서 사용.  
+> **관련:** `28_human_action_items.md` · 기술: `supabase/functions/generate-report/README.md`
 
 마이페이지 **리포트 1·2·3페이지**는 로그인 후 **자동으로** Edge `generate-report`를 호출해 AI 문단을 채웁니다.  
 별도 「AI 리포트 생성」버튼은 없습니다.

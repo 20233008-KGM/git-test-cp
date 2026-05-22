@@ -18,6 +18,7 @@ export interface AdminProfile extends BaseProfile {
 export interface StudentProfile extends BaseProfile {
   role: "student";
   studentId: string;
+  school: string;
   major: string;
   skills?: string[];
   bio?: string;

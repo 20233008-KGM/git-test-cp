@@ -1,13 +1,13 @@
 ﻿# 02 — 현재 상태 (항상 최신 유지)
 
 > **관련:** `05_todo.md` · `17_handoff.md` · `27_vision_feature_matrix.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-22 (저녁) · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~82%
+> **마지막 갱신:** 2026-05-22 23:30:00 · **단계:** Alpha → Beta 진입 중 · **전체 진행률:** ~84%
 
 ## 스냅샷
 
 | 영역 | % | 상태 |
 |------|---|------|
-| 프론트엔드 UI | 91 | M3·셸·`PageLoading`·`CourseListCard`·`SideNavItem`·첫 화면 푸터·레이아웃 안정화 |
+| 프론트엔드 UI | 92 | M3·셸·마이페이지 내 정보 탭·`cc-course-code`·수강자들 UX |
 | 데이터 연동 (읽기) | 65 | `supabase-api.ts` → Supabase `ai_*` · 아카이브 평가·회고 시드 |
 | 데이터 연동 (쓰기) | 56 | Q&A·트러블슈팅·채팅·피드백·회고록·네트워크·산출물 |
 | 인증 | 58 | Firebase + `ai_users` + JWT 스캐폴드(기본 off) + ProtectedRoute |
@@ -22,7 +22,7 @@
 |------|-----------|------|
 | 핵심 3축(네트워크·워크스페이스·마이페이지) | 구현 이해도 높음 | 각 축의 핵심 화면·API·DB 흐름 연결 확인 |
 | 추가요청 1: 대용량+링크 게시물 | 구현 | 앱·Storage 버킷 모두 파일당 500MB + 링크(URL) (C-260522-10) |
-| 추가요청 2: 교수에게 학생용 리포트 비노출 | 구현 | `MyPage` role 가드 + 교수 전용 안내 블록 |
+| 추가요청 2: 교수에게 학생용 리포트 비노출 | 구현 | `MyPage` role 가드 · 리포트 탭만 · `?tab=profile` 시 안내 블록 숨김 (C-260522-46) |
 | 추가요청 3: 수업 코드 자동 생성 | 구현 | `CoursesPage`에서 `CC-XXXX-XXXX` 자동 생성 + 재생성 버튼 |
 | 추가요청 4: 일정 캘린더 입력 | 구현 | `CoursesPage` 일정 입력을 `type="date"`로 전환 |
 | 추가요청 5: 트러블슈팅 로그 새로고침 유실 | 구현 | TeamDetail 초기 로드 실패 내성 강화 + E2E #24 |
@@ -41,6 +41,10 @@
 | 추가요청 53: 본인 팀 트러블슈팅 작성 비활성 | 구현 | detail teammates `user_id` 매핑 + `isStudentMember` + E2E #46 (T-177) |
 | 추가요청 54: 워크스페이스 더미 스크린샷 칸 제거 | 구현 | FIGMA·중간·기말발표 플레이스홀더 삭제 + E2E #47 (T-181) |
 | 추가요청 55: 빈 수업 목록 시 수업코드 등록 UI 이중 표시 | 구현 | 상단 배너 `courses.length > 0` 조건 + E2E #48 (T-183) |
+| 추가요청 56: 내 정보 페이지 입력·라벨 여백 | 구현 | `cc-input` · `ProfileFieldLabel` · `MyPageProfilePage` (T-184) |
+| 추가요청 57: 이메일 안내 문구 제거 | 구현 | 안내 문단 삭제 · `hint="변경 불가"` (T-184) |
+| 추가요청 58: 수강자들·마이페이지 내 정보 일치 | 구현 | `/app/mypage/profile` · `MyInfoEditModal` 제거 (T-184) |
+| 추가요청 59: 로그인 페이지 푸터 숨김 | 구현 | `LandingPage` Footer 제거 (T-184) |
 
 ## 구현 완료 (기능)
 
@@ -66,17 +70,45 @@
 
 - [ ] RLS 정책 검증·강화·원격 적용 (T-011, H-001)
 - [o] Edge `generate-report` Gemini + `verify_jwt=false` + `supabase/config.toml` (H-002 완료)
-- [ ] 프로덕션 배포 실행 (T-042, H-005)
+- [o] 프로덕션 배포 (T-042, H-005) — `vercel --prod` · https://git-test-cp.vercel.app
 - [ ] E2E 전체 green (H-003, H-004 시크릿)
 - [o] vision 추가요청 구현 완료 (T-024~T-027·T-050~T-056·T-081~T-083 완료)
 
+## 최근 검증 (2026-05-22, vision #56~59 · `260522-47`)
+
+- **#56:** `cc-input`·`ProfileFieldLabel`·`MyPageProfilePage` 여백
+- **#57:** 이메일 안내 문구 제거
+- **#58:** 수강자들 「내 정보 수정」→ `/app/mypage/profile` (모달 제거)
+- **#59:** `LandingPage` 푸터 제거
+
+## 최근 검증 (2026-05-22, `260522-46` · vision #7·#25·#30)
+
+- **vision #30:** `/app/mypage/profile` · `ai_users.school` 원격 적용 · 학번·학교 저장
+- **vision #25:** 교수 프로젝트 평가 모달 모바일 패딩 (`32` §1)
+- **vision #7 보완:** 교수·관리자 「나의 팀 멤버」「팀 관리」 미노출
+- **채팅 (C-50~51):** 로그인·회원가입 수강인원·Q&A 장식 카드 제거
+- **doc:** `29` 기록 분류 — C-ID는 §대화창만 (C-54)
+
+## 최근 검증 (2026-05-22, C-45~49)
+
+- **마이페이지:** 사이드 「리포트」「내 정보」 · `/app/mypage?tab=profile` → profile 리다이렉트 · 이름·전공·자기소개·태그 저장
+- **수업코드:** `cc-course-code` — sans 400 · 연한 surface pill (C-260522-47)
+- **수강자들:** 본인 카드 「내 프로필 보기」버튼 제거 — 카드 클릭·「내 정보 수정」유지 (C-260522-48)
+- **doc:** [`260522-45.md`](plans/260522-45.md) · `29` C-45~49
+
+## 최근 검증 (2026-05-22, 배포 후)
+
+- **프로덕션:** commit `994e9480` 「260522-2 디자인 수정」→ `vercel --prod` · https://git-test-cp.vercel.app (브랜치 `구현중`)
+- **C-260522-40~44:** `cc-app-shell--optical` · 마이페이지 프로필 테두리 · 수업코드 pill 클릭 복사 · doc (`260522-40`)
+- **광학 정렬:** 사이드 네비 있는 경로만 lg+에서 shell 블록 ~10px 우측 (`hasSideNavLayout` in `appShell.ts`)
+- **수업 카드:** `cc-course-card__code` — Copy 아이콘 + 전체 클릭 복사 (학생·교수 공통)
+
 ## 최근 검증 (2026-05-22, 저녁)
 
-- **C-260522-36~39:** 레이아웃·`cc-main-viewport`(푸터 스크롤 후) · `PageLoading` · `CourseListCard` · `SideNavItem` · doc 동기화 (`260522-36`)
-- **레이아웃:** `scrollbar-gutter: stable` · `cc-page-main` · `cc-hover-elevate`(카드 translate 제거) · `Footer`→`cc-app-shell`
-- **로딩:** `PageLoading`/`LoadingSpinner` — 수업·Q&A·네트워크·인증 등 · `prefers-reduced-motion` 대응
-- **수업 카드:** `cc-course-card` — 학기/상태·메타 dl·**제목+코드 한 줄** (`CourseListCard.tsx`)
-- **좌측 네비:** 아이콘+라벨 · 활성 왼쪽 강조 · `m3-nav-item--split`(내 팀+▼ 한 줄)
+- **C-260522-36~39:** 레이아웃·`cc-main-viewport`(푸터 스크롤 후) · `PageLoading` · `CourseListCard` · `SideNavItem` · doc (`260522-36`)
+- **레이아웃:** `scrollbar-gutter: stable` · `cc-page-main` · `cc-hover-elevate` · `Footer`→`cc-app-shell`
+- **수업 카드:** 학기/상태·메타 dl·제목+코드 한 줄
+- **좌측 네비:** `SideNavItem` · `m3-nav-item--split`
 
 ## 최근 검증 (2026-05-22, 오후)
 
@@ -188,6 +220,7 @@
 
 ## 다음 즉시 액션
 
-→ AI 선행 (선택): 반응형 P1 잔여 — `TeamDetailPage` 평가 모달 패딩 (`32` §1)  
+→ AI 선행 (선택): 반응형 P1 잔여 — `MyPage`·`QnAPage` 이중 `max-w-*` (`32` §2)  
 → AI 선행: E2E #6 A4 버튼 라벨 정렬 · 완료 기능 회귀  
-→ 인간 블로커: T-011(H-001) · H-004(CI E2E) · T-042(H-005)
+→ vision #56~58 잔여: 네트워크 학습프로필(mbti 등) 필드를 마이페이지와 통합 검토  
+→ 인간 블로커: T-011(H-001) · H-004(CI E2E)

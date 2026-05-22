@@ -30,9 +30,11 @@
 
 ### 착수 전
 
-1. `29` §대화창 표에서 오늘 `C-YYMMDD-*` **최대 N** 확인 → 새 요청 ID = **N+1**.
-2. `starter.txt` §0과 같이 **`plans/YYMMDD-N.md` 새 파일** (덮어쓰기 금지) · 요청 원문 한 줄 · 범위 · 완료 기준.
-3. 「바로 해줘」 등이 있으면 승인 생략 가능.
+1. [`chat_request_recording.md`](./chat_request_recording.md) **§0 분류 결정** — 채팅인가 / vision `#N`인가 / starter·`02` 점검인가.
+2. **채팅**이면: `29` §대화창에서 오늘 `C-YYMMDD-*` 최대 N → 새 ID = **N+1**.
+3. **vision #N**이면: §상세 `#N`만 갱신 예정, **C-ID 부여 금지**.
+4. `starter.txt` §0과 같이 **`plans/YYMMDD-N.md` 새 파일** (덮어쓰기 금지) · 요청 원문 한 줄 · 범위 · 완료 기준.
+5. 「바로 해줘」 등이 있으면 승인 생략 가능.
 
 ### 수행 중
 
@@ -43,7 +45,7 @@
 
 | 순서 | 문서 | 필수 |
 |------|------|------|
-| 1 | `for_human/29_vision_requests_report.md` §대화창 | **맨 위** `C-YYMMDD-N` 행 |
+| 1 | `for_human/29_vision_requests_report.md` | **채팅** → §대화창 맨 위 `C-…` · **vision #N** → §상세 `#N` (C-ID 없음) |
 | 2 | `for_human/25_ai_work_log.md` | **맨 위** 일지 (계획 링크) |
 | 3 | `plans/YYMMDD-N.md` | `done` + 실행 결과 |
 | 4 | `current_session_plan.md` | 인덱스 |

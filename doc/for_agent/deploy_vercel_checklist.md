@@ -11,7 +11,7 @@
 | 2 | RLS 리뷰 (`rls_review_packet.md`, H-001) | [ ] |
 | 3 | **`supabase/apply_remote_full.sql`** (`npm run supabase:apply-remote-full`) — v2+김학생 시드+인덱스 · [38](../for_human/38_archived_kim_student_setup.md) | [ ] |
 | 3b | (대안) 번들 v2만 — [29](../for_human/29_supabase_bundle_sql.md) | [ ] |
-| 4 | Edge `generate-report` deploy + Secret `GEMINI_API_KEY` (`verify_jwt=false`) | [ ] |
+| 4 | Edge `generate-report` + Secret `GEMINI_API_KEY` (H-002 ✅; 신규 환경만 재확인) | [o] |
 | 5 | Storage bucket `ai_team_deliverables` 정책 확인 | [ ] |
 
 ## 배포 전 — Firebase

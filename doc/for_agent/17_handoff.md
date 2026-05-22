@@ -1,16 +1,19 @@
 ﻿# 17 — 인수인계
 
 > **관련:** `02_current_state.md` · `05_todo.md` · `28_human_action_items.md` · `25_ai_work_log.md`  
-> **마지막 갱신:** 2026-05-22
+> **마지막 갱신:** 2026-05-22 23:30
 
 ## 지금 여기까지
 
-- **단계:** Alpha → Beta 진입 (~80%)
+- **단계:** Alpha → Beta 진입 (~84%)
 - **API:** `supabase-api.ts` — 과목·팀·Q&A·네트워크·Storage·팀 상세 쓰기 전반
 - **인증:** Firebase + `ai_users` + ProtectedRoute + JWT 스캐폴드 (`VITE_ENABLE_SUPABASE_FIREBASE_JWT`, **기본 off**)
 - **팀 상세:** 채팅·Realtime, 피드백·동료평가·회고록 DB, 교수 평가·제출 현황 패널, AI 진행 요약(실데이터)
 - **마이페이지:** 리포트 3페이지 — DB 집계 + **진입 시** Edge Gemini 자동 채움 (`buildMyPageReportView`)
-- **E2E:** **48**건 (47플로우 + 인증 가드 1) · CI `build.yml`(+ archived verify) + `e2e.yml` + smoke #1~#47
+- **E2E:** **49**건 (48플로우 + 인증 가드 1) · smoke #1~#47
+- **마이페이지:** `/app/mypage/profile` · `MyPageShell` · 학번·학교(`ai_users.school`) · vision #56~59 완료 (T-184)
+- **로그인:** `/` 푸터 없음 · 장식 카드 제거 (C-50) · 교수 「나의 팀 멤버」숨김 (C-51)
+- **배포:** https://git-test-cp.vercel.app (H-005 완료)
 - **아카이브 시드:** 평가·회고·피드백 · `npm run verify:archived-kim` · `apply_remote_full.sql`
 - **RLS:** `rls_review_packet.md` + `20260519000000_rls_beta_draft.sql` — **미적용** (H-001)
 - **DB:** bundle v2·인덱스 원격 적용됨(MCP) — 신규 환경은 `apply_remote_full.sql`
@@ -69,8 +72,8 @@
 
 ## AI가 다음에 할 수 있는 것 (인간 승인 없이 가능)
 
-1. vision #1~#54 코드 반영 완료 — 신규 추가요청 시 `vision_snapshot` 대조 후 착수
-2. E2E·`14_testing`·`verify:archived-kim` 회귀 (H-003·H-011은 인간) — #53 teammates `user_id` 매핑·`teammateDisplayResolvable` 검사
+1. vision #1~#59 코드 반영 완료 — 신규 추가요청 시 `vision_snapshot` 대조 후 착수
+2. 반응형 P1 잔여 (`32_responsive_layout_audit.md` §2) · E2E·`verify:archived-kim` 회귀 (H-003·H-004)
 
 ## 건드리지 말 것
 

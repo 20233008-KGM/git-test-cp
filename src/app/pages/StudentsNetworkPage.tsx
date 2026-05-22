@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { Search, BookOpen, Clock, MapPin, FlaskConical, User, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
 import PageLoading from "../components/layout/PageLoading";
@@ -463,13 +463,29 @@ function StudentProfileModal({
           </div>
 
           {displayStudent.isSelf ? (
-            <button
-              onClick={() => { onClose(); onEditClick?.(); }}
-              className="w-full bg-[#155dfc] text-white py-3 rounded-[10px] font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <Pencil className="w-4 h-4" />
-              내 정보 수정
-            </button>
+            onEditClick ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onEditClick();
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#155dfc] py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+              >
+                <Pencil className="h-4 w-4" />
+                내 정보 수정
+              </button>
+            ) : (
+              <Link
+                to="/app/mypage/profile"
+                onClick={onClose}
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#155dfc] py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700"
+                data-testid="student-profile-edit-link"
+              >
+                <Pencil className="h-4 w-4" />
+                내 정보 수정
+              </Link>
+            )
           ) : (
             <button className="w-full bg-[#101828] text-white py-3 rounded-[10px] font-bold text-sm hover:bg-gray-900 transition-colors">
               1:1 채팅하기
@@ -481,8 +497,6 @@ function StudentProfileModal({
   );
 }
 
-/* ─────────── 내 정보 수정 모달 ─────────── */
-
 interface EditForm {
   major: string;
   mbti: string;
@@ -490,122 +504,6 @@ interface EditForm {
   hobbies: string;
   bio: string;
   portfolioFileName: string;
-}
-
-function MyInfoEditModal({
-  initialForm,
-  onClose,
-  onSave,
-}: {
-  initialForm: EditForm;
-  onClose: () => void;
-  onSave: (form: EditForm) => void | Promise<void>;
-}) {
-  const [form, setForm] = useState<EditForm>(initialForm);
-  const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setForm(initialForm);
-  }, [initialForm]);
-  const update = (key: keyof EditForm, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await onSave(form);
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="student-info-edit-modal-overlay"
-    >
-      <div
-        className="bg-white rounded-[14px] shadow-2xl w-full max-w-[600px] max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-white rounded-t-[14px] flex justify-between items-center px-7 py-5 border-b border-gray-100 z-10">
-          <h2 className="text-lg font-bold text-[#1e2939]">내 정보 수정</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 font-bold text-lg" aria-label="닫기">
-            ✕
-          </button>
-        </div>
-
-        <div className="px-7 py-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-[#1e2939]">전공</label>
-              <input type="text" value={form.major} onChange={(e) => update("major", e.target.value)} className="w-full border border-gray-300 rounded-[8px] px-3 py-2 text-sm text-[#1e2939] outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc] transition" />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-[#1e2939]">mbti 및 성격</label>
-              <input type="text" value={form.mbti} onChange={(e) => update("mbti", e.target.value)} className="w-full border border-gray-300 rounded-[8px] px-3 py-2 text-sm text-[#1e2939] outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc] transition" />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1e2939]">진로 관심분야 <span className="text-xs text-[#6a7282] font-normal">(쉼표로 구분)</span></label>
-            <input type="text" value={form.careerInterest} onChange={(e) => update("careerInterest", e.target.value)} className="w-full border border-gray-300 rounded-[8px] px-3 py-2 text-sm text-[#1e2939] outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc] transition" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1e2939]">취미 및 관심사 <span className="text-xs text-[#6a7282] font-normal">(쉼표로 구분)</span></label>
-            <input type="text" value={form.hobbies} onChange={(e) => update("hobbies", e.target.value)} className="w-full border border-gray-300 rounded-[8px] px-3 py-2 text-sm text-[#1e2939] outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc] transition" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1e2939]">간단한 자기소개</label>
-            <input type="text" value={form.bio} onChange={(e) => update("bio", e.target.value)} className="w-full border border-gray-300 rounded-[8px] px-3 py-2 text-sm text-[#1e2939] outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc] transition" />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1e2939]">포트폴리오 파일 업로드</label>
-            <div
-              className="border border-dashed border-gray-300 rounded-[10px] p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {form.portfolioFileName ? (
-                <>
-                  <span className="text-2xl">📎</span>
-                  <p className="text-sm font-medium text-[#155dfc]">{form.portfolioFileName}</p>
-                  <p className="text-xs text-[#6a7282]">클릭하여 변경</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-medium text-[#1e2939]">클릭하여 파일 선택</p>
-                  <p className="text-xs text-[#6a7282]">PDF, ZIP, PPT (최대 50MB)</p>
-                </>
-              )}
-            </div>
-            <input ref={fileInputRef} type="file" accept=".pdf,.zip,.ppt,.pptx" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) update("portfolioFileName", file.name); }} />
-          </div>
-
-          <div className="flex justify-center gap-3 pt-2">
-            <button onClick={onClose} className="px-8 py-2.5 rounded-[8px] border border-gray-300 text-sm font-medium text-[#364153] hover:bg-gray-50 transition-colors">
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-8 py-2.5 rounded-[8px] bg-[#155dfc] text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-60"
-            >
-              {saving ? "저장 중..." : "저장하기"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /* ─────────── 랜덤 팀 생성 ─────────── */
@@ -931,10 +829,10 @@ function StudentCard({
 
 export default function StudentsNetworkPage() {
   const { courseId } = useParams<{ courseId?: string }>();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showMyProfileModal, setShowMyProfileModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showRandomTeamModal, setShowRandomTeamModal] = useState(false);
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -951,7 +849,7 @@ export default function StudentsNetworkPage() {
   };
   const [editForm, setEditForm] = useState<EditForm>(emptyEditForm);
 
-  const { isProfessor, isStudent, isAdmin, user, refreshProfile } = useAuth();
+  const { isProfessor, isStudent, isAdmin, user } = useAuth();
   const professor = isProfessor ? (user as ProfessorProfile) : null;
 
   const selfStudent = useMemo(() => {
@@ -1167,20 +1065,15 @@ export default function StudentsNetworkPage() {
                 </div>
               </div>
               {!isArchived && (
-                <div className="flex flex-wrap gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setShowMyProfileModal(true)}
-                    className="bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                <div className="flex flex-shrink-0 flex-wrap gap-2">
+                  <Link
+                    to="/app/mypage/profile"
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                    data-testid="students-network-edit-profile-link"
                   >
-                    내 프로필 보기
-                  </button>
-                  <button
-                    onClick={() => setShowEditModal(true)}
-                    className="bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="h-3.5 w-3.5" />
                     내 정보 수정
-                  </button>
+                  </Link>
                 </div>
               )}
             </div>
@@ -1247,37 +1140,14 @@ export default function StudentsNetworkPage() {
           studentExtras={studentExtras}
           editForm={editForm}
           onClose={() => setShowMyProfileModal(false)}
-          onEditClick={isArchived ? undefined : () => setShowEditModal(true)}
-        />
-      )}
-
-      {!isArchived && showEditModal && (
-        <MyInfoEditModal
-          initialForm={editForm}
-          onClose={() => setShowEditModal(false)}
-          onSave={async (form) => {
-            try {
-              const saved = await api.studentNetwork.saveProfile(form);
-              setEditForm(saved);
-              await refreshProfile();
-              const [refreshed, refreshedExtras] = await Promise.all([
-                api.studentNetwork.getStudents(courseId),
-                api.studentNetwork.getExtras(),
-              ]);
-              const list =
-                courseId || refreshed.length > 0 ? refreshed : fallbackStudents;
-              setStudents(list);
-              const baseExtras =
-                courseId || Object.keys(refreshedExtras).length > 0
-                  ? refreshedExtras
-                  : fallbackStudentExtras;
-              setStudentExtras(enrichStudentExtras(list, baseExtras));
-            } catch (error) {
-              console.error(error);
-              alert(error instanceof Error ? error.message : "프로필 저장에 실패했습니다.");
-              throw error;
-            }
-          }}
+          onEditClick={
+            isArchived
+              ? undefined
+              : () => {
+                  setShowMyProfileModal(false);
+                  navigate("/app/mypage/profile");
+                }
+          }
         />
       )}
 

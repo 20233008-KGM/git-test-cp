@@ -13,7 +13,7 @@
 |------|------|
 | 전체 순서 | **[00_pre_launch_order.md](./00_pre_launch_order.md)** |
 | SQL 5분 | **[29_supabase_bundle_sql.md](./29_supabase_bundle_sql.md)** |
-| AI 리포트 10분 | **[30_edge_ai_report.md](./30_edge_ai_report.md)** |
+| AI 리포트 (H-002 ✅, 문제 시만) | **[30_edge_ai_report.md](./30_edge_ai_report.md)** |
 | RLS 결정 3분 | **[31_rls_beta_decision.md](./31_rls_beta_decision.md)** |
 | 회고록 SQL 3분 | **[32_retrospective_sql.md](./32_retrospective_sql.md)** |
 | CI 시크릿 10분 | **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** |
@@ -30,7 +30,6 @@
 |------|----|----------|------|-------------|----------------|
 | [ ] | H-001 | 높음 | RLS Beta 결정 — **[31](./31_rls_beta_decision.md)** · 승인 후 **[33 JWT](./33_firebase_supabase_jwt_setup.md)** | DB 행 단위 보안 | “RLS 적용 승인” 또는 “RLS 보류” |
 | [ ] | H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
-| [ ] | H-005 | 낮음 | **프로덕션 배포** GO/NO-GO — [`deploy_vercel_checklist.md`](../for_agent/deploy_vercel_checklist.md) 따라 Vercel 연결·`VITE_*` 설정 | 실제 서비스 공개 | 배포 URL 공유 |
 | [ ] | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
 
 ---
@@ -39,6 +38,7 @@
 
 | ID | 완료 시각 | 할 일 |
 |----|-----------|------|
+| H-005 | 2026-05-22 | **프로덕션 배포** — `vercel --prod` · Production https://git-test-cp.vercel.app (`VITE_*` Vercel 설정) |
 | H-011 | 2026-05-22 14:13:32 | **원클릭 SQL** — MCP 적용·`verify:archived-kim` evalReady·reportOk |
 | H-010 | 2026-05-22 14:13:32 | 교수 평가 DB·시드 (H-011 포함) |
 | H-009 | 2026-05-22 14:13:32 | 회고록 DB·시드 (H-011 포함) |
@@ -54,6 +54,7 @@
 
 | 시각 | ID | 결과 | 메모 |
 |------|----|------|------|
+| 2026-05-22 | H-005 | pass | 사용자 「H-005 완료」·`vercel --prod` Production https://git-test-cp.vercel.app |
 | 2026-05-22 | H-003 | pass | 사용자 「H-003 완료」·`.env` E2E_TEST_* 설정 확인 |
 | 2026-05-22 14:13:32 | H-011 | pass | `verify:archived-kim` ok (evalReady=true, feedback=2) |
 | 2026-05-22 14:13:32 | H-010 | pass | 교수 평가 테이블·시드 확인 |

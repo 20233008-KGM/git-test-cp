@@ -48,11 +48,15 @@ function MyTeamSideNavGroup({
   courseTab,
   myTeamId,
   disabled,
+  showMembersLink = true,
+  showTeamManage = true,
 }: {
   courseId: string | undefined;
   courseTab: string;
   myTeamId: string | null;
   disabled: boolean;
+  showMembersLink?: boolean;
+  showTeamManage?: boolean;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -170,26 +174,30 @@ function MyTeamSideNavGroup({
                 팀 참여하기
               </SideNavItem>
             )}
-            <SideNavItem
-              to={membersPath}
-              data-testid="course-detail-side-my-team-members"
-              onClick={() => setOpen(false)}
-              tabIndex={expanded ? 0 : -1}
-              active={isMembersActive}
-              sub
-            >
-              나의 팀 멤버
-            </SideNavItem>
-            <SideNavItem
-              to={managePath}
-              data-testid="course-detail-side-team-manage"
-              onClick={() => setOpen(false)}
-              tabIndex={expanded ? 0 : -1}
-              active={isManageActive}
-              sub
-            >
-              팀 관리
-            </SideNavItem>
+            {showMembersLink && (
+              <SideNavItem
+                to={membersPath}
+                data-testid="course-detail-side-my-team-members"
+                onClick={() => setOpen(false)}
+                tabIndex={expanded ? 0 : -1}
+                active={isMembersActive}
+                sub
+              >
+                나의 팀 멤버
+              </SideNavItem>
+            )}
+            {showTeamManage && (
+              <SideNavItem
+                to={managePath}
+                data-testid="course-detail-side-team-manage"
+                onClick={() => setOpen(false)}
+                tabIndex={expanded ? 0 : -1}
+                active={isManageActive}
+                sub
+              >
+                팀 관리
+              </SideNavItem>
+            )}
           </div>
         </div>
       </div>
@@ -331,12 +339,14 @@ function CourseSideNavigation() {
                   >
                     {item.label}
                   </SideNavItem>
-                  {isStudent && (
+                  {(isStudent || isProfessor || isAdmin) && (
                     <MyTeamSideNavGroup
                       courseId={courseId}
                       courseTab={courseTab}
                       myTeamId={myTeamId}
                       disabled={!courseId}
+                      showMembersLink={isStudent}
+                      showTeamManage={isStudent}
                     />
                   )}
                 </React.Fragment>

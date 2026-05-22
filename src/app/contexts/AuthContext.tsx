@@ -42,6 +42,7 @@ type AiUserRow = {
   name: string;
   role: UserRole;
   student_number?: string | null;
+  school?: string | null;
   major?: string | null;
   skills?: unknown;
   bio?: string | null;
@@ -72,6 +73,7 @@ function toProfile(userData: AiUserRow): AdminProfile | StudentProfile | Profess
       email: userData.email,
       role: "student",
       studentId: userData.student_number ?? "",
+      school: userData.school?.trim() || "숭실대학교",
       major: userData.major ?? "",
       skills: asArray<string>(userData.skills),
       bio: userData.bio ?? undefined,
