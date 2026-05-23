@@ -4,7 +4,7 @@ import { api } from "../api/supabase-api";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
-import type { Course, StudentProfile, TeamMember } from "../types";
+import type { Course, CourseMaterial, StudentProfile, TeamMember } from "../types";
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +18,10 @@ export default function CourseDetailPage() {
   const [selectedMemberProfile, setSelectedMemberProfile] = useState<StudentProfile | null>(null);
   const [memberProfileLoading, setMemberProfileLoading] = useState(false);
   const [memberProfileError, setMemberProfileError] = useState<string | null>(null);
+  const [courseMaterials, setCourseMaterials] = useState<CourseMaterial[]>([]);
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
   const { isProfessor, isAdmin, isStudent, user } = useAuth();
+  const canManageMaterials = isProfessor || isAdmin;
 
   const openMemberProfile = async (memberId: string) => {
     if (memberId === user?.id) return;
@@ -54,14 +57,43 @@ export default function CourseDetailPage() {
   useEffect(() => {
     if (!id) return;
 
-    void Promise.all([api.courses.getById(id), api.teamCards.getAll(id)]).then(([courseData, teamCards]) => {
+    void Promise.all([
+      api.courses.getById(id),
+      api.teamCards.getAll(id),
+      api.courses.listMaterials(id),
+    ]).then(([courseData, teamCards, materials]) => {
       setCourse(courseData || null);
       const myTeam = teamCards.find((team) => team.members.some((member) => member.id === user?.id));
       setMyTeamId(myTeam?.id ?? null);
       setMyTeamMembers(myTeam?.members ?? []);
+      setCourseMaterials(materials);
       setLoading(false);
     });
   }, [id, user?.id]);
+
+  const handleUploadCourseMaterial = async (file: File) => {
+    if (!id || !file) return;
+    setUploadingMaterial(true);
+    try {
+      const created = await api.courses.uploadMaterial(id, file);
+      setCourseMaterials((prev) => [created, ...prev]);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : "강의 자료 업로드에 실패했습니다.");
+    } finally {
+      setUploadingMaterial(false);
+    }
+  };
+
+  const handleDeleteCourseMaterial = async (materialId: string) => {
+    if (!window.confirm("이 강의 자료를 삭제할까요?")) return;
+    try {
+      await api.courses.deleteMaterial(materialId);
+      setCourseMaterials((prev) => prev.filter((item) => item.id !== materialId));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "삭제에 실패했습니다.");
+    }
+  };
 
   const myTeamPeerReviewPath = useMemo(() => {
     if (!id || !myTeamId) return null;
@@ -198,6 +230,65 @@ export default function CourseDetailPage() {
                   </ol>
                 </div>
               )}
+
+              <div className="mt-8" data-testid="course-materials-section">
+                <h3 className="mb-3 font-bold text-gray-900">강의계획서 · 강의 자료</h3>
+                {courseMaterials.length === 0 ? (
+                  <p className="text-sm text-gray-500">등록된 자료가 없습니다.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {courseMaterials.map((material) => (
+                      <li
+                        key={material.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900">{material.title}</p>
+                          <p className="text-xs text-gray-500">
+                            {material.fileName} · {material.uploaderName}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href={material.publicUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-blue-600 hover:underline"
+                          >
+                            다운로드
+                          </a>
+                          {canManageMaterials && course.status !== "archived" && (
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteCourseMaterial(material.id)}
+                              className="text-xs font-medium text-red-600 hover:underline"
+                            >
+                              삭제
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {canManageMaterials && course.status !== "archived" && (
+                  <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100">
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.ppt,.pptx,.doc,.docx,.zip,.hwp,.hwpx"
+                      disabled={uploadingMaterial}
+                      data-testid="course-material-upload-input"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) void handleUploadCourseMaterial(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    {uploadingMaterial ? "업로드 중…" : "+ 강의 자료 업로드"}
+                  </label>
+                )}
+              </div>
             </div>
           )}
 

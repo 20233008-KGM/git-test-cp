@@ -1,4 +1,5 @@
 import type { StudentProfile } from "../types";
+import AppModal from "./layout/AppModal";
 import UserAvatar from "./UserAvatar";
 import { LoadingSpinner } from "./layout/PageLoading";
 
@@ -15,21 +16,17 @@ export default function StudentQuickProfileModal({
   errorMessage,
   onClose,
 }: StudentQuickProfileModalProps) {
-  if (!loading && !profile && !errorMessage) return null;
+  const open = loading || profile != null || Boolean(errorMessage);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="student-quick-profile-overlay"
+    <AppModal
+      open={open}
+      onClose={onClose}
+      testId="student-quick-profile-overlay"
+      ariaLabel="수강생 프로필"
+      panelClassName="max-w-md rounded-[14px] p-6 shadow-2xl"
     >
-      <div
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[14px] bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="student-quick-profile-modal"
-      >
+      <div data-testid="student-quick-profile-modal">
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="text-lg font-bold text-[#101828]">수강생 프로필</h2>
           <button
@@ -95,6 +92,6 @@ export default function StudentQuickProfileModal({
           </div>
         )}
       </div>
-    </div>
+    </AppModal>
   );
 }

@@ -1,6 +1,7 @@
 import React, { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../api/supabase-api";
+import AppModal from "../components/layout/AppModal";
 import M3Button from "../components/layout/M3Button";
 import PageHeader from "../components/layout/PageHeader";
 import PageLoading from "../components/layout/PageLoading";
@@ -221,7 +222,7 @@ export default function CoursesPage() {
         <form
           onSubmit={handleJoinCourse}
           data-testid="courses-join-by-code-banner"
-          className="cc-alert-info mb-6 flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-end sm:gap-4 sm:p-5"
+          className="cc-alert-info cc-courses-join-row mb-6 rounded-2xl p-4 sm:p-5"
         >
           <div className="flex-1">
             <label htmlFor="courses-join-code-banner" className="cc-label mb-1 block font-bold">
@@ -241,7 +242,12 @@ export default function CoursesPage() {
               required
             />
           </div>
-          <M3Button type="submit" variant="filled" disabled={joining} className="sm:shrink-0">
+          <M3Button
+            type="submit"
+            variant="filled"
+            disabled={joining}
+            className="cc-courses-join-submit inline-flex shrink-0 items-center justify-center leading-none"
+          >
             {joining ? "등록 중..." : "수업 등록"}
           </M3Button>
         </form>
@@ -300,15 +306,16 @@ export default function CoursesPage() {
         </div>
       )}
 
-      {showCreateModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-8"
-          onClick={() => setShowCreateModal(false)}
-        >
+      <AppModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        testId="courses-create-modal-overlay"
+        ariaLabel="수업 생성"
+        panelClassName="max-h-[90vh] max-w-2xl !p-0 overflow-y-auto"
+      >
           <form
             onSubmit={handleCreateCourse}
-            onClick={(event) => event.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className="w-full p-6"
           >
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
@@ -447,8 +454,7 @@ export default function CoursesPage() {
               </button>
             </div>
           </form>
-        </div>
-      )}
+      </AppModal>
     </div>
   );
 }

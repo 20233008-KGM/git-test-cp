@@ -277,6 +277,40 @@
   flex: 1 1 0%;
 }
 
+/** vision #62 — 사이드 네비 레이아웃에서 로딩·빈 상태가 본문 열 중앙에 오도록 */
+.cc-page-main--with-side-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: min(60vh, calc(100dvh - var(--cc-nav-height) - 3rem));
+}
+
+/** vision #81 — 기본 프로필 (카카오톡 스타일 단색 + 실루엣) */
+.cc-default-avatar {
+  background: linear-gradient(180deg, #e8edf2 0%, #d4dbe3 100%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+/** vision #82 — 수업 코드 등록 행 버튼 세로 중앙 */
+.cc-courses-join-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .cc-courses-join-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .cc-courses-join-row .cc-courses-join-submit {
+    align-self: center;
+    margin-top: 0;
+  }
+}
+
 /** 첫 화면: 상단 네비 + 메인만 보이고 푸터는 스크롤 후 노출 */
 .cc-main-viewport {
   min-height: calc(100dvh - var(--cc-nav-height));

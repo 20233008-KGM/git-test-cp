@@ -19,6 +19,7 @@ import Footer from "../components/Footer";
 import Navigation from "../components/Navigation";
 import SkipLink from "../components/SkipLink";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import ScrollToTop from "../components/layout/ScrollToTop";
 import { getAppShellClassName } from "./appShell";
 
 function courseNavIcon(key: string) {
@@ -268,7 +269,16 @@ function CourseSideNavigation() {
       key: "teams",
       label: "팀",
       path: courseId ? `/app/courses/${courseId}/teams` : "/app/teams",
-      active: location.pathname.startsWith(courseId ? `/app/courses/${courseId}/teams` : "/app/teams"),
+      active: (() => {
+        const base = courseId ? `/app/courses/${courseId}/teams` : "/app/teams";
+        if (location.pathname === base || location.pathname === `${base}/random`) return true;
+        if (!courseId || !myTeamId) return false;
+        const myTeamPrefix = `/app/courses/${courseId}/teams/${myTeamId}`;
+        if (location.pathname === myTeamPrefix || location.pathname.startsWith(`${myTeamPrefix}/`)) {
+          return false;
+        }
+        return location.pathname.startsWith(`${base}/`);
+      })(),
       disabled: !courseId,
       testId: "course-detail-side-teams",
     },
@@ -339,14 +349,14 @@ function CourseSideNavigation() {
                   >
                     {item.label}
                   </SideNavItem>
-                  {(isStudent || isProfessor || isAdmin) && (
+                  {isStudent && (
                     <MyTeamSideNavGroup
                       courseId={courseId}
                       courseTab={courseTab}
                       myTeamId={myTeamId}
                       disabled={!courseId}
-                      showMembersLink={isStudent}
-                      showTeamManage={isStudent}
+                      showMembersLink
+                      showTeamManage
                     />
                   )}
                 </React.Fragment>
@@ -381,6 +391,7 @@ export default function MainLayout() {
 
   return (
     <div className="flex w-full flex-col bg-[var(--cc-surface-container)]">
+      <ScrollToTop />
       <SkipLink />
       <Navigation />
       <main id="main-content" className="cc-main-viewport w-full" tabIndex={-1}>
@@ -389,7 +400,7 @@ export default function MainLayout() {
             className={`flex w-full flex-col gap-4 py-4 sm:gap-6 sm:py-6 lg:flex-row lg:items-start ${appShellClass}`}
           >
             <CourseSideNavigation />
-            <div className="cc-page-main">
+            <div className="cc-page-main cc-page-main--with-side-nav">
               <Outlet />
             </div>
           </div>

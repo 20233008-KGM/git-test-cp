@@ -6,6 +6,7 @@ import type {
   StudentProfile,
   ProfessorProfile,
   TeamCard,
+  Activity,
   Announcement,
   NetworkStudent,
   StudentExtra,
@@ -29,6 +30,7 @@ import type {
   TroubleshootingLog,
   TeamDeliverable,
   TeamDeliverableSubmitMeta,
+  CourseMaterial,
   Project,
   Question,
   Answer,
@@ -583,9 +585,100 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
   const teams = teamsResult.data ?? [];
   const members = membersResult.data ?? [];
   const activities = activitiesResult.data ?? [];
+  const teamIds = teams.map((team) => team.id);
+
+  let deliverableRows: {
+    team_id: string;
+    file_name: string;
+    storage_path: string | null;
+    mime_type: string | null;
+    created_at: string;
+  }[] = [];
+  let troubleshootingRows: {
+    team_id: string;
+    problem: string;
+    display_timestamp: string;
+    sort_order: number;
+  }[] = [];
+
+  if (teamIds.length > 0) {
+    const [deliverablesResult, troubleshootingResult] = await Promise.all([
+      supabase
+        .from("ai_team_deliverables")
+        .select("team_id, file_name, storage_path, mime_type, created_at")
+        .in("team_id", teamIds)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("ai_team_detail_troubleshooting_logs")
+        .select("team_id, problem, display_timestamp, sort_order")
+        .in("team_id", teamIds)
+        .order("sort_order", { ascending: false }),
+    ]);
+
+    if (!deliverablesResult.error) deliverableRows = deliverablesResult.data ?? [];
+    if (!troubleshootingResult.error) troubleshootingRows = troubleshootingResult.data ?? [];
+  }
+
   const memberUsers = await getUsersByIds(
     Array.from(new Set(members.map((member) => member.user_id).filter(Boolean)))
   );
+
+  const formatActivityTime = (iso?: string) => {
+    if (!iso) return "";
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return iso;
+    return parsed.toLocaleString("ko-KR", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const buildComputedActivities = (teamId: string): Activity[] => {
+    const computed: Activity[] = [];
+    for (const row of deliverableRows.filter((item) => item.team_id === teamId).slice(0, 4)) {
+      const isLink =
+        (row.storage_path ?? "").startsWith("link://") || row.mime_type === "text/url";
+      computed.push({
+        tag: isLink ? "링크" : "산출물",
+        title: isLink ? "새 링크 등록!" : "새 소스 업로드!",
+        description: row.file_name,
+        time: formatActivityTime(row.created_at),
+      });
+    }
+    for (const row of troubleshootingRows.filter((item) => item.team_id === teamId).slice(0, 4)) {
+      const problem = (row.problem ?? "").trim();
+      computed.push({
+        tag: "트러블슈팅",
+        title: "트러블슈팅 등록",
+        description: problem.length > 80 ? `${problem.slice(0, 80)}…` : problem,
+        time: row.display_timestamp,
+      });
+    }
+    return computed;
+  };
+
+  const mergeTeamActivities = (teamId: string): Activity[] => {
+    const fromDb = activities
+      .filter((activity) => activity.team_id === teamId)
+      .map((activity) => ({
+        tag: activity.tag,
+        title: activity.title,
+        description: activity.description,
+        time: activity.display_time,
+      }));
+    if (fromDb.length >= 2) return fromDb.slice(0, 2);
+
+    const merged = [...fromDb];
+    for (const item of buildComputedActivities(teamId)) {
+      if (merged.length >= 2) break;
+      if (!merged.some((existing) => existing.title === item.title && existing.time === item.time)) {
+        merged.push(item);
+      }
+    }
+    return merged.slice(0, 2);
+  };
 
   return teams.map((team) => ({
     id: team.id,
@@ -609,15 +702,7 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
           imageUrl: user ? resolveUserImageUrl(user) : undefined,
         };
       }),
-    activities: activities
-      .filter((activity) => activity.team_id === team.id)
-      .slice(0, 2)
-      .map((activity) => ({
-        tag: activity.tag,
-        title: activity.title,
-        description: activity.description,
-        time: activity.display_time,
-      })),
+    activities: mergeTeamActivities(team.id),
   }));
 }
 
@@ -1378,6 +1463,14 @@ async function getMyPageProjectsForUserFromDb(): Promise<MyPageProject[]> {
   }
 }
 
+const DEFAULT_TEAM_FEEDBACK_OPTIONS = [
+  "실용적이에요",
+  "신선해요",
+  "아이디어가 좋아요",
+  "UI/UX가 좋아요",
+  "개선이 필요해요",
+] as const;
+
 async function getTeamDetailConfigFromDb(teamId?: string) {
   if (!teamId) throw new Error("Team id is required for team detail config.");
 
@@ -1387,8 +1480,23 @@ async function getTeamDetailConfigFromDb(teamId?: string) {
     .eq("team_id", teamId)
     .maybeSingle();
 
-  if (error) throw error;
-  if (!data) throw new Error("Team detail config data was not found.");
+  if (error) {
+    if (isMissingRelationError(error)) {
+      return {
+        feedback_options: [...DEFAULT_TEAM_FEEDBACK_OPTIONS],
+        good_keywords: [],
+        bad_keywords: [],
+      };
+    }
+    throw error;
+  }
+  if (!data) {
+    return {
+      feedback_options: [...DEFAULT_TEAM_FEEDBACK_OPTIONS],
+      good_keywords: [],
+      bad_keywords: [],
+    };
+  }
 
   return data;
 }
@@ -2261,7 +2369,44 @@ async function getTeamDetailReviewKeywordsFromDb(teamId?: string) {
 
 async function getTeamDetailFeedbackOptionsFromDb(teamId?: string): Promise<string[]> {
   const config = await getTeamDetailConfigFromDb(teamId);
-  return asArray<string>(config.feedback_options);
+  const options = asArray<string>(config.feedback_options);
+  return options.length > 0 ? options : [...DEFAULT_TEAM_FEEDBACK_OPTIONS];
+}
+
+async function recordTeamActivityInDb(
+  teamId: string,
+  input: { tag: string; title: string; description: string }
+): Promise<void> {
+  const { data: latest, error: orderError } = await supabase
+    .from("ai_team_activities")
+    .select("sort_order")
+    .eq("team_id", teamId)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (orderError) {
+    if (isMissingRelationError(orderError)) return;
+    throw orderError;
+  }
+
+  const nextOrder = (latest?.[0]?.sort_order ?? 0) + 1;
+  const displayTime = new Date().toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const { error } = await supabase.from("ai_team_activities").insert({
+    team_id: teamId,
+    tag: input.tag,
+    title: input.title,
+    description: input.description.slice(0, 240),
+    display_time: displayTime,
+    sort_order: nextOrder,
+  });
+
+  if (error && !isMissingRelationError(error)) throw error;
 }
 
 async function getTeamMembersWithNamesFromDb(teamId: string) {
@@ -2535,7 +2680,14 @@ async function createTroubleshootingLogInDb(
 
   if (error) throw error;
 
-  return mapTroubleshootingLogRow(data);
+  const mapped = mapTroubleshootingLogRow(data);
+  void recordTeamActivityInDb(teamId, {
+    tag: "트러블슈팅",
+    title: "트러블슈팅 등록",
+    description: problem,
+  }).catch((activityError) => console.warn("팀 활동 기록 실패:", activityError));
+
+  return mapped;
 }
 
 async function getTroubleshootingLogById(logId: string) {
@@ -2723,7 +2875,28 @@ function normalizeDeliverableUrl(rawUrl: string): string {
 }
 
 const DELIVERABLE_SELECT_COLUMNS =
-  "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, storage_path, description, created_at";
+  "id, team_id, course_id, uploaded_by_user_id, uploader_name, file_name, file_size, mime_type, public_url, storage_path, description, subtitle, created_at";
+
+const DELIVERABLE_LINK_LINE_PREFIX = "🔗 배포 링크: ";
+
+function appendDeployLinkToDescription(
+  description: string | null | undefined,
+  linkUrl?: string
+): string | null {
+  const trimmedLink = linkUrl?.trim();
+  if (!trimmedLink) return description?.trim() || null;
+  const normalized = normalizeDeliverableUrl(trimmedLink);
+  const line = `${DELIVERABLE_LINK_LINE_PREFIX}${normalized}`;
+  const base = description?.trim() || "";
+  if (base.includes(normalized)) return base || null;
+  return base ? `${base}\n\n${line}` : line;
+}
+
+export function extractDeployLinkFromDescription(description?: string | null): string | null {
+  if (!description) return null;
+  const match = description.match(/🔗 배포 링크:\s*(https?:\/\/\S+)/i);
+  return match?.[1] ?? null;
+}
 
 function resolveDeliverableDisplayName(
   fileName: string,
@@ -2758,6 +2931,7 @@ function mapDeliverableRow(row: {
   public_url: string;
   storage_path?: string | null;
   description?: string | null;
+  subtitle?: string | null;
   created_at: string;
 }): TeamDeliverable {
   const isLink = isDeliverableLinkRow(row);
@@ -2772,6 +2946,7 @@ function mapDeliverableRow(row: {
     mimeType: row.mime_type ?? undefined,
     publicUrl: row.public_url,
     kind: isLink ? "link" : "file",
+    subtitle: row.subtitle?.trim() || undefined,
     description: row.description?.trim() || undefined,
     createdAt: asDate(row.created_at),
   };
@@ -2859,7 +3034,8 @@ async function uploadTeamDeliverableInDb(
 
   const { data: urlData } = supabase.storage.from(TEAM_DELIVERABLES_BUCKET).getPublicUrl(storagePath);
   const now = new Date().toISOString();
-  const description = meta?.description?.trim() || null;
+  const description = appendDeployLinkToDescription(meta?.description, meta?.linkUrl);
+  const subtitle = meta?.subtitle?.trim() || null;
   const displayName = resolveDeliverableDisplayName(file.name, meta);
 
   const { data, error } = await supabase
@@ -2871,6 +3047,7 @@ async function uploadTeamDeliverableInDb(
       uploaded_by_user_id: currentUser.id,
       uploader_name: currentUser.name,
       file_name: displayName,
+      subtitle,
       description,
       storage_path: storagePath,
       file_size: file.size,
@@ -2887,12 +3064,19 @@ async function uploadTeamDeliverableInDb(
     throw error;
   }
 
-  return mapDeliverableRow(data);
+  const mapped = mapDeliverableRow(data);
+  void recordTeamActivityInDb(teamId, {
+    tag: "산출물",
+    title: "새 소스 업로드!",
+    description: displayName,
+  }).catch((activityError) => console.warn("팀 활동 기록 실패:", activityError));
+
+  return mapped;
 }
 
 async function addTeamDeliverableLinkInDb(
   teamId: string,
-  input: { url: string; title?: string; description?: string }
+  input: { url: string; title?: string; subtitle?: string; description?: string }
 ): Promise<TeamDeliverable> {
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
@@ -2903,6 +3087,7 @@ async function addTeamDeliverableLinkInDb(
   const parsed = new URL(normalizedUrl);
   const fallbackName = `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;
   const title = input.title?.trim() || fallbackName;
+  const subtitle = input.subtitle?.trim() || null;
   const description = input.description?.trim() || null;
   const now = new Date().toISOString();
   const deliverableId = createDeliverableId(teamId);
@@ -2916,6 +3101,7 @@ async function addTeamDeliverableLinkInDb(
       uploaded_by_user_id: currentUser.id,
       uploader_name: currentUser.name,
       file_name: title,
+      subtitle,
       description,
       storage_path: `link://${deliverableId}`,
       file_size: 0,
@@ -2928,7 +3114,15 @@ async function addTeamDeliverableLinkInDb(
     .single();
 
   if (error) throw error;
-  return mapDeliverableRow(data);
+
+  const mapped = mapDeliverableRow(data);
+  void recordTeamActivityInDb(teamId, {
+    tag: "링크",
+    title: "새 링크 등록!",
+    description: title,
+  }).catch((activityError) => console.warn("팀 활동 기록 실패:", activityError));
+
+  return mapped;
 }
 
 async function deleteTeamDeliverableInDb(deliverableId: string): Promise<void> {
@@ -2981,10 +3175,162 @@ async function assertCanModifyDeliverable(
   }
 }
 
+const COURSE_MATERIALS_BUCKET = "ai_course_materials";
+const COURSE_MATERIAL_MAX_BYTES = 100 * 1024 * 1024;
+
+function toCourseMaterialStorageError(error: { message?: string }): Error {
+  const raw = error.message ?? "업로드에 실패했습니다.";
+  const lower = raw.toLowerCase();
+  if (lower.includes("bucket") && (lower.includes("not found") || lower.includes("not exist"))) {
+    return new Error(
+      "강의 자료 Storage 버킷이 아직 없습니다. Supabase에 `20260523205000`·`20260523210000` 마이그레이션을 적용하거나 `npm run supabase:apply-remote-full`을 실행해 주세요."
+    );
+  }
+  return new Error(raw);
+}
+
+function createCourseMaterialId(courseId: string): string {
+  const slug = courseId.replace(/[^a-z0-9]+/gi, "-").slice(0, 20);
+  return `cm-${slug}-${Date.now()}`;
+}
+
+async function getCourseMaterialsFromDb(courseId: string): Promise<CourseMaterial[]> {
+  const accessible = await getAccessibleCourseIds();
+  if (!accessible.includes(courseId)) return [];
+
+  const { data, error } = await supabase
+    .from("ai_course_materials")
+    .select(
+      "id, course_id, title, file_name, file_size, mime_type, public_url, uploader_name, created_at"
+    )
+    .eq("course_id", courseId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    courseId: row.course_id,
+    title: row.title,
+    fileName: row.file_name,
+    fileSize: Number(row.file_size ?? 0),
+    mimeType: row.mime_type ?? undefined,
+    publicUrl: row.public_url,
+    uploaderName: row.uploader_name ?? "교수",
+    createdAt: asDate(row.created_at),
+  }));
+}
+
+async function uploadCourseMaterialInDb(
+  courseId: string,
+  file: File,
+  title?: string
+): Promise<CourseMaterial> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!["professor", "admin"].includes(currentUser.role)) {
+    throw new Error("강의 자료는 교수만 업로드할 수 있습니다.");
+  }
+
+  const course = await getCourseByIdFromDb(courseId);
+  if (!course) throw new Error("수업을 찾을 수 없습니다.");
+  if (course.status === "archived") {
+    throw new Error("종료된 수업에는 자료를 업로드할 수 없습니다.");
+  }
+
+  if (file.size > COURSE_MATERIAL_MAX_BYTES) {
+    throw new Error("파일 크기는 100MB 이하여야 합니다.");
+  }
+
+  const materialId = createCourseMaterialId(courseId);
+  const extension = getDeliverableExtension(file.name);
+  const storageFileName = buildDeliverableStorageFileName(file.name, extension || "bin");
+  const storagePath = `${courseId}/${materialId}_${storageFileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(COURSE_MATERIALS_BUCKET)
+    .upload(storagePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+
+  if (uploadError) throw toCourseMaterialStorageError(uploadError);
+
+  const { data: urlData } = supabase.storage.from(COURSE_MATERIALS_BUCKET).getPublicUrl(storagePath);
+  const displayTitle = title?.trim() || file.name;
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("ai_course_materials")
+    .insert({
+      id: materialId,
+      course_id: courseId,
+      title: displayTitle,
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type || null,
+      storage_path: storagePath,
+      public_url: urlData.publicUrl,
+      uploaded_by_user_id: currentUser.id,
+      uploader_name: currentUser.name,
+      created_at: now,
+    })
+    .select(
+      "id, course_id, title, file_name, file_size, mime_type, public_url, uploader_name, created_at"
+    )
+    .single();
+
+  if (error) throw error;
+
+  return {
+    id: data.id,
+    courseId: data.course_id,
+    title: data.title,
+    fileName: data.file_name,
+    fileSize: Number(data.file_size ?? 0),
+    mimeType: data.mime_type ?? undefined,
+    publicUrl: data.public_url,
+    uploaderName: data.uploader_name ?? currentUser.name,
+    createdAt: asDate(data.created_at),
+  };
+}
+
+async function deleteCourseMaterialInDb(materialId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (!["professor", "admin"].includes(currentUser.role)) {
+    throw new Error("강의 자료는 교수만 삭제할 수 있습니다.");
+  }
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("ai_course_materials")
+    .select("id, course_id, storage_path")
+    .eq("id", materialId)
+    .maybeSingle();
+
+  if (fetchError) {
+    if (isMissingRelationError(fetchError)) throw new Error("강의 자료 기능이 아직 준비되지 않았습니다.");
+    throw fetchError;
+  }
+  if (!existing) throw new Error("자료를 찾을 수 없습니다.");
+
+  if (existing.storage_path) {
+    await supabase.storage.from(COURSE_MATERIALS_BUCKET).remove([existing.storage_path]);
+  }
+
+  const { error } = await supabase.from("ai_course_materials").delete().eq("id", materialId);
+  if (error) throw error;
+}
+
 async function updateTeamDeliverableInDb(
   deliverableId: string,
   input: {
     title?: string;
+    subtitle?: string;
     description?: string;
     url?: string;
     file?: File;
@@ -3012,8 +3358,14 @@ async function updateTeamDeliverableInDb(
   const isLink = isDeliverableLinkRow(existing);
   const now = new Date().toISOString();
   const title = input.title?.trim();
+  const subtitle =
+    input.subtitle !== undefined ? input.subtitle.trim() || null : (existing as { subtitle?: string }).subtitle ?? null;
   const description =
-    input.description !== undefined ? input.description.trim() || null : existing.description;
+    input.description !== undefined
+      ? appendDeployLinkToDescription(input.description, input.url)
+      : input.url
+        ? appendDeployLinkToDescription(existing.description, input.url)
+        : existing.description;
 
   if (isLink) {
     const url = input.url?.trim();
@@ -3025,6 +3377,7 @@ async function updateTeamDeliverableInDb(
       .from("ai_team_deliverables")
       .update({
         file_name: displayTitle,
+        subtitle,
         description,
         public_url: normalizedUrl,
         updated_at: now,
@@ -3084,6 +3437,7 @@ async function updateTeamDeliverableInDb(
     .from("ai_team_deliverables")
     .update({
       file_name: displayName,
+      subtitle,
       description,
       storage_path: storagePath,
       file_size: fileSize,
@@ -4108,6 +4462,9 @@ export const api = {
     create: createCourseInDb,
     archive: archiveCourseInDb,
     delete: deleteCourseInDb,
+    listMaterials: getCourseMaterialsFromDb,
+    uploadMaterial: uploadCourseMaterialInDb,
+    deleteMaterial: deleteCourseMaterialInDb,
   },
   memberships: {
     joinByCode: joinCourseByCodeInDb,

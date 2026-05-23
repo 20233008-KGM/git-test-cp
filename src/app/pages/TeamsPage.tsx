@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
+import AppModal from "../components/layout/AppModal";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  hasUnreadTeamActivity,
+  latestActivityFingerprint,
+  markTeamActivitiesSeen,
+} from "../utils/teamActivitySeen";
 
 import type { Activity, Announcement, Course, TeamCard } from "../types";
 
@@ -85,6 +91,7 @@ function TeamCardComponent({
   onJoin,
   onStageChange,
   canEditStages,
+  hasUnreadActivity,
 }: {
   team: TeamCard;
   stages: string[];
@@ -94,6 +101,7 @@ function TeamCardComponent({
   onJoin?: () => void;
   onStageChange?: (next: number) => void;
   canEditStages?: boolean;
+  hasUnreadActivity?: boolean;
 }) {
   return (
     <div
@@ -104,7 +112,15 @@ function TeamCardComponent({
       }`}
     >
       {/* 카드 상단의 파란 그라데이션 영역입니다. 팀 이름과 뱃지를 보여줍니다. */}
-      <div className="bg-gradient-to-r from-[#3676ff] to-[#003ecc] px-5 py-5 border-b border-black/10 flex-shrink-0">
+      <div className="relative bg-gradient-to-r from-[#3676ff] to-[#003ecc] px-5 py-5 border-b border-black/10 flex-shrink-0">
+        {hasUnreadActivity && (
+          <span
+            data-testid="team-card-activity-unread"
+            className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full bg-red-400 ring-2 ring-white"
+            title="확인하지 않은 새 활동"
+            aria-hidden
+          />
+        )}
         <p className="mb-1 text-2xl font-black leading-tight text-white xl:text-xl">
           {team.name}
         </p>
@@ -399,15 +415,13 @@ export default function TeamsPage() {
           )}
         </div>
 
-        {showCreateModal && courseId && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={closeCreateModal}
-          >
-            <div
-              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
+        <AppModal
+          open={Boolean(showCreateModal && courseId)}
+          onClose={closeCreateModal}
+          testId="teams-create-modal-overlay"
+          ariaLabel="새 팀 만들기"
+          panelClassName="max-w-lg"
+        >
               <h2 className="mb-4 text-lg font-bold text-gray-900">새 팀 만들기</h2>
               <div className="flex flex-col gap-3">
                 <input
@@ -517,9 +531,7 @@ export default function TeamsPage() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+        </AppModal>
 
         {isArchived && (
           <div className="mb-6 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600">
@@ -534,12 +546,16 @@ export default function TeamsPage() {
         >
           {teams.map((team) => {
             const isMyTeam = Boolean(user?.id && team.members.some((member) => member.id === user.id));
+            const unread =
+              Boolean(courseId && user?.id) &&
+              hasUnreadTeamActivity(courseId, user.id, team.id, team.activities);
             return (
               <TeamCardComponent
                 key={team.id}
                 team={team}
                 stages={stages}
                 isMyTeam={isMyTeam}
+                hasUnreadActivity={unread}
                 showJoinActions={isStudent && !isArchived && !hasMyTeamInCourse}
                 onJoin={async () => {
                   try {
@@ -558,11 +574,19 @@ export default function TeamsPage() {
                     alert(error instanceof Error ? error.message : "진행 단계 저장에 실패했습니다.");
                   }
                 }}
-                onClick={() =>
+                onClick={() => {
+                  if (courseId && user?.id) {
+                    markTeamActivitiesSeen(
+                      courseId,
+                      user.id,
+                      team.id,
+                      latestActivityFingerprint(team.activities)
+                    );
+                  }
                   navigate(
                     courseId ? `/app/courses/${courseId}/teams/${team.id}` : `/app/teams/${team.id}`
-                  )
-                }
+                  );
+                }}
               />
             );
           })}

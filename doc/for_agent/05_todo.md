@@ -1,7 +1,7 @@
 ﻿# 05 — TODO (우선순위)
 
 > **관련:** `02_current_state.md` · `17_handoff.md` · `28_human_action_items.md`  
-> **마지막 갱신:** 2026-05-22
+> **마지막 갱신:** 2026-05-23
 
 ## 상태 표기
 
@@ -200,9 +200,49 @@
 | T-182 | E2E #6 A4 testid · ai-report·Edge README 구 라벨 | [o] | `mypage-a4-print-button` |
 | T-183 | vision #55 빈 수업 목록 수업코드 등록 UI 이중 제거 | [o] | `CoursesPage` · E2E #48 |
 | T-184 | vision #56~#59 프로필 여백·이메일 안내·수강자들→profile·로그인 푸터 | [o] | `260522-47.md` · `MyPageProfilePage` · `LandingPage` |
+| T-185 | vision #70 피드백 옵션 기본값·버튼 내 집계 | [o] | `DEFAULT_TEAM_FEEDBACK_OPTIONS` · TeamDetailPage |
+| T-186 | vision #69 「팀」/「내 팀」 active 분리 | [o] | `MainLayout` teams nav |
+| T-187 | vision #64 라우트 변경 시 scroll top | [o] | `ScrollToTop.tsx` |
+| T-188 | vision #63 기본 프로필 아바타 | [o] | `UserAvatar` · lucide User |
+| T-189 | vision #61·#66 로그인·수업등록 버튼 | [o] | `LandingPage` · `CoursesPage` |
+| T-190 | vision #77 팀카드 최신 활동 | [o] | `recordTeamActivityInDb` · computed merge |
+| T-191 | vision #68 새 팀 모달 viewport 중앙 | [o] | `AppModal` portal · TeamsPage |
+| T-192 | vision #62·#79 로딩·AI요약 shimmer | [o] | `cc-page-main--with-side-nav` · `GeminiShimmerPanel` |
+| T-193 | vision #72 산출물 링크·파일 통합 게시 | [o] | `appendDeployLinkToDescription` · submit 로직 |
+| T-194 | vision #73 산출물 상세·부제목·수정 모달 | [o] | `TeamDeliverableDetailModal` · `subtitle` |
+| T-195 | vision #74·#75 TS 디자인·수정 모달 | [o] | `TeamTroubleshootingEditModal` · 토큰 UI |
+| T-196 | vision #71 대용량 업로드 로딩 | [o] | `AiGeneratingIndicator` in deliverable modal |
+| T-197 | vision #67 팀카드 미확인 활동 | [o] | `teamActivitySeen.ts` |
+| T-198 | vision #60 강의 자료 업로드 | [o] | `ai_course_materials` · `CourseDetailPage` |
+| T-199 | vision #80 주요 모달 AppModal | [o] | deliverable·TS·teams create |
+| T-200 | vision #81 카카오 기본 프로필 | [o] | `UserAvatar` · `cc-default-avatar` |
+| T-201 | vision #82 수업코드 등록 버튼 정렬 | [o] | `cc-courses-join-row` |
+| T-202 | vision #80 전역 모달 AppModal | [o] | TeamDetail·Courses·MyPage·Network |
+| T-203 | vision #84 교수 「팀 참여하기」 숨김 | [o] | `MainLayout` 학생만 `MyTeamSideNavGroup` |
+| T-204 | vision #83 강의자료 Storage | [o] | 마이그레이션 · `apply_remote_full` 빌드 · H-012 |
+
+### vision #60~#84 (신규, 2026-05-23)
+
+| ID | vision | 상태 | 비고 |
+|----|--------|------|------|
+| — | #60 강의자료 업로드 | [o] | T-198 |
+| — | #65 사이드 네비 sticky | [o] | 기존 `AppSideNav` sticky (확인) |
+| — | #67 팀카드 미확인 알림 | [o] | T-197 |
+| — | #71 대용량 업로드 UX | [o] | T-196 |
+| — | #72~#75 산출물·TS UX | [o] | T-193~T-195 |
+| — | #76 리포트 TS 필터 | [o] | `gatherAiReportContext` archived 팀만 (기존) |
+| — | #78 팀 스테이지 관리 | [o] | `updateCompletedStages` (기존) |
+| — | #80 전역 모달 portal | [o] | T-199·T-202 |
+| — | #81·#82 프로필·수업등록 UI | [o] | T-200·T-201 |
+| — | #83 강의자료 버킷 | 🔶 | T-204 · H-012 원격 SQL |
+| — | #84 교수 네비 | [o] | T-203 |
 
 ## 완료됨 (최근)
 
+- [o] T-203~T-204 vision #83·#84 (2026-05-23, plans/260523-4.md)
+- [o] T-200~T-202 vision #81·#82·#80 (2026-05-23, plans/260523-3.md)
+- [o] T-193~T-199 vision #60·#67·#71~#75 (2026-05-23, plans/260523-2.md)
+- [o] T-185~T-192 vision #61~#70·#77·#79 (2026-05-23, plans/260523-1.md)
 - [o] T-184 vision #56~59 (2026-05-22, plans/260522-47.md)
 - [o] T-182~T-183 E2E A4·vision #55 (2026-05-22, plans/260522-5.md)
 - [o] T-181 vision #54 더미 스크린샷 칸 제거 (2026-05-22, plans/260522-3.md)

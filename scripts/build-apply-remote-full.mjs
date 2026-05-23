@@ -23,6 +23,14 @@ const hotPathIndexes = fs.readFileSync(
   path.join(root, "supabase/migrations/20260521061800_hot_path_membership_indexes.sql"),
   "utf8"
 );
+const courseMaterials = fs.readFileSync(
+  path.join(root, "supabase/migrations/20260523205000_course_materials_deliverable_subtitle.sql"),
+  "utf8"
+);
+const courseMaterialsStorage = fs.readFileSync(
+  path.join(root, "supabase/migrations/20260523210000_course_materials_storage_policies.sql"),
+  "utf8"
+);
 
 const out =
   header +
@@ -30,6 +38,10 @@ const out =
   bundleV2 +
   "\n\n-- ========== 2. 김학생 아카이브 수업·시드 ==========\n\n" +
   seedBundle +
+  "\n\n-- ========== 2b. 강의 자료·Storage (vision #60·#83) ==========\n\n" +
+  courseMaterials +
+  "\n\n" +
+  courseMaterialsStorage +
   "\n\n-- ========== 3. 조회 인덱스 (멤버십·팀·수업) ==========\n\n" +
   hotPathIndexes;
 

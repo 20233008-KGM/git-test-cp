@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
+import AppModal from "../components/layout/AppModal";
 import MyPageShell from "../components/mypage/MyPageShell";
 import AiReportPrintView from "../components/AiReportPrintView";
 import StudentReportA4Sheet, {
@@ -1113,18 +1114,14 @@ export default function MyPage() {
         )}
         </div>
 
-      {/* 프로젝트 상세 모달 */}
-      {selectedProject && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          data-testid="mypage-project-detail-modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedProject(null);
-          }}
-        >
-          <div className="bg-white rounded-[10px] w-[min(1302px,95vw)] max-h-[90vh] overflow-y-auto">
+      <AppModal
+        open={selectedProject != null}
+        onClose={() => setSelectedProject(null)}
+        testId="mypage-project-detail-modal-overlay"
+        ariaLabel="프로젝트 상세 경력"
+        panelClassName="!p-0 w-[min(1302px,95vw)] max-w-none overflow-y-auto rounded-[10px]"
+      >
+          <div className="bg-white">
             {/* 모달 헤더 */}
             <div className="flex items-start justify-between px-8 pt-7 pb-4 border-b border-[#e5e7eb]">
               <h2 className="text-[20px] font-bold text-[#101828]">프로젝트 상세 경력</h2>
@@ -1244,8 +1241,7 @@ export default function MyPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+      </AppModal>
     </MyPageShell>
   );
 }

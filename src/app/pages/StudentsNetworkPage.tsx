@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Search, BookOpen, Clock, MapPin, FlaskConical, User, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
+import AppModal from "../components/layout/AppModal";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
 import type { Course, ProfessorProfile } from "../types";
@@ -367,18 +368,14 @@ function StudentProfileModal({
   const bioIsPlaceholder = extra.detailedBio === NETWORK_BIO_PLACEHOLDER;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="student-profile-modal-overlay"
+    <AppModal
+      open
+      onClose={onClose}
+      testId="student-profile-modal-overlay"
+      ariaLabel="수강생 프로필"
+      panelClassName="!p-0 w-full max-w-[520px] overflow-y-auto rounded-[14px] shadow-2xl"
     >
-      <div
-        className="bg-white rounded-[14px] shadow-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="student-profile-modal"
-      >
+      <div data-testid="student-profile-modal">
         <div className="sticky top-0 bg-white rounded-t-[14px] px-6 pt-5 pb-4 border-b border-gray-100 z-10">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
@@ -493,7 +490,7 @@ function StudentProfileModal({
           )}
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }
 
@@ -616,17 +613,13 @@ function RandomTeamModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="random-team-modal-overlay"
+    <AppModal
+      open
+      onClose={onClose}
+      testId="random-team-modal-overlay"
+      ariaLabel="키워드 선택"
+      panelClassName="!p-0 flex max-w-[900px] w-full flex-col overflow-hidden rounded-[14px] shadow-2xl !max-h-[90vh]"
     >
-      <div
-        className="bg-white rounded-[14px] shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
         {/* 헤더 */}
         <div className="sticky top-0 bg-white rounded-t-[14px] px-7 pt-6 pb-4 border-b border-gray-100 z-10 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
@@ -747,8 +740,7 @@ function RandomTeamModal({
             </button>
           )}
         </div>
-      </div>
-    </div>
+    </AppModal>
   );
 }
 

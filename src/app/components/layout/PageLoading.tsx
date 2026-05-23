@@ -19,7 +19,7 @@ export interface PageLoadingProps {
 const layoutClass: Record<PageLoadingLayout, string> = {
   fullscreen:
     "flex min-h-screen w-full flex-col items-center justify-center bg-[var(--cc-surface-container)] px-4",
-  page: "cc-page-main flex min-h-[min(50vh,28rem)] w-full items-center justify-center px-4 py-12",
+  page: "flex min-h-[min(50vh,28rem)] w-full flex-1 items-center justify-center px-4 py-12",
   inline: "flex w-full items-center justify-center px-4 py-16",
 };
 

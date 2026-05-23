@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import AppModal from "./layout/AppModal";
 
 export type TroubleshootingFormPayload = {
   problem: string;
@@ -31,8 +32,6 @@ export default function TeamTroubleshootingSubmitModal({
     if (open) setForm(emptyForm());
   }, [open]);
 
-  if (!open) return null;
-
   const update = <K extends keyof TroubleshootingFormPayload>(
     key: K,
     value: TroubleshootingFormPayload[K]
@@ -53,18 +52,14 @@ export default function TeamTroubleshootingSubmitModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="team-trouble-modal-overlay"
+    <AppModal
+      open={open}
+      onClose={onClose}
+      testId="team-trouble-modal-overlay"
+      ariaLabel="트러블슈팅 기록"
+      panelClassName="max-w-[520px] !p-0 flex max-h-[92vh] flex-col overflow-hidden"
     >
-      <div
-        className="flex max-h-[92vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="team-trouble-write-form"
-      >
+      <div className="flex w-full flex-col" data-testid="team-trouble-write-form">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 className="text-lg font-bold text-[#1c398e]">트러블슈팅 기록</h2>
           <button
@@ -143,6 +138,6 @@ export default function TeamTroubleshootingSubmitModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

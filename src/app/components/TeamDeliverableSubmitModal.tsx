@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
+import { extractDeployLinkFromDescription } from "../api/supabase-api";
+import { AiGeneratingIndicator } from "./AiGeneratingIndicator";
+import AppModal from "./layout/AppModal";
 import type { TeamDeliverable } from "../types";
 import {
   formatByteSize,
@@ -8,6 +11,7 @@ import {
 
 export type TeamDeliverableFormPayload = {
   title: string;
+  subtitle: string;
   description: string;
   linkUrl: string;
   files: File[];
@@ -27,6 +31,7 @@ const FILE_ACCEPT =
 
 const emptyForm = (): TeamDeliverableFormPayload => ({
   title: "",
+  subtitle: "",
   description: "",
   linkUrl: "",
   files: [],
@@ -55,18 +60,19 @@ export default function TeamDeliverableSubmitModal({
     setZipping(false);
     setZipStats(null);
     if (isEdit && editing) {
+      const embeddedLink =
+        editing.kind === "link" ? editing.publicUrl : extractDeployLinkFromDescription(editing.description) ?? "";
       setForm({
         title: editing.fileName,
+        subtitle: editing.subtitle ?? "",
         description: editing.description ?? "",
-        linkUrl: editing.kind === "link" ? editing.publicUrl : "",
+        linkUrl: embeddedLink,
         files: [],
       });
       return;
     }
     setForm(emptyForm());
   }, [open, isEdit, editing]);
-
-  if (!open) return null;
 
   const busy = uploading || zipping;
 
@@ -136,6 +142,7 @@ export default function TeamDeliverableSubmitModal({
     }
     await onSubmit({
       title: form.title.trim(),
+      subtitle: form.subtitle.trim(),
       description: form.description.trim(),
       linkUrl,
       files: form.files,
@@ -143,18 +150,14 @@ export default function TeamDeliverableSubmitModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      data-testid="team-deliverable-modal-overlay"
+    <AppModal
+      open={open}
+      onClose={onClose}
+      testId="team-deliverable-modal-overlay"
+      ariaLabel={isEdit ? "산출물 수정" : "산출물 등록"}
+      panelClassName="max-w-[560px] !p-0 flex max-h-[92vh] flex-col overflow-hidden"
     >
-      <div
-        className="flex max-h-[92vh] w-full max-w-[560px] flex-col overflow-hidden rounded-[12px] bg-white shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-        data-testid="team-deliverable-modal"
-      >
+      <div className="flex max-h-[92vh] w-full flex-col" data-testid="team-deliverable-modal">
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <h2 className="text-lg font-bold text-[#1e2939]">{isEdit ? "산출물 수정" : "산출물 등록"}</h2>
           <button
@@ -169,8 +172,31 @@ export default function TeamDeliverableSubmitModal({
         </div>
 
         <div className="space-y-4 overflow-y-auto px-6 py-5">
+          {uploading && (
+            <AiGeneratingIndicator
+              size="sm"
+              message="파일을 업로드하는 중입니다. 용량이 크면 시간이 걸릴 수 있습니다."
+              testId="team-deliverable-upload-loading"
+            />
+          )}
+
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1e2939]" htmlFor="team-deliverable-modal-title">
+            <label className="cc-label" htmlFor="team-deliverable-modal-subtitle">
+              부제목 <span className="font-normal text-[var(--cc-on-surface-variant)]">(목록에 작게 표시)</span>
+            </label>
+            <input
+              id="team-deliverable-modal-subtitle"
+              type="text"
+              value={form.subtitle}
+              onChange={(e) => update("subtitle", e.target.value)}
+              data-testid="team-deliverable-subtitle-input"
+              placeholder="예: v1.0 배포 · 중간 점검"
+              className="cc-input w-full text-sm"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="cc-label" htmlFor="team-deliverable-modal-title">
               제목
             </label>
             <input
@@ -342,6 +368,6 @@ export default function TeamDeliverableSubmitModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

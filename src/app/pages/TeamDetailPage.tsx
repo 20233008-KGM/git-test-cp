@@ -3,19 +3,23 @@ import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import { api, buildTeamProgressSummary } from "../api/supabase-api";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
+import TeamDeliverableDetailModal from "../components/TeamDeliverableDetailModal";
 import TeamDeliverableSubmitModal, {
   type TeamDeliverableFormPayload,
 } from "../components/TeamDeliverableSubmitModal";
+import TeamTroubleshootingEditModal from "../components/TeamTroubleshootingEditModal";
 import TeamTroubleshootingSubmitModal, {
   type TroubleshootingFormPayload,
 } from "../components/TeamTroubleshootingSubmitModal";
 import { supabase } from "../supabase";
+import AppModal from "../components/layout/AppModal";
 import M3Button from "../components/layout/M3Button";
 import PageHeader from "../components/layout/PageHeader";
 import UserAvatar from "../components/UserAvatar";
 import {
   AiGeneratingIndicator,
   GeminiShimmerLines,
+  GeminiShimmerPanel,
 } from "../components/AiGeneratingIndicator";
 import TeamPeerReviewPage from "./TeamPeerReviewPage";
 import TeamRetrospectivePage from "./TeamRetrospectivePage";
@@ -195,12 +199,12 @@ export default function TeamDetailPage() {
   const [allStudents, setAllStudents] = useState<PeerReviewStudent[]>([]);
   const [troubleshootingLogs, setTroubleshootingLogs] = useState<TroubleshootingLog[]>([]);
   const [submittingLog, setSubmittingLog] = useState(false);
-  const [editingLogId, setEditingLogId] = useState<string | null>(null);
-  const [editLogForm, setEditLogForm] = useState({ problem: "", plan: "", solution: "" });
+  const [editingTroubleshootingLog, setEditingTroubleshootingLog] = useState<TroubleshootingLog | null>(null);
   const [deliverables, setDeliverables] = useState<TeamDeliverable[]>([]);
   const [uploadingDeliverable, setUploadingDeliverable] = useState(false);
   const [showDeliverableModal, setShowDeliverableModal] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState<TeamDeliverable | null>(null);
+  const [detailDeliverable, setDetailDeliverable] = useState<TeamDeliverable | null>(null);
   const [showTroubleshootingModal, setShowTroubleshootingModal] = useState(false);
 
   const isMyTeamMemberFromRoster = useMemo(
@@ -332,6 +336,14 @@ export default function TeamDetailPage() {
     setEditingDeliverable(null);
   };
 
+  const openDeliverableDetail = (item: TeamDeliverable) => {
+    setDetailDeliverable(item);
+  };
+
+  const closeDeliverableDetail = () => {
+    setDetailDeliverable(null);
+  };
+
   const handleSubmitDeliverableModal = async (payload: TeamDeliverableFormPayload) => {
     if (!selectedTeamId) return;
 
@@ -340,8 +352,9 @@ export default function TeamDetailPage() {
       if (editingDeliverable) {
         const updated = await api.teamDetail.updateDeliverable(editingDeliverable.id, {
           title: payload.title || undefined,
+          subtitle: payload.subtitle || undefined,
           description: payload.description,
-          url: editingDeliverable.kind === "link" ? payload.linkUrl : undefined,
+          url: payload.linkUrl || undefined,
           file: editingDeliverable.kind === "file" ? payload.files[0] : undefined,
         });
         setDeliverables((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
@@ -349,33 +362,41 @@ export default function TeamDetailPage() {
         return;
       }
 
+      const linkUrl = payload.linkUrl.trim();
+      const hasLink = Boolean(linkUrl);
+      const hasFiles = payload.files.length > 0;
       const metaBase = {
         title: payload.title || undefined,
+        subtitle: payload.subtitle || undefined,
         description: payload.description || undefined,
+        linkUrl: hasLink && hasFiles ? linkUrl : undefined,
       };
 
       const created: TeamDeliverable[] = [];
 
-      if (payload.linkUrl) {
+      if (hasLink && !hasFiles) {
         created.push(
           await api.teamDetail.addDeliverableLink(selectedTeamId, {
-            url: payload.linkUrl,
+            url: linkUrl,
             title: payload.title || undefined,
+            subtitle: payload.subtitle || undefined,
             description: payload.description || undefined,
           })
         );
-      }
-
-      for (let i = 0; i < payload.files.length; i++) {
-        const file = payload.files[i];
-        const fileMeta =
-          payload.files.length === 1
-            ? metaBase
-            : {
-                title: payload.title ? `${payload.title} · ${file.name}` : file.name,
-                description: payload.description || undefined,
-              };
-        created.push(await api.teamDetail.uploadDeliverable(selectedTeamId, file, fileMeta));
+      } else {
+        for (let i = 0; i < payload.files.length; i++) {
+          const file = payload.files[i];
+          const fileMeta =
+            payload.files.length === 1
+              ? { ...metaBase, linkUrl: hasLink ? linkUrl : undefined }
+              : {
+                  title: payload.title ? `${payload.title} · ${file.name}` : file.name,
+                  subtitle: payload.subtitle || undefined,
+                  description: payload.description || undefined,
+                  linkUrl: hasLink && i === 0 ? linkUrl : undefined,
+                };
+          created.push(await api.teamDetail.uploadDeliverable(selectedTeamId, file, fileMeta));
+        }
       }
 
       if (created.length > 0) {
@@ -417,26 +438,23 @@ export default function TeamDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const startEditLog = (log: TroubleshootingLog) => {
-    setEditingLogId(log.id);
-    setEditLogForm({
-      problem: log.problem,
-      plan: log.plan ?? "",
-      solution: log.solution ?? "",
-    });
-  };
-
-  const handleUpdateLog = async (e: React.FormEvent, logId: string) => {
-    e.preventDefault();
+  const handleUpdateTroubleshootingLog = async (payload: {
+    problem: string;
+    plan: string;
+    solution: string;
+  }) => {
+    if (!editingTroubleshootingLog) return;
     setSubmittingLog(true);
     try {
-      const updated = await api.teamDetail.updateTroubleshootingLog(logId, {
-        problem: editLogForm.problem,
-        plan: editLogForm.plan,
-        solution: editLogForm.solution,
+      const updated = await api.teamDetail.updateTroubleshootingLog(editingTroubleshootingLog.id, {
+        problem: payload.problem,
+        plan: payload.plan,
+        solution: payload.solution,
       });
-      setTroubleshootingLogs((prev) => prev.map((log) => (log.id === logId ? updated : log)));
-      setEditingLogId(null);
+      setTroubleshootingLogs((prev) =>
+        prev.map((log) => (log.id === editingTroubleshootingLog.id ? updated : log))
+      );
+      setEditingTroubleshootingLog(null);
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "수정에 실패했습니다.");
@@ -452,7 +470,7 @@ export default function TeamDetailPage() {
     try {
       await api.teamDetail.deleteTroubleshootingLog(logId);
       setTroubleshootingLogs((prev) => prev.filter((log) => log.id !== logId));
-      if (editingLogId === logId) setEditingLogId(null);
+      if (editingTroubleshootingLog?.id === logId) setEditingTroubleshootingLog(null);
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "삭제에 실패했습니다.");
@@ -557,8 +575,19 @@ export default function TeamDetailPage() {
 
       if (isCancelled) return;
 
+      const defaultFeedbackOptions = [
+        "실용적이에요",
+        "신선해요",
+        "아이디어가 좋아요",
+        "UI/UX가 좋아요",
+        "개선이 필요해요",
+      ];
+
       if (feedbackOptionsResult.status === "fulfilled") {
-        const feedbackData = feedbackOptionsResult.value;
+        const feedbackData =
+          feedbackOptionsResult.value.length > 0
+            ? feedbackOptionsResult.value
+            : defaultFeedbackOptions;
         setFeedbackOptions(feedbackData);
 
         if (myFeedbackResult.status === "fulfilled" && myFeedbackResult.value) {
@@ -572,6 +601,8 @@ export default function TeamDetailPage() {
         }
       } else {
         console.warn("피드백 옵션 로드 실패:", feedbackOptionsResult.reason);
+        setFeedbackOptions(defaultFeedbackOptions);
+        setSelectedFeedbacks(defaultFeedbackOptions.slice(0, 2));
       }
 
       if (chatMessagesResult.status === "fulfilled") {
@@ -840,12 +871,15 @@ export default function TeamDetailPage() {
         )}
 
         {/* AI 통합 진행상황 요약 */}
-        <div className="bg-gradient-to-r from-[#bfd3ff] to-[#e8e9ff] border border-[#c6d2ff] rounded-[14px] p-6 mb-6 shadow-sm">
-          <h3 className="text-lg font-bold text-[#312c85] mb-2">
+        <GeminiShimmerPanel
+          active
+          className="mb-6 rounded-[14px] border border-[#c6d2ff] bg-gradient-to-r from-[#bfd3ff] to-[#e8e9ff] p-6 shadow-sm"
+        >
+          <h3 className="cc-gemini-shimmer-text mb-2 text-lg font-bold text-[#312c85]">
             ✨ AI 통합 진행상황 요약
           </h3>
-          <p className="text-sm text-[#372aac] leading-relaxed">{teamProgressSummary}</p>
-        </div>
+          <p className="text-sm leading-relaxed text-[#372aac]">{teamProgressSummary}</p>
+        </GeminiShimmerPanel>
 
         {(isProfessor || isAdmin) && (
           <div
@@ -948,15 +982,29 @@ export default function TeamDetailPage() {
                   return (
                     <div
                       key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openDeliverableDetail(item)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openDeliverableDetail(item);
+                        }
+                      }}
                       data-testid={`team-deliverable-item-${item.id}`}
                       data-deliverable-kind={isLinkItem ? "link" : "file"}
-                      className="bg-[#f9fafb] border border-[rgba(0,0,0,0.1)] rounded-[10px] p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="cursor-pointer rounded-[10px] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-low)] p-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between hover:border-[var(--cc-primary-border)]"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-sm shrink-0">{item.kind === "link" ? "🔗" : "📄"}</span>
-                          <span className="text-sm font-medium text-[#1e2939] truncate">{item.fileName}</span>
+                          <span className="text-sm font-medium text-[var(--cc-on-surface)] truncate">{item.fileName}</span>
                         </div>
+                        {item.subtitle && (
+                          <p className="mt-0.5 text-xs text-[var(--cc-on-surface-variant)] line-clamp-1">
+                            {item.subtitle}
+                          </p>
+                        )}
                         {item.description && (
                           <p className="mt-1 text-xs text-[#4a5565] line-clamp-2">{item.description}</p>
                         )}
@@ -965,13 +1013,13 @@ export default function TeamDetailPage() {
                           {new Date(item.createdAt).toLocaleString("ko-KR")}
                         </p>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <a
                           href={item.publicUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           download={isLinkItem ? undefined : item.fileName}
-                          className="bg-[#e5e7eb] text-[#1e2939] text-xs font-medium px-3 py-2 rounded hover:bg-gray-300 transition-colors"
+                          className="m3-btn m3-btn--tonal px-3 py-2 text-xs"
                         >
                           {isLinkItem ? "열기" : "다운로드"}
                         </a>
@@ -1018,15 +1066,13 @@ export default function TeamDetailPage() {
           </div>
 
           {/* 오른쪽: 트러블슈팅 로그 */}
-          <div className="bg-white rounded-[14px] shadow-md border border-[rgba(0,0,0,0.1)] p-5 flex flex-col">
+          <div className="m3-surface-card flex flex-col rounded-[14px] p-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-lg font-bold text-[#1c398e]">
-                🛠️ 트러블슈팅 로그
-              </h2>
-              <span className="text-xs text-[#6a7282]">문제 해결 과정 및 피드백</span>
+              <h2 className="text-lg font-bold text-[var(--cc-on-surface)]">🛠️ 트러블슈팅 로그</h2>
+              <span className="text-xs text-[var(--cc-on-surface-variant)]">문제 해결 과정 및 피드백</span>
             </div>
 
-            <div className="bg-[rgba(239,246,255,0.3)] border border-[#dbeafe] rounded-[10px] p-4 max-h-[480px] overflow-y-auto">
+            <div className="max-h-[480px] overflow-y-auto rounded-[10px] border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-low)] p-4">
               <div className="space-y-4">
                 <div
                   data-testid="team-trouble-ai-recommendation"
@@ -1083,16 +1129,14 @@ export default function TeamDetailPage() {
                   )}
                 </div>
 
-                {troubleshootingLogs.map((log) => {
-                  const isEditing = editingLogId === log.id;
-                  return (
+                {troubleshootingLogs.map((log) => (
                   <div
                     key={log.id}
                     data-testid={`team-trouble-item-${log.id}`}
-                    className={`bg-white rounded-[10px] shadow-sm p-4 ${
+                    className={`m3-surface-card rounded-[10px] p-4 ${
                       log.status === "in-progress"
-                        ? "border border-[#fff085]"
-                        : "border border-[#e5e7eb]"
+                        ? "border-[var(--cc-primary-border)] bg-[var(--cc-primary-container)]"
+                        : "border-[var(--cc-outline-variant)]"
                     }`}
                   >
                     {/* 헤더 */}
@@ -1108,12 +1152,12 @@ export default function TeamDetailPage() {
                           </span>
                         )}
                         <span className="text-xs font-bold text-[#1e2939]">{log.author}</span>
-                        {canEditLog(log) && !isArchived && !isEditing && (
+                        {canEditLog(log) && !isArchived && (
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={() => startEditLog(log)}
-                              className="text-[10px] text-blue-600 hover:underline"
+                              onClick={() => setEditingTroubleshootingLog(log)}
+                              className="text-[10px] text-[var(--cc-primary)] hover:underline"
                             >
                               수정
                             </button>
@@ -1131,47 +1175,6 @@ export default function TeamDetailPage() {
                       <span className="text-[10px] text-[#99a1af]">{log.timestamp}</span>
                     </div>
 
-                    {isEditing ? (
-                      <form onSubmit={(e) => handleUpdateLog(e, log.id)} className="space-y-2">
-                        <textarea
-                          value={editLogForm.problem}
-                          onChange={(e) => setEditLogForm((prev) => ({ ...prev, problem: e.target.value }))}
-                          rows={2}
-                          className="w-full rounded border border-gray-200 p-2 text-xs"
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={editLogForm.plan}
-                          onChange={(e) => setEditLogForm((prev) => ({ ...prev, plan: e.target.value }))}
-                          placeholder="해결 계획"
-                          className="w-full rounded border border-gray-200 p-2 text-xs"
-                        />
-                        <input
-                          type="text"
-                          value={editLogForm.solution}
-                          onChange={(e) => setEditLogForm((prev) => ({ ...prev, solution: e.target.value }))}
-                          placeholder="해결 방법"
-                          className="w-full rounded border border-gray-200 p-2 text-xs"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            type="submit"
-                            disabled={submittingLog}
-                            className="rounded bg-[#155dfc] px-3 py-1.5 text-xs text-white disabled:opacity-60"
-                          >
-                            저장
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingLogId(null)}
-                            className="rounded bg-gray-200 px-3 py-1.5 text-xs text-gray-700"
-                          >
-                            취소
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
                     <div className="space-y-2">
                       <p className="text-xs">
                         <span className="font-bold text-[#fb2c36]">🚨 문제:</span>
@@ -1192,9 +1195,8 @@ export default function TeamDetailPage() {
                         </div>
                       )}
                     </div>
-                    )}
 
-                    <div className="mt-3 flex flex-col gap-2 border-t border-[#f3f4f6] pt-3 sm:flex-row sm:items-center sm:flex-wrap">
+                    <div className="mt-3 flex flex-col gap-2 border-t border-[var(--cc-outline-variant)] pt-3 sm:flex-row sm:items-center sm:flex-wrap">
                       <button
                         type="button"
                         onClick={() => setShowChatModal(true)}
@@ -1214,8 +1216,7 @@ export default function TeamDetailPage() {
                       )}
                     </div>
                   </div>
-                  );
-                })}
+                ))}
               </div>
             </div>
 
@@ -1296,12 +1297,12 @@ export default function TeamDetailPage() {
                       selectedFeedbacks.includes(option)
                         ? "bg-[#155dfc] text-white border-[#155dfc]"
                         : "bg-white text-[#364153] border-[rgba(0,0,0,0.1)]"
-                    } inline-flex items-center gap-2 px-6 py-2 rounded-[14px] border font-medium hover:opacity-90 transition-all`}
+                    } inline-flex min-w-[9.5rem] items-center justify-between gap-3 px-5 py-2 rounded-[14px] border font-medium hover:opacity-90 transition-all`}
                     onClick={() => toggleFeedback(option)}
                   >
                     <span>{option}</span>
                     {(feedbackCounts[option] ?? 0) > 0 && (
-                      <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs font-bold">
+                      <span className="shrink-0 tabular-nums text-xs font-bold opacity-90">
                         {feedbackCounts[option]}
                       </span>
                     )}
@@ -1366,26 +1367,18 @@ export default function TeamDetailPage() {
           </div>
         )}
 
-      {/* 채팅 모달 */}
-      {showChatModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowChatModal(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="team-chat-modal-title"
-          data-testid="team-chat-modal-overlay"
-        >
-          <div
-            className="bg-white rounded-[14px] shadow-2xl max-w-[680px] w-full flex flex-col"
-            style={{ height: "min(720px, 90vh)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        testId="team-chat-modal-overlay"
+        ariaLabel="채팅방"
+        panelClassName="!p-0 flex max-w-[680px] w-full flex-col overflow-hidden rounded-[14px] shadow-2xl !max-h-[min(720px,90vh)]"
+      >
             {/* 헤더 */}
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[14px] flex-shrink-0">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                <h2 id="team-chat-modal-title" className="text-base font-bold text-black">
+                <h2 className="text-base font-bold text-black">
                   채팅방
                 </h2>
               </div>
@@ -1475,23 +1468,15 @@ export default function TeamDetailPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </AppModal>
 
-      {/* 평가 모달 (교수만) */}
-      {isProfessor && isEvaluationOpen && showEvalModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowEvalModal(false)}
-          role="dialog"
-          aria-modal="true"
-          data-testid="professor-project-eval-modal-overlay"
-        >
-          <div
-            className="bg-white rounded-[10px] shadow-2xl max-w-[1191px] w-full max-h-[90vh] overflow-y-auto relative"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={Boolean(isProfessor && isEvaluationOpen && showEvalModal)}
+        onClose={() => setShowEvalModal(false)}
+        testId="professor-project-eval-modal-overlay"
+        ariaLabel="학생 및 프로젝트 평가"
+        panelClassName="!p-0 relative max-w-[1191px] w-full overflow-y-auto rounded-[10px] shadow-2xl"
+      >
             {/* 헤더 */}
             <div className="sticky top-0 bg-white flex justify-between items-center p-6 border-b border-gray-200 rounded-t-[10px] z-10">
               <h2 className="text-xl font-bold text-black sm:text-2xl">
@@ -1603,23 +1588,15 @@ export default function TeamDetailPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </AppModal>
 
-      {/* 학생 평가 모달 (교수만) */}
-      {isProfessor && isEvaluationOpen && showStudentEvalModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowStudentEvalModal(false)}
-          role="dialog"
-          aria-modal="true"
-          data-testid="professor-student-eval-modal-overlay"
-        >
-          <div
-            className="bg-white rounded-[10px] shadow-2xl max-w-[780px] w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={Boolean(isProfessor && isEvaluationOpen && showStudentEvalModal)}
+        onClose={() => setShowStudentEvalModal(false)}
+        testId="professor-student-eval-modal-overlay"
+        ariaLabel="학생 평가"
+        panelClassName="!p-0 max-w-[780px] w-full overflow-y-auto rounded-[10px] shadow-2xl"
+      >
             {/* 헤더 */}
             <div className="sticky top-0 bg-white flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[10px] z-10">
               <h2 className="text-lg font-bold text-black">학생 및 프로젝트 평가</h2>
@@ -1711,23 +1688,15 @@ export default function TeamDetailPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </AppModal>
 
-      {/* 피드백 커스텀 모달 */}
-      {!isArchived && showFeedbackCustomModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setShowFeedbackCustomModal(false)}
-          role="dialog"
-          aria-modal="true"
-          data-testid="team-feedback-custom-modal-overlay"
-        >
-          <div
-            className="bg-white rounded-[10px] shadow-2xl max-w-[500px] w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={!isArchived && showFeedbackCustomModal}
+        onClose={() => setShowFeedbackCustomModal(false)}
+        testId="team-feedback-custom-modal-overlay"
+        ariaLabel="피드백 작성"
+        panelClassName="!p-0 max-w-[500px] w-full overflow-y-auto rounded-[10px] shadow-2xl"
+      >
             {/* 헤더 */}
             <div className="sticky top-0 bg-white flex justify-between items-center px-6 py-4 border-b border-gray-200 rounded-t-[10px] z-10">
               <h2 className="text-lg font-bold text-black">피드백 작성</h2>
@@ -1765,20 +1734,15 @@ export default function TeamDetailPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </AppModal>
 
-      {showPeerReviewModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          data-testid="team-peer-review-modal"
-          onClick={() => setShowPeerReviewModal(false)}
-        >
-          <div
-            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={showPeerReviewModal}
+        onClose={() => setShowPeerReviewModal(false)}
+        testId="team-peer-review-modal"
+        ariaLabel="동료 평가"
+        panelClassName="max-h-[92vh] max-w-4xl overflow-y-auto rounded-xl p-4 shadow-xl"
+      >
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
@@ -1789,23 +1753,18 @@ export default function TeamDetailPage() {
               </button>
             </div>
             <TeamPeerReviewPage />
-          </div>
-        </div>
-      )}
+      </AppModal>
 
-      {showRetrospectiveModal && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
-          data-testid="team-retrospective-modal"
-          onClick={() => {
-            setShowRetrospectiveModal(false);
-            void refreshRetrospectiveStatus();
-          }}
-        >
-          <div
-            className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <AppModal
+        open={showRetrospectiveModal}
+        onClose={() => {
+          setShowRetrospectiveModal(false);
+          void refreshRetrospectiveStatus();
+        }}
+        testId="team-retrospective-modal"
+        ariaLabel="회고"
+        panelClassName="max-h-[92vh] max-w-4xl overflow-y-auto rounded-xl p-4 shadow-xl"
+      >
             <div className="mb-3 flex justify-end">
               <button
                 type="button"
@@ -1819,15 +1778,34 @@ export default function TeamDetailPage() {
               </button>
             </div>
             <TeamRetrospectivePage />
-          </div>
-        </div>
-      )}
+      </AppModal>
 
       <StudentQuickProfileModal
         profile={selectedMemberProfile}
         loading={memberProfileLoading}
         errorMessage={memberProfileError}
         onClose={closeMemberProfile}
+      />
+
+      <TeamDeliverableDetailModal
+        open={detailDeliverable != null}
+        item={detailDeliverable}
+        canEdit={
+          detailDeliverable != null &&
+          !isArchived &&
+          (isProfessor ||
+            isAdmin ||
+            (canUploadDeliverable &&
+              Boolean(user?.id) &&
+              String(user.id) === String(detailDeliverable.uploaderId)))
+        }
+        onClose={closeDeliverableDetail}
+        onEdit={() => {
+          if (!detailDeliverable) return;
+          const item = detailDeliverable;
+          closeDeliverableDetail();
+          openEditDeliverableModal(item);
+        }}
       />
 
       <TeamDeliverableSubmitModal
@@ -1837,6 +1815,14 @@ export default function TeamDetailPage() {
         editing={editingDeliverable}
         onClose={closeDeliverableModal}
         onSubmit={handleSubmitDeliverableModal}
+      />
+
+      <TeamTroubleshootingEditModal
+        open={editingTroubleshootingLog != null}
+        log={editingTroubleshootingLog}
+        submitting={submittingLog}
+        onClose={() => setEditingTroubleshootingLog(null)}
+        onSubmit={handleUpdateTroubleshootingLog}
       />
 
       <TeamTroubleshootingSubmitModal

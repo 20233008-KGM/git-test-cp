@@ -119,7 +119,7 @@ export default function LandingPage() {
                 type="submit"
                 variant="filled"
                 data-testid="landing-login-submit"
-                className="w-full"
+                className="m3-btn--filled w-full"
               >
                 로그인
               </M3Button>

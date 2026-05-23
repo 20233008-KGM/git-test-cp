@@ -31,6 +31,7 @@
 | [ ] | H-001 | 높음 | RLS Beta 결정 — **[31](./31_rls_beta_decision.md)** · 승인 후 **[33 JWT](./33_firebase_supabase_jwt_setup.md)** | DB 행 단위 보안 | “RLS 적용 승인” 또는 “RLS 보류” |
 | [ ] | H-004 | 중간 | GitHub Secrets — **[34_github_ci_secrets.md](./34_github_ci_secrets.md)** (`E2E_*`, `VITE_*`, 선택 `E2E_PROFESSOR_*`) | PR마다 CI E2E | 「H-004 완료」 |
 | [ ] | H-006 | 낮음 | 이용약관·개인정보·학교 AI 사용 규정 확인 | 런칭 전 법무 | 내부 승인 메모 |
+| [ ] | H-012 | 중간 | 강의자료 Storage — `npm run supabase:apply-remote-full` 후 SQL Editor Run (또는 `20260523205000`+`20260523210000`) | vision #83 버킷 not found | 강의개요에서 PDF 업로드 성공 |
 
 ---
 

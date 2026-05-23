@@ -323,7 +323,9 @@ export interface TroubleshootingLog {
 
 export interface TeamDeliverableSubmitMeta {
   title?: string;
+  subtitle?: string;
   description?: string;
+  linkUrl?: string;
 }
 
 export interface TeamDeliverable {
@@ -337,7 +339,20 @@ export interface TeamDeliverable {
   mimeType?: string;
   publicUrl: string;
   kind?: "file" | "link";
+  subtitle?: string;
   description?: string;
+  createdAt: Date;
+}
+
+export interface CourseMaterial {
+  id: string;
+  courseId: string;
+  title: string;
+  fileName: string;
+  fileSize: number;
+  mimeType?: string;
+  publicUrl: string;
+  uploaderName: string;
   createdAt: Date;
 }
 
