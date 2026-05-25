@@ -895,10 +895,14 @@ function findTeamSectionBody(
   team: AiReportTeamSnapshot,
   sections: AiReportSection[] | undefined
 ): string | undefined {
-  if (!sections?.length) return undefined;
-  const exact = sections.find((s) => s.title.trim() === team.projectTitle.trim());
+  const safe = (sections ?? []).filter(
+    (s): s is AiReportSection =>
+      Boolean(s) && typeof s.title === "string" && typeof s.body === "string"
+  );
+  if (!safe.length) return undefined;
+  const exact = safe.find((s) => s.title.trim() === team.projectTitle.trim());
   if (exact?.body) return exact.body;
-  const fuzzy = sections.find(
+  const fuzzy = safe.find(
     (s) =>
       s.title.includes(team.projectTitle) ||
       team.projectTitle.includes(s.title) ||

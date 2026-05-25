@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { api } from "../api/supabase-api";
+import AppModal from "../components/layout/AppModal";
+import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
 import type { Announcement, Course } from "../types";
 
@@ -10,12 +12,8 @@ export default function CourseAnnouncementsPage() {
   const canManage = isProfessor || isAdmin;
 
   const [course, setCourse] = useState<Course | null>(null);
-  const isActiveCourse = course?.status === "active";
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dDay, setDDay] = useState(7);
-  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
 
   const reload = async () => {
@@ -38,109 +36,107 @@ export default function CourseAnnouncementsPage() {
     return <p className="p-6 text-gray-600">수업을 선택해 주세요.</p>;
   }
 
-  if (!canManage) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">
-        공지 작성은 교수만 할 수 있습니다. 팀 페이지 하단에서 최신 공지를 확인하세요.
-      </div>
-    );
-  }
+  const composePath = `/app/courses/${courseId}/announcements/compose`;
+  const isActiveCourse = course?.status === "active";
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-black text-[#155dfc] sm:text-3xl">공지게시판</h1>
-      {course && (
+    <div className="w-full min-w-0 space-y-6" data-testid="course-announcements-page">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-[#155dfc] sm:text-3xl">공지게시판</h1>
+          {course && (
+            <p className="mt-1 text-sm text-gray-600">
+              [{course.semester}] {course.name}
+            </p>
+          )}
+        </div>
+        {canManage && (
+          <Link
+            to={composePath}
+            data-testid="announcement-compose-link"
+            className={`inline-flex shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-bold ${
+              isActiveCourse
+                ? "bg-[#155dfc] text-white hover:bg-blue-700"
+                : "pointer-events-none bg-gray-200 text-gray-500"
+            }`}
+            aria-disabled={!isActiveCourse}
+          >
+            공지 작성
+          </Link>
+        )}
+      </div>
+
+      {!canManage && (
         <p className="text-sm text-gray-600">
-          [{course.semester}] {course.name}
+          공지 목록을 확인할 수 있습니다. 작성은 담당 교수만 가능합니다.
         </p>
       )}
 
-      {!isActiveCourse && (
+      {canManage && !isActiveCourse && (
         <div className="cc-alert-warning rounded-lg px-4 py-3 text-sm">
-          종료(아카이브)된 수업에는 새 공지를 등록할 수 없습니다. 아래 목록에서 기존 공지를 확인하세요.
+          종료(아카이브)된 수업에는 새 공지를 등록할 수 없습니다. 아래에서 기존 공지를 확인하세요.
         </div>
       )}
-
-      <form
-        className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setSaving(true);
-          try {
-            await api.announcements.create(courseId, { title, description, dDay });
-            setTitle("");
-            setDescription("");
-            setDDay(7);
-            await reload();
-          } catch (error) {
-            alert(error instanceof Error ? error.message : "공지 등록에 실패했습니다.");
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        <h2 className="mb-4 text-lg font-bold text-gray-900">새 공지 작성</h2>
-        <div className="flex flex-col gap-3">
-          <input
-            data-testid="announcement-title-input"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            required
-          />
-          <textarea
-            data-testid="announcement-description-input"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="내용"
-            rows={4}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            D-
-            <input
-              type="number"
-              min={0}
-              value={dDay}
-              onChange={(e) => setDDay(Number(e.target.value))}
-              className="w-20 rounded border border-gray-300 px-2 py-1"
-            />
-          </label>
-          <button
-            type="submit"
-            data-testid="announcement-submit"
-            disabled={saving || !isActiveCourse}
-            className="w-full rounded-lg bg-[#155dfc] px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
-          >
-            {saving ? "등록 중…" : "공지 등록"}
-          </button>
-        </div>
-      </form>
 
       <section>
         <h2 className="mb-3 text-lg font-bold text-gray-900">등록된 공지</h2>
         {loading ? (
-          <p className="text-sm text-gray-500">불러오는 중…</p>
+          <PageLoading layout="inline" size="sm" message="공지를 불러오는 중…" />
         ) : announcements.length === 0 ? (
           <p className="text-sm text-gray-500">등록된 공지가 없습니다.</p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {announcements.map((ann, index) => (
-              <li
-                key={`${ann.title}-${index}`}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <p className="font-bold text-gray-900">{ann.title}</p>
-                <p className="mt-1 text-sm text-gray-600">{ann.description}</p>
-                <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">
-                  D-{ann.dDay}
-                </span>
+            {announcements.map((ann) => (
+              <li key={ann.id ?? ann.title}>
+                <button
+                  type="button"
+                  data-testid={`announcement-card-${ann.id ?? "row"}`}
+                  onClick={() => setSelected(ann)}
+                  className="w-full rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#93c5fd] hover:bg-[#eff6ff]"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="font-bold text-gray-900">{ann.title}</p>
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">
+                      D-{ann.dDay}
+                    </span>
+                  </div>
+                  {ann.description ? (
+                    <p className="mt-2 line-clamp-2 text-sm text-gray-600">{ann.description}</p>
+                  ) : null}
+                </button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <AppModal
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        ariaLabel="공지 상세"
+        testId="announcement-detail-modal"
+      >
+        {selected && (
+          <div className="space-y-4 p-1">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-xl font-bold text-gray-900">{selected.title}</h2>
+              <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">
+                D-{selected.dDay}
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+              {selected.description?.trim() || "내용이 없습니다."}
+            </p>
+            <button
+              type="button"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+              onClick={() => setSelected(null)}
+            >
+              닫기
+            </button>
+          </div>
+        )}
+      </AppModal>
     </div>
   );
 }

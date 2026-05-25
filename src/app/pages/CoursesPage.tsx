@@ -224,32 +224,34 @@ export default function CoursesPage() {
           data-testid="courses-join-by-code-banner"
           className="cc-alert-info cc-courses-join-row mb-6 rounded-2xl p-4 sm:p-5"
         >
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <label htmlFor="courses-join-code-banner" className="cc-label mb-1 block font-bold">
               수업 코드로 등록
             </label>
             <p id="courses-join-code-hint" className="cc-text-secondary mb-2 text-xs">
               교수에게 받은 코드를 입력하세요 (예: WEB-2026)
             </p>
-            <input
-              id="courses-join-code-banner"
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="수업 코드"
-              aria-describedby="courses-join-code-hint"
-              className="cc-input px-3 py-2 text-sm"
-              required
-            />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                id="courses-join-code-banner"
+                type="text"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                placeholder="수업 코드"
+                aria-describedby="courses-join-code-hint"
+                className="cc-input min-h-[2.75rem] flex-1 px-3 py-2 text-sm"
+                required
+              />
+              <M3Button
+                type="submit"
+                variant="filled"
+                disabled={joining}
+                className="cc-courses-join-submit inline-flex h-[2.75rem] shrink-0 items-center justify-center px-5"
+              >
+                {joining ? "등록 중..." : "수업 등록"}
+              </M3Button>
+            </div>
           </div>
-          <M3Button
-            type="submit"
-            variant="filled"
-            disabled={joining}
-            className="cc-courses-join-submit inline-flex shrink-0 items-center justify-center leading-none"
-          >
-            {joining ? "등록 중..." : "수업 등록"}
-          </M3Button>
         </form>
       )}
 
@@ -265,21 +267,28 @@ export default function CoursesPage() {
               data-testid="courses-join-by-code-empty"
               className="mx-auto mt-6 max-w-sm space-y-3 text-left"
             >
-              <label htmlFor="courses-join-code-empty" className="cc-label">
+              <label htmlFor="courses-join-code-empty" className="cc-label block">
                 수업 코드로 등록하세요 (예: WEB-2026, DB-2026)
               </label>
-              <input
-                id="courses-join-code-empty"
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="수업 코드"
-                className="cc-input px-3 py-2 text-sm"
-                required
-              />
-              <M3Button type="submit" variant="filled" disabled={joining} className="w-full">
-                {joining ? "등록 중..." : "수업 등록"}
-              </M3Button>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  id="courses-join-code-empty"
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  placeholder="수업 코드"
+                  className="cc-input min-h-[2.75rem] flex-1 px-3 py-2 text-sm"
+                  required
+                />
+                <M3Button
+                  type="submit"
+                  variant="filled"
+                  disabled={joining}
+                  className="cc-courses-join-submit inline-flex h-[2.75rem] shrink-0 items-center justify-center px-5 sm:w-auto"
+                >
+                  {joining ? "등록 중..." : "수업 등록"}
+                </M3Button>
+              </div>
             </form>
           )}
         </div>

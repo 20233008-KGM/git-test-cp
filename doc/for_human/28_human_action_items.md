@@ -5,6 +5,10 @@
 
 코딩을 몰라도 됩니다. **막혀 있는 일만** 모아 둔 체크리스트입니다. AI는 이 항목 때문에 **다른 작업을 멈추지 않고** 미룬 뒤, 여기에 기록합니다.
 
+> **DB·Storage (Supabase)**  
+> 테이블·컬럼·버킷·밀린 SQL은 **당신이 하지 않습니다.** Cursor **Supabase MCP**만 연결해 두면 AI가 원격에 적용합니다.  
+> 상세: `doc/for_agent/33_supabase_mcp_db_operations.md`
+
 ---
 
 ## 오늘 가장 먼저

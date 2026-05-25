@@ -34,6 +34,9 @@ doc/ 구조:
   · 미완료: 인간이 아직 안 한 일 (키, 승인, 법무 등)
   · 완료 확인: .env 키, 사용자 "H-00x 완료", CI green 등으로 점검 후 완료한 일 표로 이동
   · 미완료가 있어도 AI는 다른 작업 착수 가능 (전체 중단 금지)
+- Supabase 스키마·Storage·밀린 migration → 인간 SQL Editor 금지.
+  · 정본: doc/for_agent/33_supabase_mcp_db_operations.md
+  · MCP apply_migration + 검증. 일반 DDL용 H-xxx 미등록 (H-001 RLS 결정 등 예외만 28)
 - 오늘 세션에서 무엇이 이미 완료됐는지, 무엇이 막혀 있는지 파악한다.
 
 [2단계 — 오늘 계획 수립]

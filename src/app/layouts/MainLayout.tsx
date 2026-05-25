@@ -111,12 +111,12 @@ function MyTeamSideNavGroup({
           onClick={goToWorkspace}
           data-testid="course-detail-side-my-team"
           aria-expanded={expanded}
-          className="flex flex-1 items-center gap-2 whitespace-nowrap px-3 py-2.5 text-left disabled:cursor-not-allowed"
+          className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left disabled:cursor-not-allowed"
         >
-          <span className="m3-nav-item__icon" aria-hidden>
+          <span className="m3-nav-item__icon shrink-0" aria-hidden>
             <Home className="h-4 w-4" strokeWidth={2} />
           </span>
-          <span className="m3-nav-item__label">내 팀</span>
+          <span className="m3-nav-item__label truncate">내 팀</span>
         </button>
         <button
           type="button"

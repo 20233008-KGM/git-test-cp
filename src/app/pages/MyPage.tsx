@@ -14,6 +14,7 @@ import StudentReportA4Sheet, {
   ReportSectionTitle,
 } from "../components/StudentReportA4Sheet";
 import EvalSchemaNotice from "../components/EvalSchemaNotice";
+import PageLoading from "../components/layout/PageLoading";
 import {
   AiGeneratingIndicator,
   GeminiShimmerPanel,
@@ -62,8 +63,10 @@ export default function MyPage() {
   const [aiReportMessage, setAiReportMessage] = useState<string | null>(null);
   const [reportActivitySummary, setReportActivitySummary] = useState<string | null>(null);
   const [aiReport, setAiReport] = useState<AiReportGenerateResponse | null>(null);
-  const { user, isProfessor } = useAuth();
+  const { user, isProfessor, isAdmin, isLoading: authLoading } = useAuth();
   const canViewStudentReport = user?.role === "student";
+  const showProfessorDashboard =
+    user?.role === "professor" || user?.role === "admin";
   const [missingEvalTables, setMissingEvalTables] = useState<string[]>([]);
 
   useEffect(() => {
@@ -397,6 +400,24 @@ export default function MyPage() {
     if (!reportContext) return null;
     return aiReport ?? api.aiReport.buildDraftFromContext(reportContext);
   }, [reportContext, aiReport]);
+
+  if (authLoading) {
+    return (
+      <MyPageShell testId="mypage-page">
+        <PageLoading message="마이페이지를 불러오는 중…" testId="mypage-auth-loading" />
+      </MyPageShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <MyPageShell testId="mypage-page">
+        <div className="cc-alert-warning rounded-xl p-6 text-sm font-bold">
+          로그인이 필요합니다. 상단에서 다시 로그인해 주세요.
+        </div>
+      </MyPageShell>
+    );
+  }
 
   return (
     <MyPageShell testId="mypage-page">
@@ -1039,7 +1060,7 @@ export default function MyPage() {
               }
             `}</style>
           </>
-        ) : isProfessor && user?.role === "professor" ? (
+        ) : showProfessorDashboard ? (
           <section
             className="m3-surface-card w-full p-8"
             data-testid="mypage-professor-dashboard"
@@ -1114,8 +1135,9 @@ export default function MyPage() {
         )}
         </div>
 
+      {selectedProject ? (
       <AppModal
-        open={selectedProject != null}
+        open
         onClose={() => setSelectedProject(null)}
         testId="mypage-project-detail-modal-overlay"
         ariaLabel="프로젝트 상세 경력"
@@ -1242,6 +1264,7 @@ export default function MyPage() {
             </div>
           </div>
       </AppModal>
+      ) : null}
     </MyPageShell>
   );
 }

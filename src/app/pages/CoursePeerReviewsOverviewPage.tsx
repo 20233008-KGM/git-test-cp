@@ -67,10 +67,7 @@ export default function CoursePeerReviewsOverviewPage() {
   }, {});
 
   return (
-    <div
-      className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6"
-      data-testid="course-peer-reviews-overview"
-    >
+    <div className="w-full min-w-0 space-y-6" data-testid="course-peer-reviews-overview">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link

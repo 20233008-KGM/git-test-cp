@@ -8,10 +8,13 @@
 인간만 할 수 있는 작업(키, 승인, 법무, 배포 GO 등)을 **한곳**에 모아 둔다.  
 블로커가 생겨도 **세션 전체를 멈추지 않고** 해당 TODO만 미루고, 이 파일에 기록한다.
 
-## Supabase SQL (2026-05-25)
+## Supabase SQL — 인간 항목 아님 (2026-05-25)
 
-**밀린 DDL·Storage 마이그레이션은 인간 SQL Editor 대신 Supabase MCP `apply_migration`으로 AI가 원격 적용한다.**  
-인간은 MCP 연결만 유지. `npm run supabase:apply-remote-full`은 로컬 `apply_remote_full.sql` **생성용**이며, H-012(강의자료·산출물 subtitle·1:1 채팅)는 MCP로 완료·미완료 목록에서 제거됨.
+**정본:** [`33_supabase_mcp_db_operations.md`](./33_supabase_mcp_db_operations.md)
+
+- 밀린 DDL·Storage·RLS(초안) → AI가 **Supabase MCP `apply_migration`** 으로 원격 적용.
+- 인간: **MCP 연결** + 기능 확인만. SQL Editor·`apply_remote_full` Run **요청 금지**.
+- 일반 DB용 **H-xxx 신규 등록 금지** (구 H-012 제거). RLS **승인**(H-001)·시크릿(H-004) 등만 28 미완료.
 
 ## AI 행동 규칙
 

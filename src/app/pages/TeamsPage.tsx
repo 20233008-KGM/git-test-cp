@@ -615,14 +615,24 @@ export default function TeamsPage() {
               <span className="text-sm font-normal text-gray-500">(최신 3건)</span>
             </h2>
             {canManageAnnouncements && courseId && (
-              <button
-                type="button"
-                data-testid="teams-announcements-manage"
-                onClick={() => navigate(`/app/courses/${courseId}/announcements`)}
-                className="rounded-lg border border-[#155dfc] px-4 py-2 text-sm font-bold text-[#155dfc] hover:bg-[#eff6ff]"
-              >
-                공지 전체 관리
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-testid="teams-announcements-compose"
+                  onClick={() => navigate(`/app/courses/${courseId}/announcements/compose`)}
+                  className="rounded-lg bg-[#155dfc] px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
+                >
+                  공지 작성
+                </button>
+                <button
+                  type="button"
+                  data-testid="teams-announcements-manage"
+                  onClick={() => navigate(`/app/courses/${courseId}/announcements`)}
+                  className="rounded-lg border border-[#155dfc] px-4 py-2 text-sm font-bold text-[#155dfc] hover:bg-[#eff6ff]"
+                >
+                  공지 목록
+                </button>
+              </div>
             )}
           </div>
           <div className="flex flex-col gap-4">

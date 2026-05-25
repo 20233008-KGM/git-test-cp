@@ -311,6 +311,27 @@
   }
 }
 
+/** vision #130 — 수업 등록 버튼 hover 피드백 */
+.cc-courses-join-submit.m3-btn--filled:not(:disabled) {
+  transition:
+    background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.15s cubic-bezier(0.2, 0, 0, 1),
+    filter 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.cc-courses-join-submit.m3-btn--filled:not(:disabled):hover {
+  filter: brightness(1.08);
+  box-shadow: var(--m3-elevation-2);
+  transform: translateY(-1px);
+}
+
+.cc-courses-join-submit.m3-btn--filled:not(:disabled):active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+  box-shadow: var(--m3-elevation-1);
+}
+
 /** 스크롤 초과 시 흰 여백 방지 (vision #97) */
 html,
 body,

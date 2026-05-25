@@ -21,6 +21,19 @@
 4. **`for_human/28_human_action_items.md` 확인** — 미완료 항목 점검·완료 반영 (`28_human_action_items.md` §세션 시작, `체크=[o]` 우선 검증)
 5. **`doc/for_agent/plans/YYMMDD-N.md` 새 파일에 계획 작성** (기존 계획 파일 덮어쓰기 금지; 상단에 생성 시각 시분초) → `current_session_plan.md` 인덱스 갱신 → 채팅에는 경로·한 줄 요약만 (승인 전 구현 금지, "바로 해줘" 예외)
 6. 담당 영역 문서 확인 (`24_multi_agent_roles.md`에서 역할 매칭)
+7. **Supabase DB·Storage** — 스키마 불일치·버킷 누락 시 [`33_supabase_mcp_db_operations.md`](./33_supabase_mcp_db_operations.md) 따라 MCP로 원격 적용 (인간 SQL·H-xxx 등록 금지)
+
+## Supabase DB·Storage (MCP — 인간 불필요)
+
+> **정본:** `33_supabase_mcp_db_operations.md`
+
+| AI | 인간 |
+|----|------|
+| `apply_migration` / `execute_sql` 검증 | MCP 연결만 |
+| `supabase/migrations/*.sql` 정본 유지 | SQL Editor Run **안 함** |
+| 기능 버그 시 스키마 자동 맞춤 | 화면·오류만 전달 |
+
+**28 미완료에 넣지 않음:** 컬럼 추가, Storage 버킷, RLS 정책(승인 전 초안 제외), `subtitle` 누락 등.
 
 ## 대화창에서 직접 요청한 작업 (필수)
 

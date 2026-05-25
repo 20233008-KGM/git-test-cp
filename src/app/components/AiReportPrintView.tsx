@@ -104,7 +104,14 @@ export default function AiReportPrintView({ context, report, inline = false }: P
         <section className="mt-5" data-testid="report-team-sections">
           <ReportSectionTitle kicker="Teams" title="팀별 하이라이트" />
           <div className="space-y-2">
-            {report.sections.map((section) => {
+            {report.sections
+              .filter(
+                (section): section is { title: string; body: string } =>
+                  Boolean(section) &&
+                  typeof section.title === "string" &&
+                  typeof section.body === "string"
+              )
+              .map((section) => {
               const bodyBullets = reportTextToBullets(section.body, 3);
               return (
                 <div key={section.title} className="rounded-lg border border-[#e2e8f0] p-3">

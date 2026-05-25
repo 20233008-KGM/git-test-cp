@@ -1,12 +1,13 @@
 # Supabase 마이그레이션 (CampusConnect)
 
-> **원격 적용:** 인간이 Supabase SQL Editor에서 실행 · **RLS Beta 강화는 H-001 승인 후**
+> **원격 적용 (2026-05-25):** AI가 **Supabase MCP `apply_migration`** 으로 실행. 인간 SQL Editor 불필요.  
+> **정본:** `doc/for_agent/33_supabase_mcp_db_operations.md` · **RLS Beta 강화는 H-001 승인 후**
 
-## 빠른 실행 (권장)
+## 빠른 실행
 
-| 목적 | 파일 | 인간 항목 |
-|------|------|-----------|
-| **원격 한 번에 (권장)** | `../apply_remote_full.sql` (`npm run supabase:apply-remote-full`) | H-007~010 + 시드 |
+| 목적 | 파일 | 적용 |
+|------|------|------|
+| **로컬 번들 생성** | `../apply_remote_full.sql` (`npm run supabase:apply-remote-full`) | MCP 또는 레거시 SQL Editor |
 | **팀 상세 쓰기 전체** | `20260520102000_team_detail_writes_bundle_v2.sql` | H-007~010 |
 | 피드백 + 동료평가 (v1) | `20260520095400_team_detail_writes_bundle.sql` | H-007·H-008 |
 

@@ -181,21 +181,6 @@ export default function TeamDeliverableSubmitModal({
           )}
 
           <div className="space-y-1.5">
-            <label className="cc-label" htmlFor="team-deliverable-modal-subtitle">
-              부제목 <span className="font-normal text-[var(--cc-on-surface-variant)]">(목록에 작게 표시)</span>
-            </label>
-            <input
-              id="team-deliverable-modal-subtitle"
-              type="text"
-              value={form.subtitle}
-              onChange={(e) => update("subtitle", e.target.value)}
-              data-testid="team-deliverable-subtitle-input"
-              placeholder="예: v1.0 배포 · 중간 점검"
-              className="cc-input w-full text-sm"
-            />
-          </div>
-
-          <div className="space-y-1.5">
             <label className="cc-label" htmlFor="team-deliverable-modal-title">
               제목
             </label>
@@ -207,6 +192,21 @@ export default function TeamDeliverableSubmitModal({
               data-testid="team-deliverable-link-title-input"
               placeholder="예: 중간 발표 자료, v1.0 배포"
               className="w-full rounded-[8px] border border-gray-300 px-3 py-2 text-sm outline-none focus:border-[#155dfc] focus:ring-1 focus:ring-[#155dfc]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="cc-label" htmlFor="team-deliverable-modal-subtitle">
+              부제목 <span className="font-normal text-[var(--cc-on-surface-variant)]">(목록에 작게 표시)</span>
+            </label>
+            <input
+              id="team-deliverable-modal-subtitle"
+              type="text"
+              value={form.subtitle}
+              onChange={(e) => update("subtitle", e.target.value)}
+              data-testid="team-deliverable-subtitle-input"
+              placeholder="예: v1.0 배포 · 중간 점검"
+              className="cc-input w-full text-sm"
             />
           </div>
 

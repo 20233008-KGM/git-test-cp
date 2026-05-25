@@ -732,6 +732,7 @@ async function getAnnouncementsFromDb(courseId?: string, limit?: number): Promis
   if (error) throw error;
 
   const mapped = (data ?? []).map((announcement) => ({
+    id: announcement.id,
     title: announcement.title,
     description: announcement.description,
     dDay: announcement.d_day,
@@ -757,7 +758,7 @@ async function createAnnouncementInDb(
     .order("sort_order", { ascending: false })
     .limit(1);
 
-  if (countError) throw countError;
+  if (countError) throw formatAnnouncementDbError(countError);
 
   const nextOrder = (existing?.[0]?.sort_order ?? 0) + 1;
   const id = `ann-${courseId}-${Date.now()}`;
@@ -770,9 +771,9 @@ async function createAnnouncementInDb(
     sort_order: nextOrder,
   });
 
-  if (error) throw error;
+  if (error) throw formatAnnouncementDbError(error);
 
-  return { title, description, dDay: Math.max(0, input.dDay) };
+  return { id, title, description, dDay: Math.max(0, input.dDay) };
 }
 
 function mapAiUserToNetworkStudent(student: AiUser, isSelf: boolean): NetworkStudent {
@@ -2051,32 +2052,145 @@ export function buildTeamProgressSummary(
   deliverables: TeamDeliverable[],
   logs: TroubleshootingLog[]
 ): string {
+  return buildTeamProgressInsight(deliverables, logs).summary;
+}
+
+const CODE_EXT = new Set([
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "java",
+  "go",
+  "rs",
+  "c",
+  "cpp",
+  "sql",
+]);
+
+/** vision #125 — 산출물·트러블슈팅 기반 인사이트 (Edge 미연결 시 폴백) */
+export function buildTeamProgressInsight(
+  deliverables: TeamDeliverable[],
+  logs: TroubleshootingLog[]
+): {
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  next_steps: string[];
+  architecture_risks: string[];
+  improvements: string[];
+  model: string;
+} {
   const resolved = logs.filter((log) => log.status === "resolved");
   const inProgress = logs.filter((log) => log.status !== "resolved");
-  const deliverableNames = deliverables
-    .slice(0, 3)
-    .map((item) => item.fileName)
-    .join(", ");
-  const solvedTopics = resolved
-    .map((log) => log.problem)
-    .filter(Boolean)
-    .slice(0, 2)
-    .join(" / ");
+  const fileItems = deliverables.filter((d) => d.kind !== "link");
+  const linkItems = deliverables.filter((d) => d.kind === "link");
+  const codeFiles = fileItems.filter((d) => CODE_EXT.has(getDeliverableExtension(d.fileName)));
+  const archives = fileItems.filter((d) =>
+    ["zip", "7z", "rar", "tar", "gz"].includes(getDeliverableExtension(d.fileName))
+  );
 
-  const parts: string[] = [];
-  parts.push(
-    `업로드된 산출물 ${deliverables.length}건${
-      deliverableNames ? ` (${deliverableNames}${deliverables.length > 3 ? " …" : ""})` : ""
-    }.`
-  );
-  parts.push(
-    `트러블슈팅 해결 ${resolved.length}건, 진행·보고 중 ${inProgress.length}건.`
-  );
-  if (solvedTopics) {
-    parts.push(`최근 해결 이슈: ${solvedTopics}.`);
+  const strengths: string[] = [];
+  const gaps: string[] = [];
+
+  if (deliverables.length > 0) {
+    const latestName = deliverables[0]?.fileName ?? "";
+    strengths.push(
+      `산출물 ${deliverables.length}건 제출됨${latestName ? ` — 최근: ${latestName}` : ""}.`
+    );
+  } else {
+    gaps.push("산출물이 없습니다. 중간 발표 자료·소스·데모 링크를 먼저 공유하세요.");
   }
-  parts.push("교수 평가·AI 리포트는 이 활동 데이터를 바탕으로 보완됩니다.");
-  return parts.join(" ");
+
+  if (codeFiles.length > 0) {
+    strengths.push(
+      `소스·코드 형식 산출물 ${codeFiles.length}건(${codeFiles
+        .slice(0, 2)
+        .map((d) => d.fileName)
+        .join(", ")}${codeFiles.length > 2 ? " …" : ""})이 포함되어 있습니다.`
+    );
+  } else if (fileItems.length > 0) {
+    gaps.push("업로드 파일 중 실행 가능한 소스 코드(.ts·.py 등) 비중이 낮습니다.");
+  }
+
+  if (archives.length > 0) {
+    strengths.push(`프로젝트 압축본 ${archives.length}건으로 일괄 제출이 이루어졌습니다.`);
+  }
+
+  if (linkItems.length > 0) {
+    const latestLink = [...linkItems].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+    strengths.push(
+      `배포·데모 링크 ${linkItems.length}건 — 최신: ${latestLink?.fileName ?? "링크"}.`
+    );
+  }
+
+  if (resolved.length > 0) {
+    strengths.push(
+      `트러블슈팅 ${resolved.length}건이 해결 완료로 기록되었습니다${
+        resolved[0]?.problem ? ` (예: ${resolved[0].problem.slice(0, 40)})` : ""
+      }.`
+    );
+  }
+
+  if (inProgress.length > 0) {
+    gaps.push(
+      `진행 중 이슈 ${inProgress.length}건 — ${inProgress
+        .slice(0, 2)
+        .map((l) => l.problem.slice(0, 30))
+        .join(" / ")}`
+    );
+  } else if (logs.length === 0) {
+    gaps.push("트러블슈팅 로그가 없어 문제 해결 과정이 드러나지 않습니다.");
+  }
+
+  const withSubtitle = deliverables.filter((d) => d.subtitle?.trim()).length;
+  if (withSubtitle < deliverables.length && deliverables.length > 0) {
+    gaps.push("일부 산출물에 부제목·설명이 비어 있어 팀원이 맥락을 파악하기 어렵습니다.");
+  }
+
+  const names = deliverables
+    .slice(0, 3)
+    .map((d) => d.fileName)
+    .join(", ");
+
+  const summaryParts = [
+    `팀 활동 요약: 산출물 ${deliverables.length}건${names ? ` (${names}${deliverables.length > 3 ? " …" : ""})` : ""},`,
+    `트러블슈팅 해결 ${resolved.length}건 · 진행 ${inProgress.length}건.`,
+  ];
+
+  const next_steps: string[] = [];
+  const architecture_risks: string[] = [];
+  const improvements: string[] = [];
+
+  if (logs.length === 0) {
+    next_steps.push("트러블슈팅 로그를 남기며 막힌 지점·해결 과정을 기록하세요.");
+  }
+  if (codeFiles.length === 0 && fileItems.length > 0) {
+    next_steps.push("핵심 소스(.ts·.py) 또는 README를 산출물로 공유하세요.");
+    architecture_risks.push("코드 산출물이 없어 구조·의존성을 검토하기 어렵습니다.");
+  }
+  if (linkItems.length === 0 && deliverables.length > 0) {
+    improvements.push("배포·데모 URL을 링크 산출물로 등록하면 진행 상황 파악이 쉬워집니다.");
+  }
+  if (inProgress.length > 0) {
+    next_steps.push(`진행 중 이슈 ${inProgress.length}건을 해결·회고까지 마무리하세요.`);
+  }
+  if (resolved.length > 0 && deliverables.length >= 2) {
+    improvements.push("해결된 이슈와 산출물을 README·발표 자료에 연결하면 팀 학습 기록이 강화됩니다.");
+  }
+
+  return {
+    summary: summaryParts.join(" "),
+    strengths,
+    gaps,
+    next_steps: next_steps.slice(0, 4),
+    architecture_risks: architecture_risks.slice(0, 4),
+    improvements: improvements.slice(0, 4),
+    model: "draft-db-insight",
+  };
 }
 
 const emptyProfessorProjectEvaluation = (): ProfessorProjectEvaluation => ({
@@ -4195,11 +4309,24 @@ async function assertProfessorCanManageAnnouncements(courseId: string) {
   if (course.status !== "active") {
     throw new Error("진행 중인 수업에서만 공지를 등록할 수 있습니다.");
   }
-  if (currentUser.role !== "professor" || course.professorId !== currentUser.id) {
+  if (
+    currentUser.role !== "professor" ||
+    String(course.professorId) !== String(currentUser.id)
+  ) {
     throw new Error("담당 교수만 공지를 등록할 수 있습니다.");
   }
 
   return currentUser;
+}
+
+function formatAnnouncementDbError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/row-level security|42501|policy/i.test(message)) {
+    return new Error(
+      "공지 저장 권한이 없습니다. Supabase ai_announcements INSERT 정책을 확인해 주세요."
+    );
+  }
+  return error instanceof Error ? error : new Error(message);
 }
 
 async function assertActiveCourseMembership(courseId: string) {

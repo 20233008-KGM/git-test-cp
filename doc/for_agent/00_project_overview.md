@@ -34,6 +34,7 @@
 | `29_supabase_bundle_sql.md` | DB 테이블 5분 |
 | `30_edge_ai_report.md` | AI Edge 10분 |
 | `28_human_action_items.md` | H-001~008 체크리스트 |
+| `33_supabase_mcp_db_operations.md` | DB·Storage — MCP 자동 적용 (인간 SQL 불필요) |
 
 ## 기술 스택 요약
 

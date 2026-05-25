@@ -195,8 +195,13 @@ export default function SignInPage() {
                   name="password"
                   onChange={handlechange}
                   placeholder="••••••••"
+                  minLength={8}
+                  autoComplete="new-password"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
+                <p className="mt-1.5 text-xs text-gray-500" data-testid="signup-password-hint">
+                  비밀번호는 8자 이상이어야 합니다.
+                </p>
               </div>
 
               {/* 역할 선택 */}

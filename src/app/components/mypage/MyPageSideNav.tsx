@@ -9,9 +9,10 @@ export default function MyPageSideNav() {
   const { user } = useAuth();
   const isStudent = user?.role === "student";
   const isProfessor = user?.role === "professor" || user?.role === "admin";
-  const isReport = pathname === "/app/mypage";
+  const isHome = pathname === "/app/mypage";
   const isProfile = pathname === "/app/mypage/profile";
   const isArchived = pathname === "/app/mypage/archived-courses";
+  const homeLabel = isProfessor ? "마이페이지" : "리포트";
 
   return (
     <AppSideNav
@@ -30,8 +31,8 @@ export default function MyPageSideNav() {
         ) : undefined
       }
     >
-      <SideNavItem to="/app/mypage" icon={FileText} active={isReport}>
-        리포트
+      <SideNavItem to="/app/mypage" icon={FileText} active={isHome} data-testid="mypage-home-nav">
+        {homeLabel}
       </SideNavItem>
       {isStudent ? (
         <SideNavItem

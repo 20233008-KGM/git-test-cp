@@ -1,9 +1,15 @@
 # Supabase — 피드백·동료평가 테이블 만들기 (5분)
 
-> **한 번만 하면 됩니다.** 완료 후 팀 상세에서 피드백·동료평가가 새로고침 후에도 남습니다.  
-> **관련:** `28_human_action_items.md` H-007 · H-008
+> **2026-05-25 이후:** 일상적인 DB·Storage 작업은 **인간이 SQL Editor를 쓰지 않습니다.**  
+> Cursor **Supabase MCP**만 연결해 두면 AI가 `apply_migration`으로 원격에 맞춥니다.  
+> **정본:** `doc/for_agent/33_supabase_mcp_db_operations.md`
 
-## 1. Supabase 대시보드 열기
+아래 SQL Editor 절차는 **과거(H-007·H-008 초기 세팅)** 참고용입니다. 이미 H-011·MCP로 적용된 환경에서는 **건너뛰어도 됩니다.**
+
+> **한 번만 하면 됩니다.** 완료 후 팀 상세에서 피드백·동료평가가 새로고침 후에도 남습니다.  
+> **관련:** `28_human_action_items.md` H-007 · H-008 (완료)
+
+## 1. Supabase 대시보드 열기 (레거시 — MCP 우선)
 
 프로젝트 → 왼쪽 **SQL Editor** → **New query**
 

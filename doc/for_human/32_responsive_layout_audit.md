@@ -37,16 +37,16 @@
 - **잔여:** `MyPage`·`QnAPage`·`OtherStudentProfilePage` 등 일부 `max-w-*` 래퍼
 - **권장:** shell 안 페이지는 `cc-page-main`만 사용
 
-### 3. 전역 `overflow-x: hidden`
+### 3. 전역 `overflow-x: hidden` — **완화 (260525-9)**
 
 - **위치:** `src/styles/theme.css` — `html`, `body`
-- **문제:** 넘치는 내용이 스크롤되지 않고 **잘림**
-- **권장:** 문제 구간만 `min-w-0` / `overflow-x-auto` 또는 `clip` 검토
+- **적용:** `overflow-x: clip` (가로 넘침 클립, `hidden` 대신)
+- **잔여:** 페이지별 `min-w-0` 필요 시 개별 적용
 
-### 4. 수업 사이드 메뉴 `whitespace-nowrap`
+### 4. 수업 사이드 메뉴 `whitespace-nowrap` — **완료 (260525-9)**
 
-- **위치:** `MainLayout.tsx` 사이드 항목
-- **문제:** 모바일에서 메뉴가 위에 쌓일 때 긴 라벨 가로 넘침 가능
+- **위치:** `MainLayout.tsx` 「내 팀」버튼
+- **적용:** `min-w-0` + 라벨 `truncate`
 
 ---
 

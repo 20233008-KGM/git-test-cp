@@ -1,7 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
-import { api, buildTeamProgressSummary } from "../api/supabase-api";
+import {
+  fetchTeamProgressInsightFromEdge,
+  normalizeProgressInsightForDisplay,
+} from "../api/ai-team-progress";
+import { api, buildTeamProgressInsight } from "../api/supabase-api";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
 import TeamDeliverableDetailModal from "../components/TeamDeliverableDetailModal";
 import TeamDeliverableSubmitModal, {
@@ -267,10 +271,57 @@ export default function TeamDetailPage() {
     }
   };
 
-  const teamProgressSummary = useMemo(
-    () => buildTeamProgressSummary(deliverables, troubleshootingLogs),
-    [deliverables, troubleshootingLogs]
-  );
+  const [progressInsight, setProgressInsight] = useState<{
+    summary: string;
+    strengths: string[];
+    gaps: string[];
+    next_steps: string[];
+    architecture_risks: string[];
+    improvements: string[];
+    model: string;
+  } | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  const latestLinkDeliverable = useMemo(() => {
+    const withUrl = deliverables.filter((d) => {
+      const url = d.publicUrl?.trim() ?? "";
+      return /^https?:\/\//i.test(url);
+    });
+    if (withUrl.length === 0) return null;
+    return [...withUrl].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+  }, [deliverables]);
+
+  useEffect(() => {
+    if (!selectedTeamId) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      setInsightLoading(true);
+      setProgressInsight(null);
+
+      const edge = await fetchTeamProgressInsightFromEdge(selectedTeamId, "ko");
+      if (cancelled) return;
+
+      const fallback = normalizeProgressInsightForDisplay(
+        buildTeamProgressInsight(deliverables, troubleshootingLogs)
+      );
+
+      if (edge?.summary) {
+        setProgressInsight(edge);
+      } else {
+        setProgressInsight(fallback);
+      }
+      setInsightLoading(false);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTeamId, deliverables, troubleshootingLogs]);
 
   const projectEvalAutoHints = useMemo(() => {
     const fileList =
@@ -896,13 +947,70 @@ export default function TeamDetailPage() {
 
         {/* AI 통합 진행상황 요약 */}
         <GeminiShimmerPanel
-          active
+          active={insightLoading}
           className="mb-6 rounded-[14px] border border-[#c6d2ff] bg-gradient-to-r from-[#bfd3ff] to-[#e8e9ff] p-6 shadow-sm"
+          data-testid="team-progress-insight-panel"
         >
-          <h3 className="cc-gemini-shimmer-text mb-2 text-lg font-bold text-[#312c85]">
+          <h3
+            className={`mb-2 text-lg font-bold text-[#312c85] ${
+              insightLoading ? "cc-gemini-shimmer-text" : ""
+            }`}
+          >
             ✨ AI 통합 진행상황 요약
           </h3>
-          <p className="text-sm leading-relaxed text-[#372aac]">{teamProgressSummary}</p>
+          {insightLoading && !progressInsight?.summary ? (
+            <GeminiShimmerLines active lines={3} className="mb-2" />
+          ) : (
+            <>
+              <p className="text-sm leading-relaxed text-[#372aac]">
+                {progressInsight?.summary ?? "팀 활동 데이터를 분석 중입니다."}
+              </p>
+              {(progressInsight?.strengths?.length ?? 0) > 0 && (
+                <ul className="mt-3 space-y-1 text-xs text-[#4338ca]">
+                  {progressInsight!.strengths.slice(0, 3).map((item) => (
+                    <li key={item}>· {item}</li>
+                  ))}
+                </ul>
+              )}
+              {(progressInsight?.gaps?.length ?? 0) > 0 && (
+                <ul className="mt-2 space-y-1 text-xs text-[#6b21a8]">
+                  {progressInsight!.gaps.slice(0, 3).map((item) => (
+                    <li key={item}>△ {item}</li>
+                  ))}
+                </ul>
+              )}
+              {(progressInsight?.next_steps?.length ?? 0) > 0 && (
+                <div className="mt-4 rounded-lg border border-[#c4b5fd] bg-white/60 px-3 py-2">
+                  <p className="text-[10px] font-black text-[#5b21b6]">다음에 할 일</p>
+                  <ul className="mt-1 space-y-1 text-xs text-[#4c1d95]">
+                    {progressInsight!.next_steps.slice(0, 4).map((item) => (
+                      <li key={item}>→ {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(progressInsight?.architecture_risks?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-lg border border-[#fecaca] bg-white/50 px-3 py-2">
+                  <p className="text-[10px] font-black text-[#991b1b]">아키텍처·구조 주의</p>
+                  <ul className="mt-1 space-y-1 text-xs text-[#7f1d1d]">
+                    {progressInsight!.architecture_risks.slice(0, 3).map((item) => (
+                      <li key={item}>⚠ {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {(progressInsight?.improvements?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-lg border border-[#bbf7d0] bg-white/50 px-3 py-2">
+                  <p className="text-[10px] font-black text-[#166534]">개선 방향</p>
+                  <ul className="mt-1 space-y-1 text-xs text-[#14532d]">
+                    {progressInsight!.improvements.slice(0, 3).map((item) => (
+                      <li key={item}>✦ {item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          )}
         </GeminiShimmerPanel>
 
         {(isProfessor || isAdmin) && (
@@ -982,11 +1090,35 @@ export default function TeamDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* 왼쪽: 프로젝트 산출물 & 공간 */}
           <div className="bg-white rounded-[14px] shadow-md border border-[rgba(0,0,0,0.1)] p-5">
-            <h2 className="text-lg font-bold text-[#1e2939] mb-6">
+            <h2 className="text-lg font-bold text-[#1e2939] mb-3">
               📁 프로젝트 산출물 & 공간
             </h2>
 
-            {/* 팀 산출물 */}
+            {latestLinkDeliverable && (
+              <a
+                href={latestLinkDeliverable.publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="team-deliverable-latest-link-banner"
+                className="mb-4 flex flex-col gap-1 rounded-[10px] border border-[#93c5fd] bg-[#eff6ff] px-4 py-3 transition-colors hover:bg-[#dbeafe]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-[10px] font-black uppercase tracking-wide text-[#155dfc]">
+                  최신 링크 (산출물 게시판)
+                </p>
+                <p className="text-sm font-bold text-[#1e3a6e] truncate">
+                  {latestLinkDeliverable.fileName}
+                </p>
+                {latestLinkDeliverable.subtitle ? (
+                  <p className="text-xs text-[#64748b] line-clamp-1">
+                    {latestLinkDeliverable.subtitle}
+                  </p>
+                ) : null}
+                <p className="text-xs font-medium text-[#155dfc]">새 탭에서 열기 →</p>
+              </a>
+            )}
+
+            {/* 팀 산출물 게시판 */}
             <div className="space-y-3">
               {deliverables.length === 0 ? (
                 <p className="rounded-[10px] border border-dashed border-gray-300 bg-[#f9fafb] px-3 py-4 text-center text-sm text-[#6a7282]">

@@ -1,7 +1,17 @@
 ﻿# 09 — 데이터베이스 (Supabase / PostgreSQL)
 
 > **관련:** `07_backend.md` · `22_security_notes.md` · `11_api_spec.md` · `supabase/seed/`  
-> **검증:** 2026-05-20 Supabase MCP · 시드 `archived_courses_kim_student.sql`
+> **검증:** 2026-05-20 Supabase MCP · 시드 `archived_courses_kim_student.sql`  
+> **원격 적용 (필수):** [`33_supabase_mcp_db_operations.md`](./33_supabase_mcp_db_operations.md) — AI가 MCP로 DDL·Storage 적용, 인간 SQL Editor 불필요
+
+## 원격 적용 (MCP)
+
+| 담당 | 내용 |
+|------|------|
+| AI | `supabase/migrations/*.sql` → MCP `apply_migration` · `list_migrations`로 중복 방지 |
+| 인간 | Supabase MCP 연결 유지 · 화면으로 기능 확인 |
+
+일반 마이그레이션을 `28_human_action_items` H-xxx로 올리지 않는다.
 
 ## 현재
 
@@ -66,5 +76,5 @@
 
 ## 다음 액션
 
-1. RLS 정책 적용 (T-011, H-001, ADR-012)
-2. 번들 SQL 원격 실행 (H-007·H-008)
+1. RLS 정책 적용 (T-011, H-001 인간 승인 후 MCP, ADR-012)
+2. ~~번들 SQL 원격 실행~~ → MCP 일상 적용 (`33`), H-007~011 완료

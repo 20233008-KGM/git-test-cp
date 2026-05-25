@@ -97,6 +97,7 @@ export interface Activity {
 
 // 팀 목록 페이지의 공지 카드입니다.
 export interface Announcement {
+  id?: string;
   title: string;
   description: string;
   dDay: number;
