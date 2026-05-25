@@ -29,6 +29,7 @@ const courseMaterials = fs.readFileSync(
 );
 const courseMaterialsStorage = fs.readFileSync(
   path.join(root, "supabase/migrations/20260523210000_course_materials_storage_policies.sql"),
+  path.join(root, "supabase/migrations/20260525143000_direct_messages_deliverable_legacy.sql"),
   "utf8"
 );
 

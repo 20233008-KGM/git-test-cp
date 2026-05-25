@@ -113,6 +113,17 @@ export default function TeamPeerReviewPage() {
       {!isEvaluationOpen && (
         <div className="cc-alert-warning mb-6 rounded px-4 py-3 text-sm font-bold">
           교수가 수업을 종료(아카이브)한 뒤에만 조원평가를 제출할 수 있습니다.
+          {course && course.status !== "archived" && (
+            <span className="mt-1 block font-normal">
+              현재 수업 상태: {course.status}. 수업 목록에서 「수업 종료」 후 다시 시도해 주세요.
+            </span>
+          )}
+        </div>
+      )}
+
+      {isEvaluationOpen && teammates.filter((m) => m.name !== myName).length === 0 && (
+        <div className="cc-alert-warning mb-6 rounded px-4 py-3 text-sm">
+          평가할 팀원 정보를 불러오지 못했습니다. 팀 관리에서 멤버가 등록되어 있는지 확인해 주세요.
         </div>
       )}
 

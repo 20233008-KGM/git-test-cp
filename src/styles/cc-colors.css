@@ -311,9 +311,19 @@
   }
 }
 
+/** 스크롤 초과 시 흰 여백 방지 (vision #97) */
+html,
+body,
+#root {
+  min-height: 100dvh;
+  background-color: var(--cc-surface-container);
+}
+
 /** 첫 화면: 상단 네비 + 메인만 보이고 푸터는 스크롤 후 노출 */
 .cc-main-viewport {
   min-height: calc(100dvh - var(--cc-nav-height));
+  flex: 1 1 auto;
+  background-color: var(--cc-surface-container);
 }
 
 /* ── 수업 목록 카드 ── */

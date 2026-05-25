@@ -8,6 +8,7 @@ export default function MyPageSideNav() {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const isStudent = user?.role === "student";
+  const isProfessor = user?.role === "professor" || user?.role === "admin";
   const isReport = pathname === "/app/mypage";
   const isProfile = pathname === "/app/mypage/profile";
   const isArchived = pathname === "/app/mypage/archived-courses";
@@ -38,6 +39,16 @@ export default function MyPageSideNav() {
           icon={User}
           active={isProfile}
           data-testid="mypage-profile-nav"
+        >
+          내 정보
+        </SideNavItem>
+      ) : null}
+      {isProfessor ? (
+        <SideNavItem
+          to="/app/profile/professor"
+          icon={User}
+          active={pathname === "/app/profile/professor"}
+          data-testid="mypage-professor-profile-nav"
         >
           내 정보
         </SideNavItem>

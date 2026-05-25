@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
 import AppModal from "../components/layout/AppModal";
 import { useAuth } from "../contexts/AuthContext";
@@ -92,6 +92,7 @@ function TeamCardComponent({
   onStageChange,
   canEditStages,
   hasUnreadActivity,
+  courseId,
 }: {
   team: TeamCard;
   stages: string[];
@@ -102,6 +103,7 @@ function TeamCardComponent({
   onStageChange?: (next: number) => void;
   canEditStages?: boolean;
   hasUnreadActivity?: boolean;
+  courseId?: string;
 }) {
   return (
     <div
@@ -184,10 +186,15 @@ function TeamCardComponent({
             </button>
           </div>
         )}
-        {showJoinActions && isMyTeam && (
-          <p className="text-center text-[11px] font-medium text-[#64748b]" data-testid={`team-leave-hint-${team.id}`}>
-            탈퇴는 팀 워크스페이스(입장) 안에서 할 수 있습니다
-          </p>
+        {showJoinActions && isMyTeam && courseId && (
+          <Link
+            to={`/app/courses/${courseId}/my-team/manage`}
+            onClick={(e) => e.stopPropagation()}
+            data-testid={`team-leave-link-${team.id}`}
+            className="block text-center text-[11px] font-medium text-[#64748b] underline decoration-[#94a3b8] underline-offset-2 hover:text-[#155dfc]"
+          >
+            팀 관리에서 탈퇴
+          </Link>
         )}
 
         {/* 숫자로 보는 전체 진행률입니다. 실제 막대는 아니고 텍스트로만 보여줍니다. */}
@@ -284,7 +291,8 @@ type UnassignedStudent = { id: string; name: string; studentId: string };
 export default function TeamsPage() {
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId?: string }>();
-  const { user, isStudent } = useAuth();
+  const { user, isStudent, isProfessor, isAdmin } = useAuth();
+  const canManageAnnouncements = isProfessor || isAdmin;
   const [teams, setTeams] = useState<TeamCard[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stages, setStages] = useState<string[]>([]);
@@ -403,7 +411,7 @@ export default function TeamsPage() {
             <span className="rounded-[10px] border border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-500 shadow-sm">
               종료된 수업: 읽기 전용
             </span>
-          ) : (
+          ) : (isStudent && hasMyTeamInCourse ? null : (
             <button
               type="button"
               data-testid="teams-create-open"
@@ -412,7 +420,7 @@ export default function TeamsPage() {
             >
               + 새 팀 만들기
             </button>
-          )}
+          ))}
         </div>
 
         <AppModal
@@ -448,7 +456,13 @@ export default function TeamsPage() {
                   </p>
                   {isStudent && (
                     <p className="mb-2 text-xs text-gray-500">
-                      본인은 팀장으로 자동 포함됩니다. 아래에서 팀에 넣을 수강생을 클릭하세요.
+                      본인은 팀장으로 자동 포함됩니다. 아래 목록은 <strong>아직 팀에 속하지 않은</strong>{" "}
+                      수강생만 표시됩니다.
+                    </p>
+                  )}
+                  {!isStudent && (
+                    <p className="mb-2 text-xs text-gray-500">
+                      팀 미배정 수강생만 선택할 수 있습니다.
                     </p>
                   )}
                   {!isStudent && selectedMemberIds.size > 0 && (
@@ -555,6 +569,7 @@ export default function TeamsPage() {
                 team={team}
                 stages={stages}
                 isMyTeam={isMyTeam}
+                courseId={courseId}
                 hasUnreadActivity={unread}
                 showJoinActions={isStudent && !isArchived && !hasMyTeamInCourse}
                 onJoin={async () => {
@@ -594,10 +609,22 @@ export default function TeamsPage() {
 
         {/* 중요 공지와 마감일 목록입니다. announcements 배열을 반복해서 카드로 보여줍니다. */}
         <div className="mt-12">
-          <h2 className="text-xl font-black text-[#101828] mb-5 flex items-center gap-2">
-            📌 중요 공지 &amp; 마감일
-            <span className="text-sm font-normal text-gray-500">(최신 3건)</span>
-          </h2>
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-black text-[#101828] flex items-center gap-2">
+              📌 중요 공지 &amp; 마감일
+              <span className="text-sm font-normal text-gray-500">(최신 3건)</span>
+            </h2>
+            {canManageAnnouncements && courseId && (
+              <button
+                type="button"
+                data-testid="teams-announcements-manage"
+                onClick={() => navigate(`/app/courses/${courseId}/announcements`)}
+                className="rounded-lg border border-[#155dfc] px-4 py-2 text-sm font-bold text-[#155dfc] hover:bg-[#eff6ff]"
+              >
+                공지 전체 관리
+              </button>
+            )}
+          </div>
           <div className="flex flex-col gap-4">
             {announcements.length === 0 && (
               <p className="text-sm text-gray-500">등록된 공지가 없습니다.</p>

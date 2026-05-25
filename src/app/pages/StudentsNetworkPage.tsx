@@ -6,8 +6,10 @@ import AppModal from "../components/layout/AppModal";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
 import type { Course, ProfessorProfile } from "../types";
+import DirectChatModal from "../components/DirectChatModal";
 import {
   NETWORK_BIO_PLACEHOLDER,
+  NETWORK_BIO_PLACEHOLDER_OTHER,
   NETWORK_MAJOR_PLACEHOLDER,
   NETWORK_TAGS_EMPTY_LABEL,
   buildMinimalStudentExtra,
@@ -353,19 +355,24 @@ function StudentProfileModal({
   student,
   studentExtras,
   editForm,
+  courseId,
   onClose,
   onEditClick,
 }: {
   student: Student;
   studentExtras: Record<string, StudentExtra>;
   editForm?: EditForm;
+  courseId?: string;
   onClose: () => void;
   onEditClick?: () => void;
 }) {
+  const [showDirectChat, setShowDirectChat] = useState(false);
   const displayStudent = enrichStudentForDisplay(student, editForm);
   const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
   const majorLabel = displayMajor(displayStudent.major);
-  const bioIsPlaceholder = extra.detailedBio === NETWORK_BIO_PLACEHOLDER;
+  const bioIsPlaceholder =
+    extra.detailedBio === NETWORK_BIO_PLACEHOLDER ||
+    extra.detailedBio === NETWORK_BIO_PLACEHOLDER_OTHER;
 
   return (
     <AppModal
@@ -484,12 +491,27 @@ function StudentProfileModal({
               </Link>
             )
           ) : (
-            <button className="w-full bg-[#101828] text-white py-3 rounded-[10px] font-bold text-sm hover:bg-gray-900 transition-colors">
+            <button
+              type="button"
+              disabled={!courseId}
+              onClick={() => courseId && setShowDirectChat(true)}
+              data-testid="student-profile-direct-chat-open"
+              className="w-full rounded-[10px] bg-[#101828] py-3 text-sm font-bold text-white transition-colors hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+            >
               1:1 채팅하기
             </button>
           )}
         </div>
       </div>
+      {courseId && !displayStudent.isSelf && (
+        <DirectChatModal
+          open={showDirectChat}
+          courseId={courseId}
+          peerUserId={displayStudent.id}
+          peerName={displayStudent.name}
+          onClose={() => setShowDirectChat(false)}
+        />
+      )}
     </AppModal>
   );
 }
@@ -557,6 +579,7 @@ function RandomTeamModal({
   onClose: () => void;
 }) {
   const [activeKeywords, setActiveKeywords] = useState<string[]>(["size4", "even", "career", "mbti"]);
+  const [teamSize, setTeamSize] = useState(4);
   const [teams, setTeams] = useState<Student[][]>([]);
   const [customInput, setCustomInput] = useState("");
   const [customKeywords, setCustomKeywords] = useState<string[]>([]);
@@ -565,8 +588,9 @@ function RandomTeamModal({
 
   const unassignedStudents = allStudents.filter((s) => !assignedStudentIds.includes(s.id));
 
-  const generate = (kws: string[]) => {
-    const size = kws.includes("size3") ? 3 : 4;
+  const generate = (kws: string[], sizeOverride?: number) => {
+    const sizeFromKeyword = kws.includes("size3") ? 3 : 4;
+    const size = Math.min(8, Math.max(2, sizeOverride ?? teamSize ?? sizeFromKeyword));
     let pool = [...unassignedStudents];
 
     if (kws.includes("career")) {
@@ -589,7 +613,7 @@ function RandomTeamModal({
   };
 
   useEffect(() => {
-    generate(activeKeywords);
+    generate(activeKeywords, teamSize);
   }, []);
 
   const toggleKeyword = (id: string, group: string) => {
@@ -631,6 +655,27 @@ function RandomTeamModal({
             >
               ✕
             </button>
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <label className="text-sm font-bold text-[#364153]" htmlFor="random-team-size">
+              팀당 인원
+            </label>
+            <input
+              id="random-team-size"
+              type="number"
+              min={2}
+              max={8}
+              value={teamSize}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (!Number.isFinite(next)) return;
+                setTeamSize(Math.min(8, Math.max(2, next)));
+              }}
+              data-testid="random-team-size-input"
+              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+            />
+            <span className="text-xs text-[#6a7282]">2~8명</span>
           </div>
 
           {/* 키워드 칩 */}
@@ -707,7 +752,7 @@ function RandomTeamModal({
         <div className="flex-shrink-0 px-7 py-5 border-t border-gray-100 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <button
             type="button"
-            onClick={() => generate(activeKeywords)}
+            onClick={() => generate(activeKeywords, teamSize)}
             className="bg-[#155dfc] text-white px-12 py-3 rounded-[10px] font-bold text-base hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
           >
             <Shuffle className="w-4 h-4" />
@@ -736,7 +781,7 @@ function RandomTeamModal({
               }}
               className="rounded-[10px] border border-[#155dfc] bg-white px-12 py-3 text-base font-bold text-[#155dfc] transition-colors hover:bg-blue-50 disabled:opacity-60"
             >
-              {saving ? "저장 중..." : "Supabase에 저장"}
+              {saving ? "생성 중..." : "팀 생성하기"}
             </button>
           )}
         </div>
@@ -760,8 +805,11 @@ function StudentCard({
   const displayStudent = enrichStudentForDisplay(student, editForm);
   const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
   const majorLabel = displayMajor(displayStudent.major);
-  const bioLabel = displayBio(displayStudent.bio, extra.detailedBio);
-  const bioIsPlaceholder = bioLabel === NETWORK_BIO_PLACEHOLDER;
+  const bioLabel = displayBio(displayStudent.bio, extra.detailedBio, undefined, {
+    isSelf: displayStudent.isSelf,
+  });
+  const bioIsPlaceholder =
+    bioLabel === NETWORK_BIO_PLACEHOLDER || bioLabel === NETWORK_BIO_PLACEHOLDER_OTHER;
   const isSelf = displayStudent.isSelf;
 
   return (
@@ -1122,6 +1170,7 @@ export default function StudentsNetworkPage() {
         <StudentProfileModal
           student={selectedStudent}
           studentExtras={studentExtras}
+          courseId={courseId}
           onClose={() => setSelectedStudent(null)}
         />
       )}
@@ -1131,6 +1180,7 @@ export default function StudentsNetworkPage() {
           student={displaySelfStudent}
           studentExtras={studentExtras}
           editForm={editForm}
+          courseId={courseId}
           onClose={() => setShowMyProfileModal(false)}
           onEditClick={
             isArchived

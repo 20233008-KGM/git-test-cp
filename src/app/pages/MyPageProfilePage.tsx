@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, Navigate } from "react-router";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
@@ -106,21 +106,8 @@ export default function MyPageProfilePage() {
     }
   }
 
-  if (user?.role !== "student") {
-    return (
-      <MyPageShell testId="mypage-profile-page">
-        <h1 className="m3-headline-medium cc-text-primary mb-4 font-bold">내 정보</h1>
-        <p className="m3-body-medium text-[var(--cc-on-surface-variant)]">
-          학생 계정에서만 프로필을 수정할 수 있습니다.
-        </p>
-        <Link
-          to="/app/mypage"
-          className="mt-6 inline-block text-sm font-bold text-[var(--cc-primary)] hover:underline"
-        >
-          리포트로 돌아가기
-        </Link>
-      </MyPageShell>
-    );
+  if (user?.role === "professor" || user?.role === "admin") {
+    return <Navigate to="/app/profile/professor" replace />;
   }
 
   return (

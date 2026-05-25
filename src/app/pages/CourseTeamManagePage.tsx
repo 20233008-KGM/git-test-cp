@@ -14,6 +14,9 @@ export default function CourseTeamManagePage() {
   const [loading, setLoading] = useState(true);
   const [transferringTo, setTransferringTo] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editProjectTitle, setEditProjectTitle] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const load = useCallback(async () => {
     if (!courseId) {
@@ -25,6 +28,10 @@ export default function CourseTeamManagePage() {
     try {
       const data = await api.teams.getManagement(courseId);
       setInfo(data);
+      if (data) {
+        setEditTeamName(data.teamName);
+        setEditProjectTitle(data.projectTitle);
+      }
     } catch (error) {
       console.error(error);
       setInfo(null);
@@ -146,6 +153,52 @@ export default function CourseTeamManagePage() {
           </div>
         )}
 
+        {info.myRole === "leader" && !info.isArchived && (
+          <form
+            className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3"
+            data-testid="team-manage-profile-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingProfile(true);
+              try {
+                await api.teams.updateProfile(info.teamId, {
+                  name: editTeamName,
+                  projectTitle: editProjectTitle,
+                });
+                await load();
+                alert("팀 정보가 저장되었습니다.");
+              } catch (error) {
+                alert(error instanceof Error ? error.message : "저장에 실패했습니다.");
+              } finally {
+                setSavingProfile(false);
+              }
+            }}
+          >
+            <h2 className="text-sm font-bold text-[#1e2939]">팀·프로젝트 이름</h2>
+            <input
+              value={editTeamName}
+              onChange={(e) => setEditTeamName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="팀 이름"
+              data-testid="team-manage-name-input"
+            />
+            <input
+              value={editProjectTitle}
+              onChange={(e) => setEditProjectTitle(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="프로젝트 이름"
+              data-testid="team-manage-project-input"
+            />
+            <button
+              type="submit"
+              disabled={savingProfile}
+              className="rounded-lg bg-[#155dfc] px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
+            >
+              {savingProfile ? "저장 중…" : "팀 정보 저장"}
+            </button>
+          </form>
+        )}
+
         <h2 className="mb-3 text-base font-bold text-[#1e2939]">팀원</h2>
         <ul className="space-y-2" data-testid="team-manage-member-list">
           {info.members.map((member) => (
@@ -233,7 +286,7 @@ export default function CourseTeamManagePage() {
               onClick={() => void handleLeaveTeam()}
               disabled={leaving}
               data-testid="team-manage-leave"
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600/90 hover:bg-red-50 disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" />
               {leaving ? "탈퇴 처리 중…" : "팀에서 탈퇴하기"}

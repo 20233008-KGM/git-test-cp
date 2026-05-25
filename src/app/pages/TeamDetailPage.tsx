@@ -215,14 +215,11 @@ export default function TeamDetailPage() {
 
   const canEditLog = (log: TroubleshootingLog) => log.author === myName;
   const canResolveLog = (log: TroubleshootingLog) =>
-    log.status === "in-progress" &&
-    !isArchived &&
-    (log.author === myName || isProfessor || isAdmin);
+    log.status === "in-progress" && !isArchived && isStudent && isMyTeamMember;
 
   const canWriteTroubleshooting = !isArchived && isStudent && isMyTeamMember;
   const canUploadDeliverable =
     !isArchived && ((isStudent && isMyTeamMember) || isProfessor || isAdmin);
-  const canLeaveTeam = !isArchived && isStudent && isMyTeamMember;
 
   const openMemberProfile = async (memberId: string) => {
     if (memberId === user?.id) return;
@@ -278,15 +275,40 @@ export default function TeamDetailPage() {
   const projectEvalAutoHints = useMemo(() => {
     const fileList =
       deliverables.length > 0
-        ? deliverables.map((item) => item.fileName).join(", ")
+        ? deliverables
+            .map((item) => {
+              const sub = item.subtitle?.trim();
+              const desc = item.description?.trim();
+              const extra = [sub, desc].filter(Boolean).join(" — ");
+              return extra ? `${item.fileName} (${extra})` : item.fileName;
+            })
+            .join("\n")
         : "업로드된 산출물 없음";
+    const inProgress =
+      troubleshootingLogs
+        .filter((log) => log.status === "in-progress")
+        .map((log) => log.problem)
+        .filter(Boolean)
+        .join(" / ") || "";
     const solvedList =
       troubleshootingLogs
         .filter((log) => log.status === "resolved")
         .map((log) => log.problem)
         .filter(Boolean)
-        .join(" / ") || "해결 완료된 트러블슈팅 없음";
-    return { files: fileList, solved: solvedList };
+        .join(" / ") || "";
+    const solved = solvedList || inProgress || "기록된 트러블슈팅 없음";
+    const resolvedCount = troubleshootingLogs.filter((log) => log.status === "resolved").length;
+    const inProgressCount = troubleshootingLogs.filter((log) => log.status === "in-progress").length;
+    const narrative = [
+      `팀 DB 기준 요약 (AI 생성 아님): 산출물 ${deliverables.length}건`,
+      resolvedCount > 0 || inProgressCount > 0
+        ? `트러블슈팅 해결 ${resolvedCount}건 · 진행 중 ${inProgressCount}건`
+        : "트러블슈팅 기록 없음",
+      deliverables.length > 0 ? `최근 산출물: ${deliverables[0]?.fileName ?? ""}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return { files: fileList, solved, narrative };
   }, [deliverables, troubleshootingLogs]);
 
   const handleSaveStudentEvals = async () => {
@@ -521,7 +543,11 @@ export default function TeamDetailPage() {
         selectedOptions: selectedFeedbacks,
         customText: customFeedbackText,
       });
-      setFeedbackSubmitted(true);
+      const counts = await api.teamDetail.getFeedbackCounts(selectedTeamId);
+      setFeedbackCounts(counts);
+      setSelectedFeedbacks([]);
+      setCustomFeedbackText("");
+      setFeedbackSubmitted(false);
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : "피드백 저장에 실패했습니다.");
@@ -580,7 +606,6 @@ export default function TeamDetailPage() {
         "신선해요",
         "아이디어가 좋아요",
         "UI/UX가 좋아요",
-        "개선이 필요해요",
       ];
 
       if (feedbackOptionsResult.status === "fulfilled") {
@@ -593,12 +618,11 @@ export default function TeamDetailPage() {
         if (myFeedbackResult.status === "fulfilled" && myFeedbackResult.value) {
           setSelectedFeedbacks(myFeedbackResult.value.selectedOptions);
           setCustomFeedbackText(myFeedbackResult.value.customText ?? "");
-          setFeedbackSubmitted(true);
         } else {
-          setSelectedFeedbacks(feedbackData.slice(0, 2));
+          setSelectedFeedbacks([]);
           setCustomFeedbackText("");
-          setFeedbackSubmitted(false);
         }
+        setFeedbackSubmitted(false);
       } else {
         console.warn("피드백 옵션 로드 실패:", feedbackOptionsResult.reason);
         setFeedbackOptions(defaultFeedbackOptions);
@@ -1114,13 +1138,14 @@ export default function TeamDetailPage() {
                   {!aiRecommendationLoading && !aiRecommendationError && aiRecommendation && (
                     <>
                       <p className="text-xs">
-                        <span className="font-bold text-[#fb2c36]">🚨 문제:</span>{" "}
+                        <span className="font-bold text-[#fb2c36]">🚨 AI 진단:</span>{" "}
                         {aiRecommendation.problem}
                       </p>
-                      <p className="mt-1 text-xs">
-                        <span className="font-bold text-[#2b7fff]">🏃 계획:</span>{" "}
-                        {aiRecommendation.plan}
-                      </p>
+                      {aiRecommendation.plan?.trim() ? (
+                        <p className="mt-1 text-xs text-[#6a7282]">
+                          <span className="font-bold">참고:</span> {aiRecommendation.plan}
+                        </p>
+                      ) : null}
                       {aiRecommendation.rationale &&
                         !aiRecommendation.rationale.startsWith("DB 초안") && (
                         <p className="mt-2 text-[10px] text-[#6a7282]">{aiRecommendation.rationale}</p>
@@ -1327,11 +1352,6 @@ export default function TeamDetailPage() {
                   )}
                 </button>
               </div>
-              {totalFeedbackCount > 0 && (
-                <p className="mb-3 text-center text-xs text-gray-500">
-                  총 {totalFeedbackCount}명이 피드백을 남겼습니다.
-                </p>
-              )}
               <div className="flex justify-center">
                 <button
                   type="button"
@@ -1349,23 +1369,6 @@ export default function TeamDetailPage() {
             </>
           )}
         </div>
-
-        {canLeaveTeam && (
-          <div
-            className="mt-10 flex justify-end border-t border-[#e2e8f0] pt-4"
-            data-testid="team-workspace-leave-wrap"
-          >
-            <button
-              type="button"
-              onClick={() => void handleLeaveTeam()}
-              disabled={leavingTeam}
-              data-testid="team-workspace-leave"
-              className="text-[11px] font-normal text-[#94a3b8] transition-colors hover:text-[#475569] underline-offset-2 hover:underline disabled:opacity-50"
-            >
-              {leavingTeam ? "탈퇴 처리 중…" : "팀에서 탈퇴하기"}
-            </button>
-          </div>
-        )}
 
       <AppModal
         open={showChatModal}
@@ -1492,6 +1495,9 @@ export default function TeamDetailPage() {
             </div>
 
             <div className="space-y-8 px-4 py-8 sm:px-8 sm:py-10 lg:px-16 lg:py-12">
+              <p className="rounded-lg border border-blue-100 bg-[#eff6ff] px-4 py-3 text-center text-sm text-[#364153]">
+                {projectEvalAutoHints.narrative}
+              </p>
               {/* 1. 작업 완성도 */}
               <div className="space-y-4">
                 <h3 className="text-center text-lg font-medium text-black sm:text-xl">
@@ -1610,6 +1616,11 @@ export default function TeamDetailPage() {
             </div>
 
             <div className="px-6 py-5 space-y-7">
+              {allStudents.length === 0 && (
+                <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+                  이 팀에 등록된 팀원이 없습니다. 팀 멤버가 배정된 뒤 학생 평가를 작성할 수 있습니다.
+                </p>
+              )}
               {allStudents.map((student) => (
                 <div key={student.id} className="space-y-3">
                   {/* 이름 + 평균 기여도 */}

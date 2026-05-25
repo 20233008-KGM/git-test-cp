@@ -134,7 +134,7 @@ export default function RandomTeamPage() {
             }}
             className="w-full rounded border border-[#155dfc] bg-white px-6 py-2 font-medium text-[#155dfc] transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
-            {saving ? "저장 중…" : "Supabase에 저장"}
+            {saving ? "생성 중…" : "팀 생성하기"}
           </button>
         </div>
         {!loadingStudents && students.length === 0 && (

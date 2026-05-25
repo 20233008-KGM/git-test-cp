@@ -163,10 +163,8 @@ function buildDraftRecommendation(context: TeamContext): RecommendResponse {
   if (open.length > 0) {
     const latest = open[open.length - 1];
     return {
-      problem: `진행 중 이슈 마무리: ${truncateText(latest.problem, 90)}`,
-      plan: latest.plan?.trim()
-        ? `기존 계획을 검증·실행하고 해결·재발 방지를 solution에 기록하세요. (${truncateText(latest.plan, 80)})`
-        : "원인 가설 → 재현 → 수정 → 검증 순으로 로그를 완성하고 팀 채팅에 결과를 공유하세요.",
+      problem: `진행 중 이슈 점검 필요: ${truncateText(latest.problem, 100)}`,
+      plan: "",
       generated_at: new Date().toISOString(),
       model: "draft-db-only",
     };
@@ -174,8 +172,8 @@ function buildDraftRecommendation(context: TeamContext): RecommendResponse {
 
   if (deliverableCount === 0 && progress < 60) {
     return {
-      problem: "역할·일정이 불명확하면 산출물·마감이 지연될 수 있습니다.",
-      plan: "이번 주 목표 산출물 1개, 담당자, 마감일을 트러블슈팅·채팅에 명시하고 진행률을 갱신하세요.",
+      problem: "역할·일정·산출물이 불명확해 마감 지연 위험이 있습니다.",
+      plan: "",
       generated_at: new Date().toISOString(),
       model: "draft-db-only",
     };
@@ -184,8 +182,8 @@ function buildDraftRecommendation(context: TeamContext): RecommendResponse {
   if (resolved.length > 0 && open.length === 0) {
     const last = resolved[resolved.length - 1];
     return {
-      problem: "최근 해결한 이슈의 재발 방지·회고가 비어 있을 수 있습니다.",
-      plan: `「${truncateText(last.problem, 60)}」과 유사한 상황을 막는 체크리스트 2~3개를 새 로그로 남기세요.`,
+      problem: `최근 해결 이슈「${truncateText(last.problem, 70)}」의 재발·회고 누락 가능성`,
+      plan: "",
       generated_at: new Date().toISOString(),
       model: "draft-db-only",
     };
@@ -193,16 +191,16 @@ function buildDraftRecommendation(context: TeamContext): RecommendResponse {
 
   if (context.chat_snippets.length > 0) {
     return {
-      problem: "채팅에만 남은 이슈가 트러블슈팅으로 정리되지 않았을 수 있습니다.",
-      plan: "최근 채팅의 막힌 지점을 problem·plan 형식으로 옮기고 담당·기한을 적으세요.",
+      problem: "채팅에만 남은 막힌 지점이 트러블슈팅으로 정리되지 않았을 수 있습니다.",
+      plan: "",
       generated_at: new Date().toISOString(),
       model: "draft-db-only",
     };
   }
 
   return {
-    problem: "통합·배포·데모 전 환경·데이터 불일치로 오류가 날 수 있습니다.",
-    plan: "로컬·스테이징·팀원 PC에서 동일 시나리오를 재현하고, 환경 변수·시드·의존성 차이를 로그에 기록하세요.",
+    problem: "통합·배포·데모 전 환경·데이터 불일치로 런타임 오류가 날 수 있습니다.",
+    plan: "",
     generated_at: new Date().toISOString(),
     model: "draft-db-only",
   };
@@ -230,7 +228,7 @@ function buildLlmPayload(context: TeamContext) {
 
 function buildSystemPrompt(locale: "ko" | "en"): string {
   const lang = locale === "en" ? "English" : "Korean";
-  return `You help university team projects document troubleshooting. Respond in ${lang}. Return JSON only with keys: problem (string, max 120 chars), plan (string, max 200 chars), rationale (string, optional, max 80 chars). Suggest ONE new troubleshooting topic the team should write next—actionable, specific to the provided team data. Do not copy existing logs verbatim; if a similar issue exists, suggest the next step or a new angle. problem describes the risk or blocker; plan is concrete steps the team can take this week.`;
+  return `You help university team projects diagnose risks from real team context (deliverables, troubleshooting logs, chat). Respond in ${lang}. Return JSON only with keys: problem (string, max 140 chars), rationale (string, optional, max 100 chars). Do NOT include a plan or solution steps. Suggest ONE likely problem situation the team should investigate next—specific to the data. Do not copy existing logs verbatim.`;
 }
 
 async function callGemini(
@@ -269,13 +267,13 @@ async function callGemini(
   const parsed = JSON.parse(content) as Partial<RecommendResponse>;
   const problem = typeof parsed.problem === "string" ? parsed.problem.trim() : "";
   const plan = typeof parsed.plan === "string" ? parsed.plan.trim() : "";
-  if (!problem || !plan) {
-    throw new Error("Gemini JSON에 problem/plan이 없습니다.");
+  if (!problem) {
+    throw new Error("Gemini JSON에 problem이 없습니다.");
   }
 
   return {
-    problem: truncateText(problem, 120),
-    plan: truncateText(plan, 200),
+    problem: truncateText(problem, 140),
+    plan: plan ? truncateText(plan, 200) : "",
     rationale:
       typeof parsed.rationale === "string" ? truncateText(parsed.rationale, 80) : undefined,
     generated_at: new Date().toISOString(),

@@ -1,8 +1,11 @@
 import type { StudentExtra } from "../types";
 
 export const NETWORK_MAJOR_PLACEHOLDER = "전공 미입력";
+/** 본인 카드·모달용 */
 export const NETWORK_BIO_PLACEHOLDER =
   "아직 자기소개가 없습니다. 카드를 눌러 정보를 등록해 보세요.";
+/** 다른 사람 프로필 조회용 (vision #98) */
+export const NETWORK_BIO_PLACEHOLDER_OTHER = "아직 자기소개가 없습니다";
 export const NETWORK_TAGS_EMPTY_LABEL = "관심 태그 없음";
 
 type NetworkProfileMeta = {
@@ -54,6 +57,7 @@ export function displayBio(
   bio: string | undefined | null,
   detailedBio: string | undefined | null,
   metaPreview?: NetworkProfileMeta,
+  options?: { isSelf?: boolean },
 ): string {
   if (bio?.trim()) return bio.trim();
   if (detailedBio?.trim() && !isProfileMetaJson(detailedBio)) return detailedBio.trim();
@@ -62,7 +66,8 @@ export function displayBio(
     .map((part) => part?.trim())
     .filter(Boolean)
     .join(" · ");
-  return preview || NETWORK_BIO_PLACEHOLDER;
+  const fallback = options?.isSelf ? NETWORK_BIO_PLACEHOLDER : NETWORK_BIO_PLACEHOLDER_OTHER;
+  return preview || fallback;
 }
 
 export function tagsFromEditHints(hints?: {
@@ -135,6 +140,7 @@ export function resolveStudentExtra(
     student.isSelf ? editHints?.bio ?? student.bio : student.bio,
     raw.detailedBio,
     meta,
+    { isSelf: student.isSelf },
   );
   const portfolioFile =
     raw.portfolioFile?.trim() ||

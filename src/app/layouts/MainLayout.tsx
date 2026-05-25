@@ -302,8 +302,22 @@ function CourseSideNavigation() {
           },
         ]
       : []),
-    ...(courseStatus === "archived" && courseId
+    ...(courseStatus === "archived" && courseId && isStudent
       ? [
+          ...(myTeamPeerReviewPath
+            ? [
+                {
+                  key: "peer-review",
+                  label: "조원평가 작성",
+                  path: myTeamPeerReviewPath,
+                  active:
+                    Boolean(myTeamPeerReviewPath) &&
+                    location.pathname.startsWith(myTeamPeerReviewPath),
+                  disabled: false,
+                  testId: "course-detail-side-peer-review-archived",
+                },
+              ]
+            : []),
           {
             key: "my-peer-reviews",
             label: "내 조원평가",
@@ -321,16 +335,21 @@ function CourseSideNavigation() {
             testId: "course-detail-side-professor-evals",
           },
         ]
-      : [
+      : []),
+    ...(courseStatus !== "archived" && isStudent && myTeamPeerReviewPath
+      ? [
           {
             key: "peer-review",
             label: "조원평가",
             path: myTeamPeerReviewPath,
-            active: Boolean(myTeamPeerReviewPath) && location.pathname.startsWith(myTeamPeerReviewPath),
-            disabled: !myTeamPeerReviewPath,
+            active:
+              Boolean(myTeamPeerReviewPath) &&
+              location.pathname.startsWith(myTeamPeerReviewPath),
+            disabled: false,
             testId: "course-detail-side-peer-review",
           },
-        ]),
+        ]
+      : []),
   ] as const;
 
   return (
@@ -390,11 +409,15 @@ export default function MainLayout() {
   const appShellClass = getAppShellClassName(location.pathname);
 
   return (
-    <div className="flex w-full flex-col bg-[var(--cc-surface-container)]">
+    <div className="flex min-h-dvh w-full flex-col bg-[var(--cc-surface-container)]">
       <ScrollToTop />
       <SkipLink />
       <Navigation />
-      <main id="main-content" className="cc-main-viewport w-full" tabIndex={-1}>
+      <main
+        id="main-content"
+        className="cc-main-viewport flex w-full flex-1 flex-col bg-[var(--cc-surface-container)]"
+        tabIndex={-1}
+      >
         {showCourseSideNavigation ? (
           <div
             className={`flex w-full flex-col gap-4 py-4 sm:gap-6 sm:py-6 lg:flex-row lg:items-start ${appShellClass}`}

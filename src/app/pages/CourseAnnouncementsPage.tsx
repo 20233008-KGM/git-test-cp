@@ -10,6 +10,7 @@ export default function CourseAnnouncementsPage() {
   const canManage = isProfessor || isAdmin;
 
   const [course, setCourse] = useState<Course | null>(null);
+  const isActiveCourse = course?.status === "active";
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,6 +53,12 @@ export default function CourseAnnouncementsPage() {
         <p className="text-sm text-gray-600">
           [{course.semester}] {course.name}
         </p>
+      )}
+
+      {!isActiveCourse && (
+        <div className="cc-alert-warning rounded-lg px-4 py-3 text-sm">
+          종료(아카이브)된 수업에는 새 공지를 등록할 수 없습니다. 아래 목록에서 기존 공지를 확인하세요.
+        </div>
       )}
 
       <form
@@ -103,7 +110,7 @@ export default function CourseAnnouncementsPage() {
           <button
             type="submit"
             data-testid="announcement-submit"
-            disabled={saving}
+            disabled={saving || !isActiveCourse}
             className="w-full rounded-lg bg-[#155dfc] px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
           >
             {saving ? "등록 중…" : "공지 등록"}
