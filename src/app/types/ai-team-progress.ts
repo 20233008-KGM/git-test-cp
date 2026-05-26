@@ -22,4 +22,6 @@ export type TeamProgressInsightResponse = {
   new_deliverables_analyzed?: number;
   /** ZIP/파일에서 추출한 유효 소스 스니펫 수 */
   source_samples_count?: number;
+  /** ZIP 전체 목록 스캔으로 README 존재 여부 (샘플에 README 본문이 없어도 true 가능) */
+  detected_has_readme?: boolean;
 };

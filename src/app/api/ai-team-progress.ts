@@ -26,6 +26,7 @@ export type TeamProgressInsightView = {
   used_memory?: boolean;
   new_deliverables_analyzed?: number;
   source_samples_count?: number;
+  detected_has_readme?: boolean;
 };
 
 function parseStringList(value: unknown, max = 5): string[] {
@@ -84,9 +85,16 @@ export function isShallowProgressInsight(insight: {
   return countOnlySummary || (strengthsOnlyMeta && strengths.length <= 3);
 }
 
+function suggestsMissingReadme(line: string): boolean {
+  return /readme.*(없|부재|미작|미비|추가|작성|정리|제출)|실행\s*가이드.*없|실행\s*방법.*(없|정리하세요)|온보딩.*없/i.test(
+    line
+  );
+}
+
 /** vision #128 — summary와 bullet 중복 제거 · UI용 분량 축소 */
 export function normalizeProgressInsightForDisplay(
-  insight: TeamProgressInsightView
+  insight: TeamProgressInsightView,
+  opts?: { detectedHasReadme?: boolean }
 ): TeamProgressInsightView {
   let summary = insight.summary.trim();
   summary = summary
@@ -94,22 +102,33 @@ export function normalizeProgressInsightForDisplay(
     .replace(/습니다\.입니다/g, "습니다.")
     .replace(/하세요\.을\(를\) 권장합니다/g, "하세요.")
     .replace(/하세요\.을\(를\) 권장합니다\./g, "하세요.");
+  if (opts?.detectedHasReadme && suggestsMissingReadme(summary)) {
+    summary = summary
+      .replace(/readme[^.]*?(없|부재|미비)[^.]*\.?/gi, "")
+      .replace(/실행\s*가이드[^.]*?(없|부재)[^.]*\.?/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
   const cappedSummary = summary.length > 240 ? `${summary.slice(0, 237)}…` : summary;
 
-  const filterDup = (items: string[], max: number) =>
+  const filterAdvice = (items: string[], max: number) =>
     items
       .map((s) => s.trim())
-      .filter((s) => s && !isDuplicateInsightLine(s, cappedSummary))
+      .filter((s) => {
+        if (!s || isDuplicateInsightLine(s, cappedSummary)) return false;
+        if (opts?.detectedHasReadme && suggestsMissingReadme(s)) return false;
+        return true;
+      })
       .slice(0, max);
 
   return {
     ...insight,
     summary: cappedSummary,
     strengths: [],
-    gaps: filterDup(insight.gaps, 2),
-    next_steps: filterDup(insight.next_steps, 2),
-    architecture_risks: filterDup(insight.architecture_risks, 1),
-    improvements: filterDup(insight.improvements, 1),
+    gaps: filterAdvice(insight.gaps, 2),
+    next_steps: filterAdvice(insight.next_steps, 2),
+    architecture_risks: filterAdvice(insight.architecture_risks, 1),
+    improvements: filterAdvice(insight.improvements, 1),
   };
 }
 
@@ -122,24 +141,29 @@ function extractEdgeError(data: unknown): string | null {
 }
 
 function mapInsightPayload(payload: TeamProgressInsightResponse): TeamProgressInsightView {
-  return normalizeProgressInsightForDisplay({
-    summary: payload.summary.trim(),
-    strengths: parseStringList(payload.strengths),
-    gaps: parseStringList(payload.gaps),
-    next_steps: parseStringList(payload.next_steps),
-    architecture_risks: parseStringList(payload.architecture_risks),
-    improvements: parseStringList(payload.improvements),
-    model: payload.model ?? "unknown",
-    used_memory: payload.used_memory === true,
-    new_deliverables_analyzed:
-      typeof payload.new_deliverables_analyzed === "number"
-        ? payload.new_deliverables_analyzed
-        : undefined,
-    source_samples_count:
-      typeof payload.source_samples_count === "number"
-        ? payload.source_samples_count
-        : undefined,
-  });
+  const detectedHasReadme = payload.detected_has_readme === true;
+  return normalizeProgressInsightForDisplay(
+    {
+      summary: payload.summary.trim(),
+      strengths: parseStringList(payload.strengths),
+      gaps: parseStringList(payload.gaps),
+      next_steps: parseStringList(payload.next_steps),
+      architecture_risks: parseStringList(payload.architecture_risks),
+      improvements: parseStringList(payload.improvements),
+      model: payload.model ?? "unknown",
+      used_memory: payload.used_memory === true,
+      new_deliverables_analyzed:
+        typeof payload.new_deliverables_analyzed === "number"
+          ? payload.new_deliverables_analyzed
+          : undefined,
+      source_samples_count:
+        typeof payload.source_samples_count === "number"
+          ? payload.source_samples_count
+          : undefined,
+      detected_has_readme: detectedHasReadme,
+    },
+    { detectedHasReadme }
+  );
 }
 
 export async function fetchTeamProgressInsightFromEdge(

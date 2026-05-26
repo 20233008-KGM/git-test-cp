@@ -142,6 +142,7 @@ function deliverableRowIsZip(row: DeliverableRow): boolean {
 }
 
 function isZipSnippetSuccess(snippet: SourceSnippet): boolean {
+  if (snippet.file_name.includes("::__inventory")) return false;
   return Boolean(snippet.excerpt.trim()) && !snippet.excerpt.startsWith("(ZIP");
 }
 
@@ -172,10 +173,82 @@ function deliverableHasDeployLink(row: DeliverableRow, isLink: boolean): boolean
 
 function archivePathPriority(path: string): number {
   const lower = path.toLowerCase();
-  if (/\.(tsx|ts|jsx|js)$/.test(lower)) return 0;
-  if (/(^|\/)package\.json$|readme/i.test(lower)) return 1;
-  if (/\.(py|go|rs|sql|md)$/.test(lower)) return 2;
-  return 3;
+  if (isReadmePath(path)) return 0;
+  if (isPackageJsonPath(path)) return 1;
+  if (/\.(tsx|ts|jsx|js)$/.test(lower)) return 2;
+  if (/\.(py|go|rs|sql|md)$/.test(lower)) return 3;
+  return 4;
+}
+
+function snippetInnerPath(fileName: string): string {
+  const idx = fileName.indexOf("::");
+  return idx >= 0 ? fileName.slice(idx + 2) : fileName;
+}
+
+function isReadmePath(path: string): boolean {
+  const base = (path.split("/").pop() ?? path).toLowerCase();
+  return /^readme(\.(md|txt|rst|markdown))?$/i.test(base);
+}
+
+function isPackageJsonPath(path: string): boolean {
+  const base = path.split("/").pop() ?? path;
+  return /^package\.json$/i.test(base);
+}
+
+type ZipEntryInventory = {
+  readmePaths: string[];
+  packageJsonPaths: string[];
+  hasTests: boolean;
+  codeFileCount: number;
+  totalEligible: number;
+};
+
+function buildZipEntryInventory(entryPaths: string[]): ZipEntryInventory {
+  const readmePaths = entryPaths.filter(isReadmePath);
+  const packageJsonPaths = entryPaths.filter(isPackageJsonPath);
+  const codeFileCount = entryPaths.filter((p) =>
+    /\.(tsx?|jsx?|py|go|rs|sql)$/i.test(p)
+  ).length;
+  return {
+    readmePaths,
+    packageJsonPaths,
+    hasTests: entryPaths.some((p) => /(^|\/)(test|tests|__tests__|spec)\//i.test(p) || /\.(test|spec)\./i.test(p)),
+    codeFileCount,
+    totalEligible: entryPaths.length,
+  };
+}
+
+/** README·package.json은 샘플 한도 안에서 항상 본문을 읽도록 예약 */
+function selectZipPathsForSampling(entryPaths: string[], maxRead: number): string[] {
+  if (entryPaths.length === 0) return [];
+
+  const readme = entryPaths.filter(isReadmePath);
+  const pkg = entryPaths.filter(isPackageJsonPath);
+  const rest = entryPaths
+    .filter((p) => !isReadmePath(p) && !isPackageJsonPath(p))
+    .sort((a, b) => archivePathPriority(a) - archivePathPriority(b) || a.localeCompare(b));
+
+  const selected: string[] = [];
+  const add = (p: string) => {
+    if (selected.length >= maxRead) return;
+    if (!selected.includes(p)) selected.push(p);
+  };
+
+  for (const p of readme.slice(0, 1)) add(p);
+  for (const p of pkg.slice(0, 1)) add(p);
+  for (const p of rest) add(p);
+
+  return selected;
+}
+
+function suggestsMissingReadme(line: string): boolean {
+  return /readme.*(없|부재|미작|미비|추가|작성|정리|제출)|실행\s*가이드.*없|실행\s*방법.*(없|정리하세요)|온보딩.*없/i.test(
+    line
+  );
+}
+
+function suggestsMissingTests(line: string): boolean {
+  return /테스트.*(없|부재|추가|작성)|test.*missing/i.test(line);
 }
 
 /** 표시명·MIME·Storage 경로(마지막 세그먼트)로 ZIP 여부 판별 */
@@ -307,7 +380,8 @@ function isDuplicateInsightLine(line: string, summary: string): boolean {
 }
 
 function normalizeProgressInsightForDisplay(
-  insight: ProgressInsightResponse
+  insight: ProgressInsightResponse,
+  signals?: Pick<SourceCodeSignals, "hasReadme" | "hasTests" | "hasPackageJson">
 ): ProgressInsightResponse {
   let summary = insight.summary.trim();
   summary = summary
@@ -315,22 +389,34 @@ function normalizeProgressInsightForDisplay(
     .replace(/습니다\.입니다/g, "습니다.")
     .replace(/하세요\.을\(를\) 권장합니다/g, "하세요.")
     .replace(/하세요\.을\(를\) 권장합니다\./g, "하세요.");
+  if (signals?.hasReadme && suggestsMissingReadme(summary)) {
+    summary = summary
+      .replace(/readme[^.]*?(없|부재|미비)[^.]*\.?/gi, "")
+      .replace(/실행\s*가이드[^.]*?(없|부재)[^.]*\.?/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  }
   const cappedSummary = summary.length > 240 ? `${summary.slice(0, 237)}…` : summary;
 
-  const filterDup = (items: string[], max: number) =>
+  const filterAdvice = (items: string[], max: number) =>
     items
       .map((s) => s.trim())
-      .filter((s) => s && !isDuplicateInsightLine(s, cappedSummary))
+      .filter((s) => {
+        if (!s || isDuplicateInsightLine(s, cappedSummary)) return false;
+        if (signals?.hasReadme && suggestsMissingReadme(s)) return false;
+        if (signals?.hasTests && suggestsMissingTests(s)) return false;
+        return true;
+      })
       .slice(0, max);
 
   return {
     ...insight,
     summary: cappedSummary,
     strengths: [],
-    gaps: filterDup(insight.gaps, 2),
-    next_steps: filterDup(insight.next_steps, 2),
-    architecture_risks: filterDup(insight.architecture_risks, 1),
-    improvements: filterDup(insight.improvements, 1),
+    gaps: filterAdvice(insight.gaps, 2),
+    next_steps: filterAdvice(insight.next_steps, 2),
+    architecture_risks: filterAdvice(insight.architecture_risks, 1),
+    improvements: filterAdvice(insight.improvements, 1),
   };
 }
 
@@ -538,19 +624,33 @@ async function extractZipSourceSnippets(
   try {
     const JSZip = (await import("npm:jszip@3.10.1")).default;
     const zip = await JSZip.loadAsync(await data.arrayBuffer());
-    const entryNames = Object.keys(zip.files)
+    const allEligible = Object.keys(zip.files)
       .filter((entryPath) => {
         const entry = zip.files[entryPath];
         if (!entry || entry.dir) return false;
         if (shouldExcludeArchivePath(entryPath)) return false;
         return SOURCE_EXTS.test(entryPath);
       })
-      .sort((a, b) => archivePathPriority(a) - archivePathPriority(b) || a.localeCompare(b))
-      .slice(0, MAX_ZIP_ENTRIES_SCAN);
+      .sort((a, b) => archivePathPriority(a) - archivePathPriority(b) || a.localeCompare(b));
+
+    const inventory = buildZipEntryInventory(allEligible);
+    const pathsToRead = selectZipPathsForSampling(
+      allEligible.slice(0, MAX_ZIP_ENTRIES_SCAN),
+      maxSnippetsPerArchive
+    );
 
     const snippets: SourceSnippet[] = [];
-    for (const entryPath of entryNames) {
-      if (snippets.length >= maxSnippetsPerArchive) break;
+    if (inventory.readmePaths.length > 0 || inventory.packageJsonPaths.length > 0) {
+      snippets.push({
+        file_name: `${zipLabel}::__inventory`,
+        excerpt: truncateText(
+          `ZIP 인벤토리(전체 ${inventory.totalEligible}개 파일): README=${inventory.readmePaths.join(", ") || "없음"}; package.json=${inventory.packageJsonPaths.join(", ") || "없음"}; 테스트=${inventory.hasTests ? "있음" : "없음"}; 코드파일≈${inventory.codeFileCount}`,
+          400
+        ),
+      });
+    }
+
+    for (const entryPath of pathsToRead) {
       const entry = zip.files[entryPath];
       if (!entry) continue;
       try {
@@ -565,11 +665,12 @@ async function extractZipSourceSnippets(
       }
     }
 
-    if (snippets.length === 0) {
+    const contentSnippets = snippets.filter((s) => !s.file_name.includes("::__inventory"));
+    if (contentSnippets.length === 0) {
       return [
         {
           file_name: zipLabel,
-          excerpt: `(ZIP 내부에서 읽을 수 있는 소스 파일(${entryNames.length > 0 ? "0" : "없음"})을 찾지 못했습니다)`,
+          excerpt: `(ZIP 내부에서 읽을 수 있는 소스 파일(${allEligible.length > 0 ? "0" : "없음"})을 찾지 못했습니다)`,
         },
       ];
     }
@@ -751,7 +852,10 @@ function buildLlmPayload(context: TeamContext) {
       is_new_since_last_ai_run: d.is_new_since_memory,
     })),
     recent_chat: context.chat_snippets.slice(-8),
-    source_code_samples: context.source_snippets,
+    source_code_samples: context.source_snippets.filter((s) => !s.file_name.includes("::__inventory")),
+    zip_inventory_notes: context.source_snippets
+      .filter((s) => s.file_name.includes("::__inventory"))
+      .map((s) => s.excerpt),
     feedback_submission_count: context.feedback_count,
     project_memory_markdown: context.project_memory_markdown
       ? truncateText(context.project_memory_markdown, 6000)
@@ -800,8 +904,10 @@ type SourceCodeSignals = {
 
 function analyzeSourceCodeSignals(snippets: SourceSnippet[]): SourceCodeSignals {
   const usable = snippets.filter(isZipSnippetSuccess);
-  const paths = usable.map((s) => s.file_name);
-  const pathsLower = paths.map((p) => p.toLowerCase());
+  const innerPaths = usable.map((s) => snippetInnerPath(s.file_name));
+  const pathsLower = innerPaths.map((p) => p.toLowerCase());
+  const inventoryLine = snippets.find((s) => s.file_name.includes("::__inventory"))?.excerpt ?? "";
+  const inventoryHasReadme = /README=(?!없음)/i.test(inventoryLine);
   const blob = usable.map((s) => `${s.file_name}\n${s.excerpt}`).join("\n").toLowerCase();
 
   const stackHints = new Set<string>();
@@ -814,22 +920,29 @@ function analyzeSourceCodeSignals(snippets: SourceSnippet[]): SourceCodeSignals 
   if (blob.includes("supabase") || blob.includes("createclient")) stackHints.add("Supabase");
   if (blob.includes("firebase")) stackHints.add("Firebase");
 
-  const entryFiles = paths.filter((p) =>
+  const entryFiles = innerPaths.filter((p) =>
     /(?:^|\/)(main|index|app)\.(tsx?|jsx?)$|(?:^|\/)app\/(page|layout)\.tsx$/i.test(p)
+  );
+
+  const hasReadmeFromPaths = innerPaths.some(isReadmePath);
+  const hasReadmeFromContent = usable.some(
+    (s) => isReadmePath(s.file_name) && /npm\s+(run|install)|yarn|pnpm|getting\s+started|실행\s*방법|환경\s*변수/i.test(s.excerpt)
   );
 
   return {
     stackHints: [...stackHints],
-    hasReadme: pathsLower.some((p) => p.includes("readme")),
-    hasTests: pathsLower.some((p) => /test|spec|__tests__/.test(p)),
-    hasPackageJson: pathsLower.some((p) => p.endsWith("package.json")),
-    hasApiLayer: pathsLower.some((p) => /api|route|controller|server|functions/.test(p)),
-    hasUiLayer: pathsLower.some((p) => /component|pages|views|screen/.test(p)),
-    hasDbOrSupabase: blob.includes("supabase") || pathsLower.some((p) => /migration|schema|sql/.test(p)),
-    hasEnvConfig: blob.includes("process.env") || pathsLower.some((p) => p.includes(".env")),
+    hasReadme: inventoryHasReadme || hasReadmeFromPaths || hasReadmeFromContent,
+    hasTests:
+      innerPaths.some((p) => /(^|\/)(test|tests|__tests__|spec)\//i.test(p) || /\.(test|spec)\./i.test(p)) ||
+      /테스트=있음/i.test(inventoryLine),
+    hasPackageJson: innerPaths.some(isPackageJsonPath) || /package\.json=/.test(inventoryLine),
+    hasApiLayer: innerPaths.some((p) => /api|route|controller|server|functions/.test(p)),
+    hasUiLayer: innerPaths.some((p) => /component|pages|views|screen/.test(p)),
+    hasDbOrSupabase: blob.includes("supabase") || innerPaths.some((p) => /migration|schema|sql/.test(p)),
+    hasEnvConfig: blob.includes("process.env") || innerPaths.some((p) => p.includes(".env")),
     hasTodoMarkers: /\b(todo|fixme|hack|xxx)\b/i.test(blob),
     entryFiles: entryFiles.slice(0, 3),
-    sampledPaths: paths.slice(0, 6),
+    sampledPaths: innerPaths.slice(0, 6),
   };
 }
 
@@ -901,7 +1014,14 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
     gaps.push("산출물은 있으나 읽을 수 있는 소스(.ts·.tsx·.py·.md 등)가 확인되지 않았습니다.");
   }
   if (deliverableCount === 0) gaps.push("산출물 게시판이 비어 있어 현재 구현 상태를 외부에서 검증하기 어렵습니다.");
-  if (!signals.hasReadme && hasSource) gaps.push("README·실행 가이드가 없어 팀원·교수가 로컬 실행·검증하기 어렵습니다.");
+  if (!signals.hasReadme && hasSource) {
+    gaps.push("README·실행 가이드가 없어 팀원·교수가 로컬 실행·검증하기 어렵습니다.");
+  } else if (signals.hasReadme && hasSource) {
+    const readmePath = signals.sampledPaths.find(isReadmePath);
+    if (readmePath) {
+      strengths.push(`README(${readmePath.split("/").pop()})가 포함되어 실행·온보딩 문서가 있습니다.`);
+    }
+  }
   if (!signals.hasTests && hasSource) gaps.push("테스트 코드가 보이지 않아 리팩터·통합 시 회귀 위험이 큽니다.");
   if (open.length > 0) {
     gaps.push(
@@ -933,7 +1053,11 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
 
   if (signals.hasTodoMarkers) improvements.push("TODO 구간을 이슈·트러블슈팅 로그로 분리해 추적 가능하게 만드세요.");
   if (resolved.length > 0) improvements.push("해결한 트러블슈팅을 README·회고에 연결해 학습 기록을 남기세요.");
-  if (hasSource) improvements.push("폴더 구조·레이어(components / api / lib)를 README 다이어그램으로 설명하세요.");
+  if (hasSource && !signals.hasReadme) {
+    improvements.push("폴더 구조·레이어(components / api / lib)를 README 다이어그램으로 설명하세요.");
+  } else if (hasSource && signals.hasReadme) {
+    improvements.push("README에 환경 변수·데모 URL·배포 절차가 빠져 있으면 보완하세요.");
+  }
 
   const summaryParts: string[] = [];
   if (hasSource && signals.stackHints.length > 0) {
@@ -1010,6 +1134,8 @@ architecture_risks: max 1 item when evidence exists.
 improvements: max 1 item when evidence exists.
 
 FORBIDDEN: count-only summaries ("산출물 N건", "소스 샘플 N건") without technical synthesis; repeating Firebase/React/Vite in both summary and strengths.
+
+If zip_inventory_notes or source paths show README (e.g. README.md), do NOT list missing README, "write a README", or "add run instructions" as a gap or next_step — only suggest improving README content if clearly incomplete.
 
 If source_code_samples is empty, use memory + metadata but state code review was limited.`;
 }
@@ -1153,11 +1279,12 @@ Deno.serve(async (req: Request) => {
         alwaysSampleLatestFileCount: PROGRESS_ALWAYS_SAMPLE_LATEST_FILES,
       });
       const { deliverable_rows, memory, processed_deliverable_ids, ...context } = gathered;
+      const sourceSignals = analyzeSourceCodeSignals(context.source_snippets);
 
       if (geminiKey) {
         const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
         const rawInsight = await callGeminiProgressInsight(geminiKey, modelId, locale, context);
-        const insight = normalizeProgressInsightForDisplay(rawInsight);
+        const insight = normalizeProgressInsightForDisplay(rawInsight, sourceSignals);
         const nextAnalyzed = new Set(memory.analyzed_deliverable_ids);
         for (const id of processed_deliverable_ids) nextAnalyzed.add(id);
         for (const row of deliverable_rows) {
@@ -1170,11 +1297,12 @@ Deno.serve(async (req: Request) => {
           used_memory: Boolean(memory.memory_markdown),
           new_deliverables_analyzed: processed_deliverable_ids.length,
           source_samples_count: countUsableSourceSnippets(context.source_snippets),
+          detected_has_readme: sourceSignals.hasReadme,
         });
       }
 
       const rawHeuristic = buildHeuristicProgressInsight(context);
-      const heuristic = normalizeProgressInsightForDisplay(rawHeuristic);
+      const heuristic = normalizeProgressInsightForDisplay(rawHeuristic, sourceSignals);
       const nextAnalyzedHeuristic = new Set(memory.analyzed_deliverable_ids);
       for (const id of processed_deliverable_ids) nextAnalyzedHeuristic.add(id);
       for (const row of deliverable_rows) {
@@ -1193,6 +1321,7 @@ Deno.serve(async (req: Request) => {
         used_memory: Boolean(memory.memory_markdown),
         new_deliverables_analyzed: processed_deliverable_ids.length,
         source_samples_count: countUsableSourceSnippets(context.source_snippets),
+        detected_has_readme: sourceSignals.hasReadme,
       });
     }
 

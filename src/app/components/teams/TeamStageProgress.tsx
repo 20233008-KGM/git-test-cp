@@ -10,8 +10,8 @@ export function TeamStageProgress({
 }) {
   if (stages.length === 0) {
     return (
-      <p className="text-xs text-[var(--cc-on-surface-variant)]">
-        이 수업에 등록된 팀플 스테이지가 없습니다.
+      <p className="text-sm text-[#6a7282]" data-testid="team-stage-progress-empty">
+        이 수업에 등록된 팀플 스테이지가 없습니다. 교수가 수업 설정에서 스테이지를 등록하면 여기에 표시됩니다.
       </p>
     );
   }
@@ -66,7 +66,7 @@ export function TeamStageProgressEditor({
 }) {
   if (stages.length === 0) {
     return (
-      <p className="text-sm text-[var(--cc-on-surface-variant)]">
+      <p className="text-sm text-[#6a7282]" data-testid="team-manage-stage-editor-empty">
         교수가 수업에 팀플 스테이지를 등록하면 여기서 진행 상황을 표시할 수 있습니다.
       </p>
     );

@@ -131,6 +131,7 @@ export default function CourseTeamManagePage() {
 
   const workspacePath = `/app/courses/${courseId}/teams/${info.teamId}`;
   const otherMembers = info.members.filter((member) => !member.isSelf);
+  const canEditStages = info.myRole === "leader" && !info.isArchived;
 
   return (
     <div className="mx-auto w-full max-w-2xl" data-testid="course-team-manage-page">
@@ -206,15 +207,21 @@ export default function CourseTeamManagePage() {
           </form>
         )}
 
-        {info.myRole === "leader" && !info.isArchived && (
-          <section
-            className="mb-6 rounded-xl border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-muted)] p-4"
-            data-testid="team-manage-stages-section"
-          >
-            <h2 className="mb-1 text-sm font-bold text-[var(--cc-on-surface)]">팀플 스테이지 진행</h2>
-            <p className="mb-3 text-xs text-[var(--cc-on-surface-variant)]">
-              수업에 정의된 단계 기준으로, 우리 팀이 어디까지 왔는지 표시합니다.
-            </p>
+        <section
+          className="mb-6 rounded-xl border border-gray-200 bg-[#f8fafc] p-4 shadow-sm"
+          data-testid="team-manage-stages-section"
+        >
+          <h2 className="mb-1 text-base font-bold text-[#101828]">팀플 스테이지 진행</h2>
+          <p className="mb-3 text-xs text-[#6a7282]">
+            {canEditStages
+              ? "수업에 정의된 단계 기준으로, 우리 팀이 어디까지 왔는지 표시합니다. 변경 내용은 팀 목록 카드에도 반영됩니다."
+              : info.isArchived
+                ? "종료된 수업입니다. 진행 상황은 조회만 가능합니다."
+                : info.myRole === "leader"
+                  ? "종료된 수업이 아니면 팀장이 진행 단계를 수정할 수 있습니다."
+                  : "팀장만 진행 단계를 수정할 수 있습니다. 아래는 현재 팀 진행 상황입니다."}
+          </p>
+          {canEditStages ? (
             <TeamStageProgressEditor
               completedStages={completedStages}
               stages={info.stageNames}
@@ -235,21 +242,20 @@ export default function CourseTeamManagePage() {
                 }
               }}
             />
-          </section>
-        )}
-
-        {info.myRole !== "leader" && info.stageNames.length > 0 && (
-          <section
-            className="mb-6 rounded-xl border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-muted)] p-4"
-            data-testid="team-manage-stages-readonly"
-          >
-            <h2 className="mb-3 text-sm font-bold text-[var(--cc-on-surface)]">팀플 스테이지 진행</h2>
-            <p className="mb-3 text-xs text-[var(--cc-on-surface-variant)]">
-              완료 {info.completedStages} / {info.stageNames.length} 단계 (팀장만 수정 가능)
-            </p>
-            <TeamStageProgress completedStages={info.completedStages} stages={info.stageNames} />
-          </section>
-        )}
+          ) : (
+            <>
+              {info.stageNames.length > 0 && (
+                <p className="mb-2 text-xs font-medium text-[#4a5565]">
+                  완료 {info.completedStages} / {info.stageNames.length} 단계
+                </p>
+              )}
+              <TeamStageProgress
+                completedStages={info.completedStages}
+                stages={info.stageNames}
+              />
+            </>
+          )}
+        </section>
 
         <h2 className="mb-3 text-base font-bold text-[#1e2939]">팀원</h2>
         <ul className="space-y-2" data-testid="team-manage-member-list">
