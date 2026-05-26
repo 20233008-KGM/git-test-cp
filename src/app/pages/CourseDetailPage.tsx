@@ -382,7 +382,7 @@ export default function CourseDetailPage() {
                   className="mt-4 inline-block rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
                   data-testid="course-detail-team-manage-link"
                 >
-                  팀 관리 (팀장 변경 · 탈퇴)
+                  팀 관리 (스테이지 · 팀장 · 탈퇴)
                 </Link>
               )}
               {myTeamPeerReviewPath && (

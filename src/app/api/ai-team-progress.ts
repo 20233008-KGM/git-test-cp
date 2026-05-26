@@ -25,6 +25,7 @@ export type TeamProgressInsightView = {
   model: string;
   used_memory?: boolean;
   new_deliverables_analyzed?: number;
+  source_samples_count?: number;
 };
 
 function parseStringList(value: unknown, max = 5): string[] {
@@ -133,6 +134,10 @@ function mapInsightPayload(payload: TeamProgressInsightResponse): TeamProgressIn
     new_deliverables_analyzed:
       typeof payload.new_deliverables_analyzed === "number"
         ? payload.new_deliverables_analyzed
+        : undefined,
+    source_samples_count:
+      typeof payload.source_samples_count === "number"
+        ? payload.source_samples_count
         : undefined,
   });
 }

@@ -3231,6 +3231,17 @@ async function updateTeamCompletedStagesInDb(
     throw new Error("내가 속한 팀만 진행 단계를 수정할 수 있습니다.");
   }
 
+  const { data: myRow, error: myRowError } = await supabase
+    .from("ai_team_members")
+    .select("role")
+    .eq("team_id", teamId)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (myRowError) throw myRowError;
+  if (!myRow) throw new Error("이 팀의 멤버가 아닙니다.");
+  if (myRow.role !== "leader") throw new Error("팀장만 팀플 스테이지 진행 상황을 수정할 수 있습니다.");
+
   const stageNames = await getCourseStageNamesFromDb(courseId);
   const clamped = Math.max(0, Math.min(completedStages, stageNames.length));
 
@@ -3778,12 +3789,20 @@ async function uploadTeamDeliverableInDb(
   const deliverableId = createDeliverableId(teamId);
   const storagePath = buildDeliverableStorageObjectKey(courseId, teamId, deliverableId, file);
 
+  const contentType =
+    file.type ||
+    (extension === "zip"
+      ? "application/zip"
+      : extension === "7z"
+        ? "application/x-7z-compressed"
+        : undefined);
+
   const { error: uploadError } = await supabase.storage
     .from(TEAM_DELIVERABLES_BUCKET)
     .upload(storagePath, file, {
       cacheControl: "3600",
       upsert: false,
-      contentType: file.type || undefined,
+      contentType,
     });
 
   if (uploadError) throw formatDeliverableStorageError(uploadError);
@@ -4165,12 +4184,20 @@ async function updateTeamDeliverableInDb(
     const storageFileName = buildDeliverableStorageFileName(input.file.name, extension);
     const newStoragePath = `${existing.course_id}/${existing.team_id}/${newId}_${storageFileName}`;
 
+    const replaceContentType =
+      input.file.type ||
+      (extension === "zip"
+        ? "application/zip"
+        : extension === "7z"
+          ? "application/x-7z-compressed"
+          : undefined);
+
     const { error: uploadError } = await supabase.storage
       .from(TEAM_DELIVERABLES_BUCKET)
       .upload(newStoragePath, input.file, {
         cacheControl: "3600",
         upsert: false,
-        contentType: input.file.type || undefined,
+        contentType: replaceContentType,
       });
     if (uploadError) throw formatDeliverableStorageError(uploadError);
 
@@ -4182,7 +4209,7 @@ async function updateTeamDeliverableInDb(
     const { data: urlData } = supabase.storage.from(TEAM_DELIVERABLES_BUCKET).getPublicUrl(newStoragePath);
     storagePath = newStoragePath;
     fileSize = input.file.size;
-    mimeType = input.file.type || null;
+    mimeType = replaceContentType ?? input.file.type ?? null;
     publicUrl = urlData.publicUrl;
     if (!title) {
       displayName = resolveDeliverableDisplayName(input.file.name, { title: undefined });
@@ -5154,11 +5181,12 @@ async function getTeamManagementFromDb(courseId?: string): Promise<TeamManagemen
   const teamId = await getMyTeamIdInCourseFromDb(selectedCourseId, currentUser.id);
   if (!teamId) return null;
 
-  const { data: team, error: teamError } = await supabase
-    .from("ai_teams")
-    .select("id, name, project_title")
-    .eq("id", teamId)
-    .maybeSingle();
+  const [teamResult, stageNames] = await Promise.all([
+    supabase.from("ai_teams").select("id, name, project_title, completed_stages").eq("id", teamId).maybeSingle(),
+    getCourseStageNamesFromDb(selectedCourseId),
+  ]);
+
+  const { data: team, error: teamError } = teamResult;
 
   if (teamError) throw teamError;
   if (!team) return null;
@@ -5189,6 +5217,9 @@ async function getTeamManagementFromDb(courseId?: string): Promise<TeamManagemen
 
   const myRole = members.find((member) => member.isSelf)?.role ?? null;
 
+  const completedRaw = Number(team.completed_stages ?? 0);
+  const completedStages = Math.max(0, Math.min(completedRaw, stageNames.length));
+
   return {
     teamId: team.id,
     teamName: team.name,
@@ -5196,6 +5227,8 @@ async function getTeamManagementFromDb(courseId?: string): Promise<TeamManagemen
     members,
     myRole,
     isArchived: course.status === "archived",
+    completedStages,
+    stageNames,
   };
 }
 

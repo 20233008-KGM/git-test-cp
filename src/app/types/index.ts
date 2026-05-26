@@ -309,6 +309,10 @@ export interface TeamManagementInfo {
   members: TeamManagementMember[];
   myRole: "leader" | "member" | null;
   isArchived: boolean;
+  /** 완료한 스테이지 개수 (0 ~ stageNames.length) */
+  completedStages: number;
+  /** 수업에 정의된 팀플 스테이지 이름 (순서대로) */
+  stageNames: string[];
 }
 
 /** 학생이 팀원에게 제출한 동료평가 (DB) */

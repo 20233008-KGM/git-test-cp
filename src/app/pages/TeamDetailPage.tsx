@@ -20,6 +20,7 @@ import { supabase } from "../supabase";
 import {
   deliverableDeployLinkLabel,
   deliverableDeployUrl,
+  isDeliverableArchiveFile,
 } from "../utils/deliverableLinks";
 import AppModal from "../components/layout/AppModal";
 import M3Button from "../components/layout/M3Button";
@@ -297,6 +298,7 @@ export default function TeamDetailPage() {
     model: string;
     used_memory?: boolean;
     new_deliverables_analyzed?: number;
+    source_samples_count?: number;
   } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
@@ -327,10 +329,16 @@ export default function TeamDetailPage() {
         buildTeamProgressInsight(deliverables, troubleshootingLogs)
       );
 
+      const hasArchiveDeliverable = deliverables.some(
+        (d) => d.kind !== "link" && isDeliverableArchiveFile(d.fileName, d.mimeType)
+      );
+      const edgeReadSource = (edge?.source_samples_count ?? 0) > 0;
+
       const useEdge =
         Boolean(edge?.summary) &&
         edge.model !== "draft-db-only" &&
-        !isShallowProgressInsight(edge);
+        !isShallowProgressInsight(edge) &&
+        (!hasArchiveDeliverable || edgeReadSource);
 
       if (useEdge) {
         setProgressInsight(edge);
@@ -986,14 +994,20 @@ export default function TeamDetailPage() {
           >
             ✨ AI 통합 진행상황 요약
           </h3>
-          {!insightLoading && progressInsight && (progressInsight.used_memory || (progressInsight.new_deliverables_analyzed ?? 0) > 0) ? (
+          {!insightLoading &&
+          progressInsight &&
+          (progressInsight.used_memory ||
+            (progressInsight.new_deliverables_analyzed ?? 0) > 0 ||
+            (progressInsight.source_samples_count ?? 0) > 0) ? (
             <p className="cc-ai-insight-panel__meta" data-testid="team-progress-insight-meta">
               {progressInsight.used_memory ? "이전 분석 기억 반영" : "첫 분석"}
-              {(progressInsight.new_deliverables_analyzed ?? 0) > 0
-                ? ` · 신규 산출물 ${progressInsight.new_deliverables_analyzed}건 ZIP/소스 읽음`
-                : progressInsight.used_memory
-                  ? " · 신규 파일 없음(로그·채팅만 갱신)"
-                  : ""}
+              {(progressInsight.source_samples_count ?? 0) > 0
+                ? ` · 소스 ${progressInsight.source_samples_count}개 분석`
+                : (progressInsight.new_deliverables_analyzed ?? 0) > 0
+                  ? ` · 신규 산출물 ${progressInsight.new_deliverables_analyzed}건 ZIP/소스 읽음`
+                  : progressInsight.used_memory
+                    ? " · 신규 파일 없음(로그·채팅만 갱신)"
+                    : ""}
             </p>
           ) : null}
           {insightLoading && !progressInsight?.summary ? (

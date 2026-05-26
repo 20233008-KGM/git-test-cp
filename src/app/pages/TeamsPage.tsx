@@ -10,56 +10,8 @@ import {
 } from "../utils/teamActivitySeen";
 import { useDebouncedRealtimeReload } from "../hooks/useDebouncedRealtimeReload";
 
+import { TeamStageProgress } from "../components/teams/TeamStageProgress";
 import type { Activity, Announcement, Course, TeamCard } from "../types";
-
-
-
-// 한 팀이 현재 어느 단계까지 완료했는지 세로 진행바로 보여주는 컴포넌트입니다.
-// completedStages가 3이면 0, 1, 2번째 단계까지 완료된 것으로 처리합니다.
-function StageProgress({
-  completedStages,
-  stages,
-}: {
-  completedStages: number;
-  stages: string[];
-}) {
-  return (
-    <div className="flex flex-col">
-      {stages.map((stage, i) => {
-        // i는 현재 단계의 순서입니다. 배열은 0부터 시작하므로 첫 번째 단계의 i는 0입니다.
-        // completedStages보다 작은 순서의 단계는 완료된 단계로 표시합니다.
-        const isDone = i < completedStages;
-        // 단계와 단계 사이의 연결선은 "다음 단계까지 완료된 경우"에만 파란색으로 표시합니다.
-        const isLineBlue = i < completedStages - 1;
-        return (
-          <div key={stage}>
-            {/* 단계 한 줄: 왼쪽 점 + 오른쪽 단계 이름 박스를 한 줄로 배치합니다. */}
-            <div className="flex items-center gap-2">
-              {/* 완료된 단계면 파란 점, 아직 안 끝난 단계면 검은 점입니다. */}
-              <div
-                className={`w-[18px] h-[18px] rounded-full flex-shrink-0 ${isDone ? "bg-[#3676ff]" : "bg-black"
-                  }`}
-              />
-              {/* 단계 이름이 들어가는 파란 테두리 박스입니다. */}
-              <div className="flex-1 bg-[#d2e0ff] border border-[#0143d2] rounded-[5px] px-2 py-[3px]">
-                <span className="text-[#101828] text-[11px] font-medium">
-                  {stage}
-                </span>
-              </div>
-            </div>
-            {/* 마지막 단계 아래에는 연결선이 필요 없으므로 마지막 전까지만 선을 그립니다. */}
-            {i < stages.length - 1 && (
-              <div
-                className={`ml-[5.5px] w-[7px] h-[10px] ${isLineBlue ? "bg-[#3676ff]" : "bg-[#c8c8c8]"
-                  } rounded-sm`}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // 활동 기록 카드 1개를 그리는 작은 컴포넌트입니다.
 // TeamCardComponent 안에서 activity 배열을 map으로 돌리며 여러 개 생성합니다.
@@ -207,7 +159,7 @@ function TeamCardComponent({
         </div>
 
         {/* completedStages 값을 넘겨서 완료된 단계 개수만큼 파란색으로 표시합니다. */}
-        <StageProgress completedStages={team.completedStages} stages={stages} />
+        <TeamStageProgress completedStages={team.completedStages} stages={stages} />
         {canEditStages && onStageChange && (
           <div className="flex items-center justify-center gap-2">
             <button
@@ -590,6 +542,10 @@ export default function TeamsPage() {
         >
           {teams.map((team) => {
             const isMyTeam = Boolean(user?.id && team.members.some((member) => member.id === user.id));
+            const isMyTeamLeader = Boolean(
+              user?.id &&
+                team.members.some((member) => member.id === user.id && member.role === "leader")
+            );
             const unread =
               Boolean(courseId && user?.id) &&
               hasUnreadTeamActivity(courseId, user.id, team.id, team.activities);
@@ -610,7 +566,7 @@ export default function TeamsPage() {
                     alert(error instanceof Error ? error.message : "팀 참여에 실패했습니다.");
                   }
                 }}
-                canEditStages={isMyTeam && isStudent && !isArchived}
+                canEditStages={isMyTeamLeader && isStudent && !isArchived}
                 onStageChange={async (next) => {
                   try {
                     await api.teams.updateCompletedStages(team.id, next);

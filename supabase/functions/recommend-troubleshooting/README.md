@@ -20,8 +20,9 @@ supabase functions deploy recommend-troubleshooting
 ### progress-insight
 
 - 산출물·트러블슈팅·채팅 수집
-- **신규** 산출물만 ZIP/소스 추출 (JSZip, `node_modules`·`.git` 제외)
-- `.ts`/`.tsx` 우선 스캔
+- **신규** 산출물만 ZIP/소스 추출 (증분) + **최신 ZIP 2건**은 매번 재해제
+- 표시 제목에 `.zip`이 없어도 Storage 경로·MIME으로 ZIP 인식
+- JSZip (`npm:jszip@3.10.1`), `node_modules`·`.git` 제외, `.ts`/`.tsx` 우선 스캔
 - `ai_team_detail_ai_memory`에 마크다운 + `analyzed_deliverable_ids` 저장
 - Gemini 없으면 `heuristic-insight` (코드 신호 기반)
 
@@ -60,7 +61,7 @@ supabase functions deploy recommend-troubleshooting
 
 ## 응답 (progress-insight)
 
-`summary`, `strengths`, `gaps`, `next_steps`, `architecture_risks`, `improvements`, `model`, `used_memory?`, `new_deliverables_analyzed?`
+`summary`, `strengths`, `gaps`, `next_steps`, `architecture_risks`, `improvements`, `model`, `used_memory?`, `new_deliverables_analyzed?`, `source_samples_count?`
 
 ## 로컬
 

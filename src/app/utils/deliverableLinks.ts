@@ -29,11 +29,19 @@ export function briefDeliverableDescriptionSummary(
   return firstLine.length > maxLen ? `${firstLine.slice(0, maxLen)}…` : firstLine;
 }
 
-export function isDeliverableArchiveFile(fileName: string, mimeType?: string | null): boolean {
+export function isDeliverableArchiveFile(
+  fileName: string,
+  mimeType?: string | null,
+  storagePath?: string | null
+): boolean {
   const ext = fileName.toLowerCase().split(".").pop() ?? "";
   if (["zip", "7z", "rar", "tar", "gz"].includes(ext)) return true;
   const mime = (mimeType ?? "").toLowerCase();
-  return mime.includes("zip") || mime === "application/x-zip-compressed";
+  if (mime.includes("zip") || mime === "application/x-zip-compressed" || mime.includes("7z")) {
+    return true;
+  }
+  const base = storagePath?.split("/").filter(Boolean).pop() ?? "";
+  return /\.(zip|7z)$/i.test(base);
 }
 
 export function deliverableHasDeployLink(item: {

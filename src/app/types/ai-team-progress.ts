@@ -20,4 +20,6 @@ export type TeamProgressInsightResponse = {
   used_memory?: boolean;
   /** 이번 호출에서 ZIP/소스를 새로 읽은 산출물 수 */
   new_deliverables_analyzed?: number;
+  /** ZIP/파일에서 추출한 유효 소스 스니펫 수 */
+  source_samples_count?: number;
 };

@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Crown, LogOut, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
+import {
+  TeamStageProgress,
+  TeamStageProgressEditor,
+} from "../components/teams/TeamStageProgress";
 import { useAuth } from "../contexts/AuthContext";
 import type { TeamManagementInfo } from "../types";
 import PageLoading from "../components/layout/PageLoading";
@@ -17,6 +21,8 @@ export default function CourseTeamManagePage() {
   const [editTeamName, setEditTeamName] = useState("");
   const [editProjectTitle, setEditProjectTitle] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [completedStages, setCompletedStages] = useState(0);
+  const [savingStages, setSavingStages] = useState(false);
 
   const load = useCallback(async () => {
     if (!courseId) {
@@ -31,6 +37,7 @@ export default function CourseTeamManagePage() {
       if (data) {
         setEditTeamName(data.teamName);
         setEditProjectTitle(data.projectTitle);
+        setCompletedStages(data.completedStages);
       }
     } catch (error) {
       console.error(error);
@@ -197,6 +204,51 @@ export default function CourseTeamManagePage() {
               {savingProfile ? "저장 중…" : "팀 정보 저장"}
             </button>
           </form>
+        )}
+
+        {info.myRole === "leader" && !info.isArchived && (
+          <section
+            className="mb-6 rounded-xl border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-muted)] p-4"
+            data-testid="team-manage-stages-section"
+          >
+            <h2 className="mb-1 text-sm font-bold text-[var(--cc-on-surface)]">팀플 스테이지 진행</h2>
+            <p className="mb-3 text-xs text-[var(--cc-on-surface-variant)]">
+              수업에 정의된 단계 기준으로, 우리 팀이 어디까지 왔는지 표시합니다.
+            </p>
+            <TeamStageProgressEditor
+              completedStages={completedStages}
+              stages={info.stageNames}
+              disabled={info.isArchived}
+              saving={savingStages}
+              testIdPrefix="team-manage-stage"
+              onChange={async (next) => {
+                setSavingStages(true);
+                try {
+                  await api.teams.updateCompletedStages(info.teamId, next);
+                  setCompletedStages(next);
+                } catch (error) {
+                  alert(
+                    error instanceof Error ? error.message : "스테이지 진행 저장에 실패했습니다."
+                  );
+                } finally {
+                  setSavingStages(false);
+                }
+              }}
+            />
+          </section>
+        )}
+
+        {info.myRole !== "leader" && info.stageNames.length > 0 && (
+          <section
+            className="mb-6 rounded-xl border border-[var(--cc-outline-variant)] bg-[var(--cc-surface-muted)] p-4"
+            data-testid="team-manage-stages-readonly"
+          >
+            <h2 className="mb-3 text-sm font-bold text-[var(--cc-on-surface)]">팀플 스테이지 진행</h2>
+            <p className="mb-3 text-xs text-[var(--cc-on-surface-variant)]">
+              완료 {info.completedStages} / {info.stageNames.length} 단계 (팀장만 수정 가능)
+            </p>
+            <TeamStageProgress completedStages={info.completedStages} stages={info.stageNames} />
+          </section>
         )}
 
         <h2 className="mb-3 text-base font-bold text-[#1e2939]">팀원</h2>

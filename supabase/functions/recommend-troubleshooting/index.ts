@@ -129,6 +129,26 @@ function storageInnerRelativePath(storagePath: string): string | null {
   return parts.slice(3).join("/");
 }
 
+function storagePathBasename(storagePath: string): string {
+  return storagePath.split("/").filter(Boolean).pop() ?? "";
+}
+
+function deliverableRowIsZip(row: DeliverableRow): boolean {
+  const name = String(row.file_name ?? "");
+  const mime = row.mime_type ? String(row.mime_type) : null;
+  const storagePath = row.storage_path?.trim() ?? "";
+  const innerPath = storagePath ? storageInnerRelativePath(storagePath) : null;
+  return isZipDeliverable(name, mime, storagePath || null, innerPath);
+}
+
+function isZipSnippetSuccess(snippet: SourceSnippet): boolean {
+  return Boolean(snippet.excerpt.trim()) && !snippet.excerpt.startsWith("(ZIP");
+}
+
+function countUsableSourceSnippets(snippets: SourceSnippet[]): number {
+  return snippets.filter((s) => isZipSnippetSuccess(s)).length;
+}
+
 function extractDeployLinkFromDescription(description: string | null | undefined): string | null {
   if (!description) return null;
   const match = description.match(/🔗 배포 링크:\s*(https?:\/\/\S+)/i);
@@ -158,11 +178,19 @@ function archivePathPriority(path: string): number {
   return 3;
 }
 
-function isZipDeliverable(name: string, mime: string | null, innerPath?: string | null): boolean {
-  if (/\.zip$/i.test(name)) return true;
-  if (innerPath && /\.zip$/i.test(innerPath)) return true;
-  if (mime && /zip/i.test(mime)) return true;
-  if (/\.zip$/i.test(name) && (!mime || mime === "application/octet-stream")) return true;
+/** 표시명·MIME·Storage 경로(마지막 세그먼트)로 ZIP 여부 판별 */
+function isZipDeliverable(
+  name: string,
+  mime: string | null,
+  storagePath?: string | null,
+  innerPath?: string | null
+): boolean {
+  if (/\.(zip|7z)$/i.test(name)) return true;
+  if (innerPath && /\.(zip|7z)$/i.test(innerPath)) return true;
+  const mimeLower = (mime ?? "").toLowerCase();
+  if (mimeLower && /zip|x-zip-compressed|7z/.test(mimeLower)) return true;
+  const base = storagePath ? storagePathBasename(storagePath) : "";
+  if (/\.(zip|7z)$/i.test(base)) return true;
   return false;
 }
 
@@ -237,16 +265,8 @@ function sortDeliverablesForSampling(rows: DeliverableRow[], analyzedIds: Set<st
     const aNew = !analyzedIds.has(a.id);
     const bNew = !analyzedIds.has(b.id);
     if (aNew !== bNew) return aNew ? -1 : 1;
-    const aZip = isZipDeliverable(
-      a.file_name,
-      a.mime_type,
-      a.storage_path ? storageInnerRelativePath(a.storage_path) : null
-    );
-    const bZip = isZipDeliverable(
-      b.file_name,
-      b.mime_type,
-      b.storage_path ? storageInnerRelativePath(b.storage_path) : null
-    );
+    const aZip = deliverableRowIsZip(a);
+    const bZip = deliverableRowIsZip(b);
     if (aZip !== bZip) return aZip ? -1 : 1;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
@@ -420,8 +440,13 @@ async function gatherTeamContext(
       ? sortedForSampling.filter((row) => !isDeliverableLinkRow(row)).slice(0, latestFileCount)
       : [];
 
+  /** 최신 ZIP은 분석 이력과 무관하게 항상 다시 해제·스캔 */
+  const latestArchiveRows = deliverableRows
+    .filter((row) => !isDeliverableLinkRow(row) && deliverableRowIsZip(row))
+    .slice(0, 2);
+
   const rowsById = new Map<string, DeliverableRow>();
-  for (const row of [...latestFileRows, ...incrementalRows]) {
+  for (const row of [...latestArchiveRows, ...latestFileRows, ...incrementalRows]) {
     rowsById.set(row.id, row);
   }
   const rowsToSample = sortDeliverablesForSampling([...rowsById.values()], memory.analyzed_deliverable_ids);
@@ -467,7 +492,7 @@ async function gatherTeamContext(
         is_link: isLink,
         has_deploy_link: deliverableHasDeployLink(d, isLink),
         deploy_url: deployUrl,
-        is_archive: isZipDeliverable(fileName, mime, innerPath),
+        is_archive: isZipDeliverable(fileName, mime, storagePath || null, innerPath),
         is_new_since_memory: !memory.analyzed_deliverable_ids.has(d.id),
       };
     }),
@@ -486,7 +511,8 @@ async function extractZipSourceSnippets(
   supabase: ReturnType<typeof createClient>,
   path: string,
   zipLabel: string,
-  size: number
+  size: number,
+  maxSnippetsPerArchive = 8
 ): Promise<SourceSnippet[]> {
   if (size > MAX_ZIP_BYTES) {
     return [
@@ -498,10 +524,19 @@ async function extractZipSourceSnippets(
   }
 
   const { data, error } = await supabase.storage.from(DELIVERABLES_BUCKET).download(path);
-  if (error || !data) return [];
+  if (error || !data) {
+    const msg = error?.message ? truncateText(error.message, 80) : "객체 없음";
+    console.error("[recommend-troubleshooting] zip download failed", path, msg);
+    return [
+      {
+        file_name: zipLabel,
+        excerpt: `(ZIP Storage 다운로드 실패: ${msg})`,
+      },
+    ];
+  }
 
   try {
-    const JSZip = (await import("https://esm.sh/jszip@3.10.1")).default;
+    const JSZip = (await import("npm:jszip@3.10.1")).default;
     const zip = await JSZip.loadAsync(await data.arrayBuffer());
     const entryNames = Object.keys(zip.files)
       .filter((entryPath) => {
@@ -515,7 +550,7 @@ async function extractZipSourceSnippets(
 
     const snippets: SourceSnippet[] = [];
     for (const entryPath of entryNames) {
-      if (snippets.length >= 6) break;
+      if (snippets.length >= maxSnippetsPerArchive) break;
       const entry = zip.files[entryPath];
       if (!entry) continue;
       try {
@@ -540,11 +575,13 @@ async function extractZipSourceSnippets(
     }
 
     return snippets;
-  } catch {
+  } catch (zipErr) {
+    const msg = zipErr instanceof Error ? truncateText(zipErr.message, 80) : "알 수 없음";
+    console.error("[recommend-troubleshooting] zip parse failed", path, msg);
     return [
       {
         file_name: zipLabel,
-        excerpt: "(ZIP 파일을 열 수 없습니다)",
+        excerpt: `(ZIP 파일을 열 수 없습니다: ${msg})`,
       },
     ];
   }
@@ -569,9 +606,9 @@ async function sampleDeliverableSourceSnippets(
     const sourcePath = innerPath ?? name;
     const size = Number(row.file_size ?? 0);
 
-    if (isZipDeliverable(name, mime, innerPath)) {
+    if (deliverableRowIsZip(row)) {
       const zipSnippets = await extractZipSourceSnippets(supabase, path, name, size);
-      if (zipSnippets.length > 0 && !zipSnippets[0]?.excerpt.startsWith("(ZIP")) {
+      if (zipSnippets.some(isZipSnippetSuccess)) {
         processedDeliverableIds.push(row.id);
       }
       for (const snippet of zipSnippets) {
@@ -762,9 +799,10 @@ type SourceCodeSignals = {
 };
 
 function analyzeSourceCodeSignals(snippets: SourceSnippet[]): SourceCodeSignals {
-  const paths = snippets.map((s) => s.file_name);
+  const usable = snippets.filter(isZipSnippetSuccess);
+  const paths = usable.map((s) => s.file_name);
   const pathsLower = paths.map((p) => p.toLowerCase());
-  const blob = snippets.map((s) => `${s.file_name}\n${s.excerpt}`).join("\n").toLowerCase();
+  const blob = usable.map((s) => `${s.file_name}\n${s.excerpt}`).join("\n").toLowerCase();
 
   const stackHints = new Set<string>();
   if (pathsLower.some((p) => /\.tsx?$/.test(p)) || blob.includes("react")) stackHints.add("React/TypeScript");
@@ -837,7 +875,7 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
   const resolved = context.logs.filter((l) => l.status === "resolved");
   const open = context.logs.filter((l) => l.status !== "resolved");
   const signals = analyzeSourceCodeSignals(context.source_snippets);
-  const hasSource = context.source_snippets.some((s) => !s.excerpt.startsWith("("));
+  const hasSource = context.source_snippets.some(isZipSnippetSuccess);
 
   const strengths: string[] = [];
   const gaps: string[] = [];
@@ -1131,6 +1169,7 @@ Deno.serve(async (req: Request) => {
           ...insight,
           used_memory: Boolean(memory.memory_markdown),
           new_deliverables_analyzed: processed_deliverable_ids.length,
+          source_samples_count: countUsableSourceSnippets(context.source_snippets),
         });
       }
 
@@ -1153,6 +1192,7 @@ Deno.serve(async (req: Request) => {
         ...heuristic,
         used_memory: Boolean(memory.memory_markdown),
         new_deliverables_analyzed: processed_deliverable_ids.length,
+        source_samples_count: countUsableSourceSnippets(context.source_snippets),
       });
     }
 
