@@ -68,7 +68,7 @@ function TeamCardStageWindow({
   total: number;
 }) {
   return (
-    <div className="flex flex-col gap-1.5" data-testid="team-stage-progress-window">
+    <div className="@container flex min-w-0 flex-col gap-1.5" data-testid="team-stage-progress-window">
       {windowItems.map((item, i) => {
         const { isDone, isCurrent } = stageStatus(item.index, completedStages, total);
         const isPrev = item.role === "prev";
@@ -97,7 +97,7 @@ function TeamCardStageWindow({
         return (
           <div key={`${item.index}-${item.role}`}>
             <div
-              className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 transition ${rowClass} ${
+              className={`flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border px-2 py-2 transition @min-[12rem]:gap-2 @min-[12rem]:px-2.5 ${rowClass} ${
                 isCurrent ? "scale-100" : "scale-[0.98]"
               }`}
             >
@@ -107,9 +107,14 @@ function TeamCardStageWindow({
               >
                 {item.index + 1}
               </div>
-              <p className={`min-w-0 flex-1 truncate ${labelClass}`}>{item.name}</p>
+              <p
+                className={`min-w-0 flex-1 truncate ${labelClass}`}
+                title={item.name}
+              >
+                {item.name}
+              </p>
               {isCurrent && (
-                <span className="shrink-0 rounded-full bg-[#dce9ff] px-1.5 py-0.5 text-[9px] font-bold text-[#1d4dbc]">
+                <span className="hidden shrink-0 rounded-full bg-[#dce9ff] px-1.5 py-0.5 text-[9px] font-bold text-[#1d4dbc] @min-[12rem]:inline-flex">
                   진행중
                 </span>
               )}
@@ -151,7 +156,7 @@ export function TeamStageProgress({
 
   if (variant === "card") {
     return (
-      <div data-testid="team-stage-progress">
+      <div className="min-w-0" data-testid="team-stage-progress">
         <TeamCardProgressBar progress={progress} />
         <TeamCardStageWindow
           completedStages={completedStages}
