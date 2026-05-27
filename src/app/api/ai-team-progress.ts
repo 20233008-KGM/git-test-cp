@@ -27,6 +27,7 @@ export type TeamProgressInsightView = {
   new_deliverables_analyzed?: number;
   source_samples_count?: number;
   detected_has_readme?: boolean;
+  zip_source_analyzed?: boolean;
 };
 
 function parseStringList(value: unknown, max = 5): string[] {
@@ -85,9 +86,43 @@ export function isShallowProgressInsight(insight: {
   return countOnlySummary || (strengthsOnlyMeta && strengths.length <= 3);
 }
 
+/** 클라이언트 DB 폴백 — ZIP/README를 읽지 못하는 메타 수준 요약 */
+export function isClientMetadataFallbackInsight(insight: {
+  model?: string;
+  summary?: string;
+  next_steps?: string[];
+}): boolean {
+  if (insight.model === "draft-db-insight") return true;
+  const blob = `${insight.summary ?? ""} ${(insight.next_steps ?? []).join(" ")}`;
+  return (
+    /ZIP에 src·package\.json·README/.test(blob) ||
+    /프로젝트 압축본「\.」/.test(blob) ||
+    (/트러블슈팅 기록이 없어 협업·디버깅/.test(blob) &&
+      /프로젝트 압축본/.test(blob) &&
+      !/(react|vite|supabase|readme에|README\(|스택|구조가 확인)/i.test(blob))
+  );
+}
+
+/** Edge ZIP·README 분석 결과가 있으면 DB 폴백보다 Edge를 쓸지 */
+export function shouldPreferEdgeProgressInsight(
+  edge: TeamProgressInsightView | null,
+  hasArchiveDeliverable: boolean
+): boolean {
+  if (!edge?.summary?.trim() || edge.model === "draft-db-only") return false;
+  if (isShallowProgressInsight(edge)) return false;
+  if (!hasArchiveDeliverable) return true;
+  return (
+    (edge.source_samples_count ?? 0) > 0 ||
+    edge.detected_has_readme === true ||
+    edge.zip_source_analyzed === true
+  );
+}
+
 function suggestsMissingReadme(line: string): boolean {
-  return /readme.*(없|부재|미작|미비|추가|작성|정리|제출)|실행\s*가이드.*없|실행\s*방법.*(없|정리하세요)|온보딩.*없/i.test(
-    line
+  return (
+    /readme.*(없|부재|미작|미비|추가|작성|정리|제출)|실행\s*가이드.*없|실행\s*방법.*(없|정리하세요)|온보딩.*없/i.test(
+      line
+    ) || /ZIP에 src·package\.json·README/i.test(line)
   );
 }
 
@@ -161,6 +196,7 @@ function mapInsightPayload(payload: TeamProgressInsightResponse): TeamProgressIn
           ? payload.source_samples_count
           : undefined,
       detected_has_readme: detectedHasReadme,
+      zip_source_analyzed: payload.zip_source_analyzed === true,
     },
     { detectedHasReadme }
   );

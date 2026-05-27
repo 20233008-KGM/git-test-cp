@@ -57,6 +57,7 @@ import {
   briefDeliverableDescriptionSummary,
   deliverableHasDeployLink,
   extractDeployLinkFromDescription,
+  deliverableProgressLabel,
   isDeliverableArchiveFile,
   resolveDeliverableDeployUrl,
 } from "../utils/deliverableLinks";
@@ -889,13 +890,22 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
     return merged.slice(0, 2);
   };
 
-  return teams.map((team) => ({
+  const stageNames = await getCourseStageNamesFromDb(selectedCourseId);
+  const stageCount = stageNames.length;
+
+  return teams.map((team) => {
+    const completedRaw = Number(team.completed_stages ?? 0);
+    const completedStages = Math.max(0, Math.min(completedRaw, stageCount || completedRaw));
+    const progressFromStages =
+      stageCount > 0 ? Math.round((completedStages / stageCount) * 100) : team.progress;
+
+    return {
     id: team.id,
     name: team.name,
     badge: team.badge ?? "",
     projectTitle: team.project_title ?? "",
-    progress: team.progress,
-    completedStages: team.completed_stages,
+    progress: progressFromStages,
+    completedStages,
     members: members
       .filter((member) => member.team_id === team.id)
       .map((member) => {
@@ -912,7 +922,8 @@ async function getTeamCardsFromDb(courseId?: string): Promise<TeamCard[]> {
         };
       }),
     activities: mergeTeamActivities(team.id),
-  }));
+  };
+  });
 }
 
 async function assertCourseAllowsEvaluations(courseId: string) {
@@ -2425,10 +2436,19 @@ export function buildTeamProgressInsight(
   if (deliverables.length === 0) {
     gaps.push("산출물이 없습니다. 중간 발표 자료·소스 ZIP·데모 링크를 먼저 공유하세요.");
   } else if (archives.length > 0) {
-    const latestName = deliverables[0]?.fileName ?? "";
-    const latestSub = deliverables[0]?.subtitle?.trim();
+    const latest = deliverables[0];
+    const latestLabel = latest
+      ? deliverableProgressLabel({
+          fileName: latest.fileName,
+          mimeType: latest.mimeType,
+          subtitle: latest.subtitle,
+          description: latest.description,
+          kind: latest.kind,
+          publicUrl: latest.publicUrl,
+        })
+      : "프로젝트 ZIP";
     strengths.push(
-      `프로젝트 압축본「${latestName}」이 등록되어 ZIP 안 소스·문서를 AI가 분석할 수 있습니다${latestSub ? ` (${latestSub})` : ""}.`
+      `프로젝트 압축본「${latestLabel}」이 등록되어 있습니다. ZIP 내부는 Edge AI가 README·소스를 읽어 요약합니다.`
     );
   } else if (codeFiles.length > 0) {
     strengths.push(
@@ -2487,7 +2507,16 @@ export function buildTeamProgressInsight(
 
   const latest = deliverables[0];
   const latestBriefDesc = briefDeliverableDescriptionSummary(latest?.description, 48);
-  const latestSub = latest?.subtitle?.trim() ?? "";
+  const latestLabel = latest
+    ? deliverableProgressLabel({
+        fileName: latest.fileName,
+        mimeType: latest.mimeType,
+        subtitle: latest.subtitle,
+        description: latest.description,
+        kind: latest.kind,
+        publicUrl: latest.publicUrl,
+      })
+    : "";
 
   const next_steps: string[] = [];
   const architecture_risks: string[] = [];
@@ -2501,7 +2530,9 @@ export function buildTeamProgressInsight(
     architecture_risks.push("실행 가능한 소스가 드러나지 않아 아키텍처·품질 검토가 어렵습니다.");
   }
   if (archives.length > 0 && codeFiles.length === 0) {
-    next_steps.push("ZIP에 src·package.json·README가 포함됐는지 확인하세요. (제목만 바꾼 ZIP은 확장자를 유지하세요.)");
+    next_steps.push(
+      "팀 상세의 AI 통합 진행상황이 로딩될 때까지 기다리거나, ZIP이 손상되지 않았는지 확인하세요. (파일명이 「.」만 보이면 업로드 시 .zip 확장자를 유지하세요.)"
+    );
   }
   if (withDeployLink.length === 0 && deliverables.length > 0) {
     next_steps.push("배포·데모 URL을 링크 산출물 또는 설명란 배포 링크로 등록하세요.");
@@ -2523,7 +2554,7 @@ export function buildTeamProgressInsight(
           : withDeployLink.some((d) => d.id === latest.id)
             ? "배포 산출물"
             : "산출물";
-    const titlePart = latestSub ? `「${latest.fileName}」(${latestSub})` : `「${latest.fileName}」`;
+    const titlePart = latestLabel ? `「${latestLabel}」` : "산출물";
     summaryParts.push(
       `최근 ${kind} ${titlePart}이 등록되었습니다${latestBriefDesc ? ` — ${latestBriefDesc}` : ""}.`
     );
@@ -3244,16 +3275,26 @@ async function updateTeamCompletedStagesInDb(
 
   const stageNames = await getCourseStageNamesFromDb(courseId);
   const clamped = Math.max(0, Math.min(completedStages, stageNames.length));
+  const progressPct =
+    stageNames.length > 0 ? Math.round((clamped / stageNames.length) * 100) : 0;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("ai_teams")
     .update({
       completed_stages: clamped,
+      progress: progressPct,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", teamId);
+    .eq("id", teamId)
+    .select("id, completed_stages, progress")
+    .maybeSingle();
 
   if (error) throw error;
+  if (!data) {
+    throw new Error(
+      "스테이지 진행이 저장되지 않았습니다. Supabase ai_teams UPDATE 권한(RLS)을 확인해 주세요."
+    );
+  }
 }
 
 async function saveProfessorProfileInDb(input: {
@@ -5100,8 +5141,16 @@ async function updateTeamProfileInDb(
     patch.project_title = input.projectTitle.trim() || "팀 프로젝트";
   }
 
-  const { error } = await supabase.from("ai_teams").update(patch).eq("id", teamId);
+  const { data, error } = await supabase
+    .from("ai_teams")
+    .update(patch)
+    .eq("id", teamId)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+  if (!data) {
+    throw new Error("팀 정보가 저장되지 않았습니다. Supabase ai_teams UPDATE 권한(RLS)을 확인해 주세요.");
+  }
 }
 
 async function transferTeamLeaderInDb(teamId: string, newLeaderUserId: string): Promise<void> {

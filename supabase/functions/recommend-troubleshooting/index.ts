@@ -108,7 +108,7 @@ const MAX_ZIP_BYTES = 80_000_000;
 const MAX_SNIPPET_CHARS = 3500;
 const MAX_ZIP_ENTRIES_SCAN = 400;
 const MAX_DELIVERABLES_FETCH = 24;
-const MAX_SOURCE_SNIPPETS_PROGRESS = 8;
+const MAX_SOURCE_SNIPPETS_PROGRESS = 14;
 const MAX_SOURCE_SNIPPETS_TROUBLESHOOT = 6;
 const TROUBLESHOOTING_ALWAYS_SAMPLE_LATEST_FILES = 2;
 const PROGRESS_ALWAYS_SAMPLE_LATEST_FILES = 2;
@@ -146,8 +146,38 @@ function isZipSnippetSuccess(snippet: SourceSnippet): boolean {
   return Boolean(snippet.excerpt.trim()) && !snippet.excerpt.startsWith("(ZIP");
 }
 
+function zipInventorySnippet(snippets: SourceSnippet[]): SourceSnippet | undefined {
+  return snippets.find((s) => s.file_name.includes("::__inventory"));
+}
+
+/** ZIP 본문 샘플 또는 인벤토리 스캔으로 코드·README 존재가 확인된 경우 */
+function hasAnalyzedZipContent(snippets: SourceSnippet[]): boolean {
+  if (snippets.some(isZipSnippetSuccess)) return true;
+  const inv = zipInventorySnippet(snippets);
+  if (!inv) return false;
+  return /README=(?!없음)|package\.json=(?!없음)|코드파일≈[1-9]/i.test(inv.excerpt);
+}
+
 function countUsableSourceSnippets(snippets: SourceSnippet[]): number {
-  return snippets.filter((s) => isZipSnippetSuccess(s)).length;
+  const contentCount = snippets.filter((s) => isZipSnippetSuccess(s)).length;
+  if (contentCount > 0) return contentCount;
+  return hasAnalyzedZipContent(snippets) ? 1 : 0;
+}
+
+function deliverableZipLabel(row: DeliverableRow): string {
+  const name = String(row.file_name ?? "").trim();
+  const storagePath = row.storage_path?.trim() ?? "";
+  const inner = storagePath ? storageInnerRelativePath(storagePath) : null;
+  const base = storagePath ? storagePathBasename(storagePath) : "";
+  if (name && name !== "." && !/^\.+$/.test(name)) return name;
+  if (base && /\.(zip|7z)$/i.test(base)) return base;
+  if (inner && /\.(zip|7z)$/i.test(inner)) {
+    const leaf = inner.split("/").filter(Boolean).pop();
+    if (leaf) return leaf;
+  }
+  const sub = row.subtitle ? String(row.subtitle).trim() : "";
+  if (sub && sub !== "." && sub.length > 1) return sub;
+  return "프로젝트 ZIP";
 }
 
 function extractDeployLinkFromDescription(description: string | null | undefined): string | null {
@@ -187,7 +217,11 @@ function snippetInnerPath(fileName: string): string {
 
 function isReadmePath(path: string): boolean {
   const base = (path.split("/").pop() ?? path).toLowerCase();
-  return /^readme(\.(md|txt|rst|markdown))?$/i.test(base);
+  return (
+    /^readme([\w.-]*)?\.(md|txt|rst|markdown)?$/i.test(base) ||
+    base === "readme" ||
+    /^readme\.[\w.-]+$/i.test(base)
+  );
 }
 
 function isPackageJsonPath(path: string): boolean {
@@ -598,7 +632,7 @@ async function extractZipSourceSnippets(
   path: string,
   zipLabel: string,
   size: number,
-  maxSnippetsPerArchive = 8
+  maxSnippetsPerArchive = 10
 ): Promise<SourceSnippet[]> {
   if (size > MAX_ZIP_BYTES) {
     return [
@@ -708,7 +742,8 @@ async function sampleDeliverableSourceSnippets(
     const size = Number(row.file_size ?? 0);
 
     if (deliverableRowIsZip(row)) {
-      const zipSnippets = await extractZipSourceSnippets(supabase, path, name, size);
+      const zipLabel = deliverableZipLabel(row);
+      const zipSnippets = await extractZipSourceSnippets(supabase, path, zipLabel, size);
       if (zipSnippets.some(isZipSnippetSuccess)) {
         processedDeliverableIds.push(row.id);
       }
@@ -988,7 +1023,10 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
   const resolved = context.logs.filter((l) => l.status === "resolved");
   const open = context.logs.filter((l) => l.status !== "resolved");
   const signals = analyzeSourceCodeSignals(context.source_snippets);
-  const hasSource = context.source_snippets.some(isZipSnippetSuccess);
+  const hasSource = hasAnalyzedZipContent(context.source_snippets);
+  const readmeSnippet = context.source_snippets.find((s) =>
+    isReadmePath(snippetInnerPath(s.file_name))
+  );
 
   const strengths: string[] = [];
   const gaps: string[] = [];
@@ -1018,9 +1056,22 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
     gaps.push("README·실행 가이드가 없어 팀원·교수가 로컬 실행·검증하기 어렵습니다.");
   } else if (signals.hasReadme && hasSource) {
     const readmePath = signals.sampledPaths.find(isReadmePath);
-    if (readmePath) {
-      strengths.push(`README(${readmePath.split("/").pop()})가 포함되어 실행·온보딩 문서가 있습니다.`);
-    }
+    const readmeName = readmePath?.split("/").pop() ?? "README";
+    const readmeHint = readmeSnippet
+      ? truncateText(
+          readmeSnippet.excerpt
+            .replace(/^#+\s*/gm, "")
+            .split("\n")
+            .map((l) => l.trim())
+            .find((l) => l.length > 12) ?? "",
+          72
+        )
+      : "";
+    strengths.push(
+      readmeHint
+        ? `README(${readmeName})에 프로젝트·실행 안내가 있습니다 — ${readmeHint}`
+        : `README(${readmeName})가 ZIP에 포함되어 있습니다.`
+    );
   }
   if (!signals.hasTests && hasSource) gaps.push("테스트 코드가 보이지 않아 리팩터·통합 시 회귀 위험이 큽니다.");
   if (open.length > 0) {
@@ -1060,6 +1111,19 @@ function buildHeuristicProgressInsight(context: TeamContext): ProgressInsightRes
   }
 
   const summaryParts: string[] = [];
+  if (hasSource && signals.hasReadme && readmeSnippet && signals.stackHints.length === 0) {
+    const intro = truncateText(
+      readmeSnippet.excerpt
+        .replace(/^#+\s*/gm, "")
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.length > 10) ?? "",
+      100
+    );
+    if (intro) {
+      summaryParts.push(`README 기준: ${intro}`);
+    }
+  }
   if (hasSource && signals.stackHints.length > 0) {
     const layer =
       signals.hasUiLayer && signals.hasApiLayer
@@ -1298,6 +1362,7 @@ Deno.serve(async (req: Request) => {
           new_deliverables_analyzed: processed_deliverable_ids.length,
           source_samples_count: countUsableSourceSnippets(context.source_snippets),
           detected_has_readme: sourceSignals.hasReadme,
+          zip_source_analyzed: hasAnalyzedZipContent(context.source_snippets),
         });
       }
 
@@ -1322,6 +1387,7 @@ Deno.serve(async (req: Request) => {
         new_deliverables_analyzed: processed_deliverable_ids.length,
         source_samples_count: countUsableSourceSnippets(context.source_snippets),
         detected_has_readme: sourceSignals.hasReadme,
+        zip_source_analyzed: hasAnalyzedZipContent(context.source_snippets),
       });
     }
 

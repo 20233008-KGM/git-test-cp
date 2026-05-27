@@ -34,7 +34,8 @@ export function isDeliverableArchiveFile(
   mimeType?: string | null,
   storagePath?: string | null
 ): boolean {
-  const ext = fileName.toLowerCase().split(".").pop() ?? "";
+  const trimmed = fileName.trim();
+  const ext = trimmed.includes(".") ? trimmed.toLowerCase().split(".").pop() ?? "" : "";
   if (["zip", "7z", "rar", "tar", "gz"].includes(ext)) return true;
   const mime = (mimeType ?? "").toLowerCase();
   if (mime.includes("zip") || mime === "application/x-zip-compressed" || mime.includes("7z")) {
@@ -42,6 +43,32 @@ export function isDeliverableArchiveFile(
   }
   const base = storagePath?.split("/").filter(Boolean).pop() ?? "";
   return /\.(zip|7z)$/i.test(base);
+}
+
+/** AI 요약·카드용 — fileName이 「.」 등일 때 subtitle·MIME으로 표시명 보정 */
+export function deliverableProgressLabel(item: {
+  fileName: string;
+  mimeType?: string | null;
+  subtitle?: string | null;
+  description?: string | null;
+  kind?: "file" | "link";
+  publicUrl?: string;
+}): string {
+  const sub = item.subtitle?.trim();
+  const name = item.fileName?.trim() ?? "";
+  if (sub && sub !== "." && sub.length > 1) return sub;
+  if (name && name !== "." && !/^\.+$/.test(name)) return name;
+  if (isDeliverableArchiveFile(name, item.mimeType)) return "프로젝트 ZIP";
+  if (item.kind === "link") {
+    const label = deliverableDeployLinkLabel({
+      fileName: name || "링크",
+      kind: "link",
+      publicUrl: item.publicUrl ?? "",
+      description: item.description,
+    });
+    if (label && label !== name) return label;
+  }
+  return name || "산출물";
 }
 
 export function deliverableHasDeployLink(item: {

@@ -208,10 +208,18 @@ export default function CourseTeamManagePage() {
         )}
 
         <section
-          className="mb-6 rounded-xl border border-gray-200 bg-[#f8fafc] p-4 shadow-sm"
+          className="mb-6 overflow-hidden rounded-2xl border border-[#dbe7ff] bg-gradient-to-br from-[#f7faff] via-white to-[#f5f9ff] p-5 shadow-[0_12px_28px_rgba(17,24,39,0.08)]"
           data-testid="team-manage-stages-section"
         >
-          <h2 className="mb-1 text-base font-bold text-[#101828]">팀플 스테이지 진행</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-black tracking-tight text-[#101828]">팀플 스테이지 진행</h2>
+              <p className="mt-1 text-xs text-[#6a7282]">팀 진행률을 한눈에 보고 바로 업데이트할 수 있습니다.</p>
+            </div>
+            <span className="rounded-full border border-[#bfd6ff] bg-[#eaf2ff] px-2.5 py-1 text-[11px] font-bold text-[#2253c1]">
+              Leader Control
+            </span>
+          </div>
           <p className="mb-3 text-xs text-[#6a7282]">
             {canEditStages
               ? "수업에 정의된 단계 기준으로, 우리 팀이 어디까지 왔는지 표시합니다. 변경 내용은 팀 목록 카드에도 반영됩니다."

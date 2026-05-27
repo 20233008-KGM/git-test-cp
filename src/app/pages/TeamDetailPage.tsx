@@ -3,8 +3,9 @@ import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import {
   fetchTeamProgressInsightFromEdge,
-  isShallowProgressInsight,
+  isClientMetadataFallbackInsight,
   normalizeProgressInsightForDisplay,
+  shouldPreferEdgeProgressInsight,
 } from "../api/ai-team-progress";
 import { api, buildTeamProgressInsight } from "../api/supabase-api";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
@@ -332,15 +333,13 @@ export default function TeamDetailPage() {
       const hasArchiveDeliverable = deliverables.some(
         (d) => d.kind !== "link" && isDeliverableArchiveFile(d.fileName, d.mimeType)
       );
-      const edgeReadSource = (edge?.source_samples_count ?? 0) > 0;
 
-      const useEdge =
-        Boolean(edge?.summary) &&
-        edge.model !== "draft-db-only" &&
-        !isShallowProgressInsight(edge) &&
-        (!hasArchiveDeliverable || edgeReadSource);
+      const preferEdge = shouldPreferEdgeProgressInsight(edge, hasArchiveDeliverable);
+      const fallbackIsGeneric = isClientMetadataFallbackInsight(fallback);
 
-      if (useEdge) {
+      if (preferEdge && edge) {
+        setProgressInsight(edge);
+      } else if (edge && fallbackIsGeneric && !isShallowProgressInsight(edge)) {
         setProgressInsight(edge);
       } else {
         setProgressInsight(fallback);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
 import AppModal from "../components/layout/AppModal";
 import { useAuth } from "../contexts/AuthContext";
@@ -42,8 +42,6 @@ function TeamCardComponent({
   onClick,
   showJoinActions,
   onJoin,
-  onStageChange,
-  canEditStages,
   hasUnreadActivity,
   courseId,
 }: {
@@ -53,8 +51,6 @@ function TeamCardComponent({
   onClick: () => void;
   showJoinActions?: boolean;
   onJoin?: () => void;
-  onStageChange?: (next: number) => void;
-  canEditStages?: boolean;
   hasUnreadActivity?: boolean;
   courseId?: string;
 }) {
@@ -150,47 +146,11 @@ function TeamCardComponent({
           </Link>
         )}
 
-        {/* 숫자로 보는 전체 진행률입니다. 실제 막대는 아니고 텍스트로만 보여줍니다. */}
-        <div className="flex items-center gap-1.5">
-          <div className="w-2 h-2 rounded-full bg-[#3676ff]" />
-          <span className="text-[#3676ff] text-xs font-bold">
-            {team.progress}% 진행중
-          </span>
-        </div>
-
-        {/* completedStages 값을 넘겨서 완료된 단계 개수만큼 파란색으로 표시합니다. */}
-        <TeamStageProgress completedStages={team.completedStages} stages={stages} />
-        {canEditStages && onStageChange && (
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              data-testid={`team-stage-decrease-${team.id}`}
-              disabled={team.completedStages <= 0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStageChange(team.completedStages - 1);
-              }}
-              className="rounded border border-gray-300 px-2 py-1 text-xs font-bold disabled:opacity-40"
-            >
-              −
-            </button>
-            <span className="text-xs font-bold text-gray-600">
-              진행 단계 {team.completedStages}/{stages.length}
-            </span>
-            <button
-              type="button"
-              data-testid={`team-stage-increase-${team.id}`}
-              disabled={team.completedStages >= stages.length}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStageChange(team.completedStages + 1);
-              }}
-              className="rounded border border-gray-300 px-2 py-1 text-xs font-bold disabled:opacity-40"
-            >
-              +
-            </button>
-          </div>
-        )}
+        <TeamStageProgress
+          completedStages={team.completedStages}
+          stages={stages}
+          variant="card"
+        />
 
         {/* 최근 활동 목록입니다. 활동이 없으면 빈 상태 메시지를 대신 보여줍니다. */}
         <div>
@@ -243,6 +203,7 @@ type UnassignedStudent = { id: string; name: string; studentId: string };
 
 export default function TeamsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { courseId } = useParams<{ courseId?: string }>();
   const { user, isStudent, isProfessor, isAdmin } = useAuth();
   const canManageAnnouncements = isProfessor || isAdmin;
@@ -274,15 +235,22 @@ export default function TeamsPage() {
 
   useEffect(() => {
     void reloadTeams();
-  }, [reloadTeams]);
+  }, [reloadTeams, location.pathname, location.key]);
 
   useEffect(() => {
     if (!courseId) return;
     const onFocus = () => {
       void reloadTeams();
     };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void reloadTeams();
+    };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [courseId, reloadTeams]);
 
   const realtimeTables = React.useMemo(
@@ -542,10 +510,6 @@ export default function TeamsPage() {
         >
           {teams.map((team) => {
             const isMyTeam = Boolean(user?.id && team.members.some((member) => member.id === user.id));
-            const isMyTeamLeader = Boolean(
-              user?.id &&
-                team.members.some((member) => member.id === user.id && member.role === "leader")
-            );
             const unread =
               Boolean(courseId && user?.id) &&
               hasUnreadTeamActivity(courseId, user.id, team.id, team.activities);
@@ -564,15 +528,6 @@ export default function TeamsPage() {
                     await reloadTeams();
                   } catch (error) {
                     alert(error instanceof Error ? error.message : "팀 참여에 실패했습니다.");
-                  }
-                }}
-                canEditStages={isMyTeamLeader && isStudent && !isArchived}
-                onStageChange={async (next) => {
-                  try {
-                    await api.teams.updateCompletedStages(team.id, next);
-                    await reloadTeams();
-                  } catch (error) {
-                    alert(error instanceof Error ? error.message : "진행 단계 저장에 실패했습니다.");
                   }
                 }}
                 onClick={() => {

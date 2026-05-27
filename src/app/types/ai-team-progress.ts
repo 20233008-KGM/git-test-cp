@@ -24,4 +24,6 @@ export type TeamProgressInsightResponse = {
   source_samples_count?: number;
   /** ZIP 전체 목록 스캔으로 README 존재 여부 (샘플에 README 본문이 없어도 true 가능) */
   detected_has_readme?: boolean;
+  /** ZIP 해제·인벤토리 스캔 또는 소스 샘플 추출 성공 */
+  zip_source_analyzed?: boolean;
 };
