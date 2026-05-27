@@ -76,7 +76,7 @@ export default function LandingPage() {
             <h1 className="m3-headline-medium cc-text-primary mb-1 font-bold sm:text-4xl">
               CampusConnect
             </h1>
-            <p className="cc-text-secondary text-sm">웹개발 수업 협업 플랫폼</p>
+            <p className="cc-text-secondary text-sm">원할한 팀플을 위한 올인원 플랫폼</p>
           </div>
 
           <div className="cc-card p-6 shadow-[var(--m3-elevation-3)] sm:p-8">
