@@ -13,6 +13,7 @@ export default function ProfessorProfilePage() {
   const [officeHours, setOfficeHours] = useState("");
   const [researchInput, setResearchInput] = useState("");
   const [bio, setBio] = useState("");
+  const [teachingStyle, setTeachingStyle] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +30,7 @@ export default function ProfessorProfilePage() {
         setOfficeHours(data.officeHours);
         setResearchInput((data.researchAreas ?? []).join(", "));
         setBio(data.bio ?? "");
+        setTeachingStyle(data.teachingStyle ?? "");
       }
       setLoading(false);
     });
@@ -81,6 +83,7 @@ export default function ProfessorProfilePage() {
                 office,
                 officeHours,
                 bio,
+                teachingStyle,
                 researchAreas: researchInput
                   .split(",")
                   .map((item) => item.trim())
@@ -141,6 +144,17 @@ export default function ProfessorProfilePage() {
               value={researchInput}
               onChange={(e) => setResearchInput(e.target.value)}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+            />
+          </label>
+          <label className="block text-sm font-bold text-gray-700">
+            수업 스타일
+            <textarea
+              value={teachingStyle}
+              onChange={(e) => setTeachingStyle(e.target.value)}
+              rows={3}
+              data-testid="professor-profile-teaching-style"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="나중에 AI가 자동으로 채웁니다 — 직접 입력도 가능합니다."
             />
           </label>
           <button

@@ -31,6 +31,7 @@ export interface ProfessorProfile extends BaseProfile {
   officeHours: string;
   researchAreas?: string[];
   bio?: string;
+  teachingStyle?: string;
 }
 
 // 과목 관련 타입

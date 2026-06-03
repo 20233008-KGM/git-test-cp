@@ -324,31 +324,29 @@ function StudentAvatar({ student, size = "md" }: { student: Student; size?: "sm"
   );
 }
 
-function TemperatureBar({ extra }: { extra: ResolvedStudentExtra }) {
-  if (!extra.hasLearningProfile) {
+function PeerKeywordsDisplay({ extra }: { extra: ResolvedStudentExtra }) {
+  if (!extra.hasLearningProfile || extra.keywords.length === 0) {
     return (
       <div className="rounded-[14px] border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
-        <p className="text-sm font-medium text-[#6a7282]">매너온도</p>
+        <p className="text-sm font-medium text-[#6a7282]">동료 키워드</p>
         <p className="mt-1 text-xs text-[#9ca3af]">팀 활동 후 동료 평가가 쌓이면 표시됩니다.</p>
       </div>
     );
   }
 
-  const value = extra.temperature;
-  const pct = Math.min(100, Math.max(0, ((value - 36) / 3) * 100));
-  const emoji = value >= 38 ? "😄" : value >= 37 ? "😊" : "😐";
   return (
     <div className="bg-[#eff6ff] rounded-[14px] shadow-sm p-4">
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-base font-bold text-black">매너온도</p>
-        <span className="text-2xl">{emoji}</span>
-      </div>
-      <p className="text-[#155dfc] text-3xl font-black mb-3">{value}°C</p>
-      <div className="h-3 overflow-hidden rounded-full bg-gray-200">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-[#b0bfde] via-[#63bfed] to-[#155dfc]"
-          style={{ width: `${pct}%` }}
-        />
+      <p className="text-base font-bold text-black mb-3">동료 키워드</p>
+      <div className="flex flex-wrap gap-2">
+        {extra.keywords.map((kw) => (
+          <div
+            key={kw.text}
+            className="bg-white border border-[#bedbff] rounded-[10px] shadow-sm px-3 py-2 flex items-center gap-1.5"
+          >
+            <span className="text-sm text-[#101828]">{kw.text}</span>
+            <span className="text-xs font-bold text-[#155dfc]">{kw.count}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -419,29 +417,7 @@ function StudentProfileModal({
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          <TemperatureBar extra={extra} />
-
-          <div>
-            <p className="text-base font-bold text-black mb-2">동료 키워드</p>
-            {extra.keywords.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {extra.keywords.map((kw) => (
-                  <div
-                    key={kw.text}
-                    className="bg-white border border-gray-200 rounded-[10px] shadow-sm px-3 py-2 flex items-center gap-1.5"
-                  >
-                    <span className="text-sm text-black">{kw.text}</span>
-                    <User className="w-3.5 h-3.5 text-[#1D1B20]" />
-                    <span className="text-sm font-medium text-black">{kw.count}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[#9ca3af] rounded-[10px] border border-dashed border-gray-200 px-4 py-3">
-                아직 받은 키워드가 없습니다.
-              </p>
-            )}
-          </div>
+          <PeerKeywordsDisplay extra={extra} />
 
           <div className="border-t border-[rgba(218,218,218,0.55)]" />
 
@@ -632,6 +608,23 @@ function ProfessorProfileModal({
                 {bio}
               </p>
             </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-base font-bold text-black">수업 스타일</p>
+            {profile.teachingStyle?.trim() ? (
+              <div className="rounded-[10px] border border-gray-200 px-4 py-3">
+                <p className="text-sm leading-relaxed text-[#364153]">
+                  {profile.teachingStyle}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-[10px] border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-sm italic text-[#9ca3af]">
+                  추후 AI 분석으로 채워집니다.
+                </p>
+              </div>
+            )}
           </div>
 
           {isSelf ? (

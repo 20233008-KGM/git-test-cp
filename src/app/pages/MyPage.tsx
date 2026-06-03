@@ -306,21 +306,19 @@ export default function MyPage() {
         reportContext.totalDeliverables > 0 ||
         dbTechnologyChips.some((chip) => !chip.startsWith("("))));
 
-  const DEMO_COMPETENCY_ITEMS = [
-    { label: "프로젝트 실행력", value: 92, desc: "기한 내 산출물 제출과 발표 준비가 안정적입니다." },
-    { label: "협업 신뢰도", value: 90, desc: "동료평가에서 책임감과 시간 약속 관련 긍정 키워드가 반복됩니다." },
-    { label: "프론트엔드 구현", value: 86, desc: "React 기반 UI 구현과 반응형 문제 해결 경험이 확인됩니다." },
-    { label: "문제 해결/회고", value: 82, desc: "트러블슈팅 로그를 남기고 원인-계획-해결을 정리하는 습관이 있습니다." },
-  ];
-
-  const competencyItems =
-    reportView && reportHasArchivedTeams
-      ? reportView.competencyItems
-      : reportContext && reportHasArchivedTeams
-        ? api.aiReport.buildCompetencyItems(reportContext)
-        : reportContextReady
-          ? []
-          : DEMO_COMPETENCY_ITEMS;
+  const allPeerKeywords = useMemo(() => {
+    if (!reportContext) return [];
+    const counts = new Map<string, number>();
+    for (const team of reportContext.teams) {
+      for (const kw of team.peerReviewsReceived) {
+        counts.set(kw.text, (counts.get(kw.text) ?? 0) + kw.count);
+      }
+    }
+    return [...counts.entries()]
+      .map(([text, count]) => ({ text, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [reportContext]);
 
   const activityBullets =
     reportView && reportHasArchivedTeams
@@ -741,37 +739,38 @@ export default function MyPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div
-                    className="rounded-xl border border-gray-200 p-4"
-                    data-testid={reportContext ? "mypage-competency-db" : undefined}
-                  >
-                    <h3 className="text-[15px] font-black text-[#101828]">
-                      핵심 역량 진단{reportContext ? " (DB)" : ""}
-                    </h3>
-                    <div className="mt-3 space-y-3">
-                      {competencyItems.length === 0 ? (
-                        <p className="text-[11px] text-[#64748b]">
-                          종료 팀플 데이터가 없어 역량 점수를 계산할 수 없습니다.
-                        </p>
-                      ) : (
-                        competencyItems.map((item) => (
-                          <div key={item.label}>
-                            <div className="mb-2 flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[11px] font-bold text-[#1e293b]">{item.label}</p>
-                                <p className="text-[10px] text-[#64748b]">{item.desc}</p>
-                              </div>
-                              <span className="text-[11px] font-black text-[#155dfc]">{item.value}</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-[#e8eef8]">
-                              <div
-                                className="h-full rounded-full bg-[#155dfc]"
-                                style={{ width: `${item.value}%` }}
-                              />
-                            </div>
+                  <div className="rounded-xl border border-gray-200 p-4">
+                    <h3 className="text-[15px] font-black text-[#101828]">어떤 사람인가요?</h3>
+
+                    <div className="mt-3 space-y-4">
+                      <div>
+                        <p className="text-[10px] font-black text-[#155dfc]">자기소개</p>
+                        <div className="mt-1.5 rounded-lg border border-[#e2e8f0] bg-[#fbfcff] px-3 py-2.5">
+                          <p className="text-[10.5px] leading-[1.65] text-[#334155] whitespace-pre-wrap">
+                            {(user as { bio?: string } | null)?.bio?.trim() || "아직 자기소개가 없습니다. 프로필에서 등록해 보세요."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-black text-[#155dfc]">동료들의 평가</p>
+                        {allPeerKeywords.length > 0 ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {allPeerKeywords.map((kw) => (
+                              <span
+                                key={kw.text}
+                                className="rounded-full bg-[#eff6ff] px-3 py-1 text-[10px] font-bold text-[#155dfc]"
+                              >
+                                {kw.text} {kw.count}
+                              </span>
+                            ))}
                           </div>
-                        ))
-                      )}
+                        ) : (
+                          <p className="mt-1.5 text-[11px] text-[#64748b]">
+                            동료 평가가 쌓이면 여기에 표시됩니다.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 

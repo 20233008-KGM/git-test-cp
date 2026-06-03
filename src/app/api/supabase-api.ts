@@ -114,6 +114,7 @@ type AiUser = {
   office?: string | null;
   office_hours?: string | null;
   research_areas?: unknown;
+  teaching_style?: string | null;
 };
 
 type CourseQueryOptions = {
@@ -152,6 +153,7 @@ function toProfessorProfile(user: AiUser): ProfessorProfile {
     researchAreas: asArray<string>(user.research_areas),
     bio: user.bio ?? undefined,
     imageUrl: resolveUserImageUrl(user),
+    teachingStyle: user.teaching_style ?? undefined,
   };
 }
 
@@ -3444,6 +3446,7 @@ async function saveProfessorProfileInDb(input: {
   officeHours: string;
   researchAreas: string[];
   bio?: string;
+  teachingStyle?: string;
 }): Promise<ProfessorProfile> {
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
@@ -3462,6 +3465,7 @@ async function saveProfessorProfileInDb(input: {
       office_hours: input.officeHours.trim(),
       research_areas: input.researchAreas.filter(Boolean),
       bio: input.bio?.trim() || null,
+      teaching_style: input.teachingStyle?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", currentUser.id);
