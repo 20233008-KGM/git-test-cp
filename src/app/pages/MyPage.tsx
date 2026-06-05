@@ -14,6 +14,7 @@ import StudentReportA4Sheet, {
   ReportSectionTitle,
 } from "../components/StudentReportA4Sheet";
 import EvalSchemaNotice from "../components/EvalSchemaNotice";
+import PeerEvaluationTitleLine from "../components/PeerEvaluationTitleLine";
 import PageLoading from "../components/layout/PageLoading";
 import {
   AiGeneratingIndicator,
@@ -21,6 +22,7 @@ import {
   GeminiShimmerText,
 } from "../components/AiGeneratingIndicator";
 import type { AiReportContext, AiReportGenerateResponse, AiReportTeamSnapshot } from "../types/ai-report";
+import type { PeerEvaluationSummary } from "../types";
 
 const REPORT_PAGES = [
   { id: 1, title: "역량 및 활동 요약", prevLabel: null, nextLabel: "주요 팀플 상세" },
@@ -76,6 +78,7 @@ export default function MyPage() {
     }
   }, [searchParams, navigate]);
   const [legacyPeerDisplayTable, setLegacyPeerDisplayTable] = useState(false);
+  const [allPeerSummaries, setAllPeerSummaries] = useState<Record<string, PeerEvaluationSummary>>({});
 
   const loadAiReport = useCallback(
     async (context: AiReportContext) => {
@@ -205,6 +208,25 @@ export default function MyPage() {
   }, [user?.role]);
 
   useEffect(() => {
+    if (user?.role !== "student") {
+      setAllPeerSummaries({});
+      return;
+    }
+    let cancelled = false;
+    void api.studentNetwork
+      .getPeerEvaluations()
+      .then((data) => {
+        if (!cancelled) setAllPeerSummaries(data);
+      })
+      .catch(() => {
+        if (!cancelled) setAllPeerSummaries({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+
+  useEffect(() => {
     if (!reportContextReady || projectsLoading) return;
 
     if (reportContext) {
@@ -319,6 +341,7 @@ export default function MyPage() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
   }, [reportContext]);
+  const myPeerSummary = user?.id ? allPeerSummaries[user.id] : undefined;
 
   const activityBullets =
     reportView && reportHasArchivedTeams
@@ -509,6 +532,23 @@ export default function MyPage() {
                       <p className="m3-body-large whitespace-pre-wrap text-[var(--cc-on-surface)]">
                         {user.bio}
                       </p>
+                    </div>
+                  </div>
+                ) : null}
+                {user?.role === "student" ? (
+                  <div className="space-y-1 sm:col-span-2">
+                    <p className="m3-label-large text-[var(--cc-on-surface-variant)]">동료평가 한줄 요약</p>
+                    <div className="rounded-[var(--m3-shape-medium)] border border-[#bedbff] bg-[#eff6ff] px-4 py-3">
+                      {myPeerSummary ? (
+                        <>
+                          <PeerEvaluationTitleLine title={myPeerSummary.title} maxPx={16} minPx={9} />
+                          <p className="mt-1 text-xs break-keep text-[#1f3f7a]">{myPeerSummary.description}</p>
+                        </>
+                      ) : (
+                        <p className="text-xs text-[#64748b]">
+                          동료 평가가 쌓이면 전체 수업 기준 한줄 요약이 표시됩니다.
+                        </p>
+                      )}
                     </div>
                   </div>
                 ) : null}

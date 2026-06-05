@@ -1,4 +1,4 @@
-import type { StudentExtra } from "../types";
+import type { PeerEvaluationSummary, StudentExtra } from "../types";
 
 export const NETWORK_MAJOR_PLACEHOLDER = "전공 미입력";
 /** 본인 카드·모달용 */
@@ -86,6 +86,7 @@ export function tagsFromEditHints(hints?: {
 
 export type ResolvedStudentExtra = StudentExtra & {
   hasLearningProfile: boolean;
+  peerSummary?: PeerEvaluationSummary;
 };
 
 export function buildMinimalStudentExtra(
@@ -108,6 +109,7 @@ export function resolveStudentExtra(
     isSelf?: boolean;
   },
   extras: Record<string, StudentExtra>,
+  peerEvaluations?: Record<string, PeerEvaluationSummary>,
   editHints?: {
     bio?: string;
     careerInterest?: string;
@@ -129,6 +131,12 @@ export function resolveStudentExtra(
 
   if (!raw) {
     const minimal = buildMinimalStudentExtra(student.isSelf ? editHints?.bio ?? student.bio : student.bio);
+    const summary = peerEvaluations?.[student.id];
+    if (summary && summary.keywords.length > 0) {
+      minimal.keywords = summary.keywords;
+      minimal.hasLearningProfile = true;
+      minimal.peerSummary = summary;
+    }
     if (student.isSelf && editHints?.portfolioFileName?.trim()) {
       minimal.portfolioFile = editHints.portfolioFileName.trim();
     }
@@ -151,13 +159,16 @@ export function resolveStudentExtra(
     raw.teamProjectCount > 0 ||
     raw.keywords.length > 0 ||
     (Boolean(raw.detailedBio?.trim()) && !isProfileMetaJson(raw.detailedBio));
+  const summary = peerEvaluations?.[student.id];
+  const keywords = summary && summary.keywords.length > 0 ? summary.keywords : raw.keywords;
 
   return {
     temperature: hasLearningProfile ? Number(raw.temperature) || 37 : 37,
     teamProjectCount: raw.teamProjectCount,
     portfolioFile,
     detailedBio,
-    keywords: raw.keywords,
-    hasLearningProfile,
+    keywords,
+    hasLearningProfile: hasLearningProfile || Boolean(summary && summary.keywords.length > 0),
+    peerSummary: summary,
   };
 }

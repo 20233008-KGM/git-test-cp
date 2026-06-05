@@ -10,6 +10,7 @@ import type {
   Announcement,
   NetworkStudent,
   StudentExtra,
+  PeerEvaluationSummary,
   TeamKeyword,
   StudentNetworkEditForm,
   MyPageProject,
@@ -62,6 +63,7 @@ import {
   isDeliverableArchiveFile,
   resolveDeliverableDeployUrl,
 } from "../utils/deliverableLinks";
+import { buildPeerEvaluationSummary } from "../utils/peerEvaluationSummary";
 
 export { extractDeployLinkFromDescription };
 import {
@@ -1113,6 +1115,39 @@ async function getStudentExtrasFromDb(): Promise<Record<string, StudentExtra>> {
     result[extra.user_id] = mapLearningProfileToStudentExtra(extra, bioByUserId.get(extra.user_id));
     return result;
   }, {});
+}
+
+async function getCourseStudentPeerEvaluationsFromDb(
+  _courseId?: string
+): Promise<Record<string, PeerEvaluationSummary>> {
+  const { data: reviews, error: reviewError } = await supabase
+    .from("ai_team_detail_peer_reviews")
+    .select("teammate_id, good_keywords, comment")
+    .order("created_at", { ascending: false });
+
+  if (reviewError) {
+    if (isMissingRelationError(reviewError)) return {};
+    throw reviewError;
+  }
+
+  const rowsByUser = new Map<string, Array<{ good_keywords?: unknown; comment?: string | null }>>();
+  for (const row of reviews ?? []) {
+    const teammateId = (row.teammate_id as string | null)?.trim();
+    if (!teammateId) continue;
+    const currentRows = rowsByUser.get(teammateId) ?? [];
+    currentRows.push({
+      good_keywords: row.good_keywords,
+      comment: (row.comment as string | null) ?? null,
+    });
+    rowsByUser.set(teammateId, currentRows);
+  }
+
+  const result: Record<string, PeerEvaluationSummary> = {};
+  for (const [userId, userRows] of rowsByUser.entries()) {
+    const summary = buildPeerEvaluationSummary(userRows, userId);
+    if (summary.tier !== "none") result[userId] = summary;
+  }
+  return result;
 }
 
 async function getTeamKeywordsFromDb(): Promise<TeamKeyword[]> {
@@ -5661,6 +5696,7 @@ export const api = {
   studentNetwork: {
     getStudents: getNetworkStudentsFromDb,
     getExtras: getStudentExtrasFromDb,
+    getPeerEvaluations: getCourseStudentPeerEvaluationsFromDb,
     getTeamKeywords: getTeamKeywordsFromDb,
     getEditForm: getStudentNetworkEditFormFromDb,
     saveProfile: saveStudentNetworkProfileInDb,

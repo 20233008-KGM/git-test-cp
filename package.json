@@ -2,6 +2,7 @@
   "name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
+  "packageManager": "pnpm@10.15.0",
   "type": "module",
   "scripts": {
     "build": "vite build",
@@ -25,6 +26,7 @@
     "human:sync:apply": "node scripts/sync-human-actions.mjs --apply",
     "human:sync:json": "node scripts/sync-human-actions.mjs --json",
     "test:e2e": "playwright test",
+    "test:e2e:peer-network": "playwright test peer-evaluation-profile-network",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:smoke": "node scripts/run-e2e-smoke.mjs",
     "test:e2e:smoke:auto": "node scripts/run-e2e-smoke.mjs",
@@ -109,6 +111,7 @@
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "firebase-admin": "^13.6.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },

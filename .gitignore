@@ -5,6 +5,8 @@ dist/
 .env.*.local
 test-results/
 playwright-report/
+.e2e-fixtures/
+tests/e2e/.e2e-fixtures/
 .vercel
 .env*
 node_modules

@@ -2,10 +2,12 @@ import React, { useCallback, useState, useRef, useEffect, useMemo } from "react"
 import { Link, useNavigate, useParams } from "react-router";
 import { Search, BookOpen, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
+import PeerEvaluationIllustration from "../components/PeerEvaluationIllustration";
+import PeerEvaluationTitleLine from "../components/PeerEvaluationTitleLine";
 import AppModal from "../components/layout/AppModal";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
-import type { Course, ProfessorProfile } from "../types";
+import type { Course, PeerEvaluationSummary, ProfessorProfile } from "../types";
 import DirectChatModal from "../components/DirectChatModal";
 import UserAvatar from "../components/UserAvatar";
 import PageHeader from "../components/layout/PageHeader";
@@ -324,31 +326,119 @@ function StudentAvatar({ student, size = "md" }: { student: Student; size?: "sm"
   );
 }
 
+const VISIBLE_PEER_KEYWORD_LIMIT = 4;
+
+function PeerKeywordChip({ text, count }: { text: string; count: number }) {
+  return (
+    <div className="flex max-w-full items-center gap-1.5 rounded-[10px] border border-[#bedbff] bg-white px-3 py-2 shadow-sm">
+      <span className="text-sm break-keep text-[#101828]">{text}</span>
+      <span className="text-xs font-bold text-[#155dfc]">{count}</span>
+    </div>
+  );
+}
+
+function PeerKeywordsAllModal({
+  open,
+  keywords,
+  onClose,
+}: {
+  open: boolean;
+  keywords: { text: string; count: number }[];
+  onClose: () => void;
+}) {
+  return (
+    <AppModal
+      open={open}
+      onClose={onClose}
+      testId="student-profile-peer-keywords-all-overlay"
+      ariaLabel="동료 키워드 전체"
+      panelClassName="w-full max-w-[400px] overflow-y-auto rounded-[14px] shadow-2xl"
+    >
+      <div data-testid="student-profile-peer-keywords-all-modal">
+        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+          <h2 className="text-base font-bold text-[#101828]">동료 키워드</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full px-2 py-1 text-sm text-gray-500 hover:bg-gray-100"
+            aria-label="동료 키워드 닫기"
+          >
+            닫기
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 p-5">
+          {keywords.map((kw) => (
+            <PeerKeywordChip key={kw.text} text={kw.text} count={kw.count} />
+          ))}
+        </div>
+      </div>
+    </AppModal>
+  );
+}
+
+function PeerEvaluationBanner({ summary }: { summary?: PeerEvaluationSummary }) {
+  if (!summary || summary.tier === "none") return null;
+
+  return (
+    <div
+      className="flex flex-col gap-3 rounded-[14px] bg-[#eff6ff] p-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4"
+      data-testid="student-profile-peer-banner"
+      data-peer-tier={summary.tier}
+    >
+      <div className="min-w-0 flex-1 break-keep">
+        <PeerEvaluationTitleLine title={summary.title} maxPx={24} minPx={10} />
+        <p className="mt-1 text-sm leading-relaxed break-keep text-[#1f3f7a]">{summary.description}</p>
+      </div>
+      <PeerEvaluationIllustration
+        illustrationKey={summary.illustrationKey}
+        className="h-16 w-16 self-end shrink-0 sm:h-20 sm:w-20 sm:self-center"
+      />
+    </div>
+  );
+}
+
 function PeerKeywordsDisplay({ extra }: { extra: ResolvedStudentExtra }) {
+  const [showAllKeywordsModal, setShowAllKeywordsModal] = useState(false);
+
   if (!extra.hasLearningProfile || extra.keywords.length === 0) {
     return (
-      <div className="rounded-[14px] border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
+      <div className="rounded-[14px] border border-dashed border-gray-200 bg-gray-50 p-4 text-center break-keep">
         <p className="text-sm font-medium text-[#6a7282]">동료 키워드</p>
         <p className="mt-1 text-xs text-[#9ca3af]">팀 활동 후 동료 평가가 쌓이면 표시됩니다.</p>
       </div>
     );
   }
 
+  const visibleKeywords = extra.keywords.slice(0, VISIBLE_PEER_KEYWORD_LIMIT);
+  const hiddenCount = extra.keywords.length - visibleKeywords.length;
+
   return (
-    <div className="bg-[#eff6ff] rounded-[14px] shadow-sm p-4">
-      <p className="text-base font-bold text-black mb-3">동료 키워드</p>
-      <div className="flex flex-wrap gap-2">
-        {extra.keywords.map((kw) => (
-          <div
-            key={kw.text}
-            className="bg-white border border-[#bedbff] rounded-[10px] shadow-sm px-3 py-2 flex items-center gap-1.5"
-          >
-            <span className="text-sm text-[#101828]">{kw.text}</span>
-            <span className="text-xs font-bold text-[#155dfc]">{kw.count}</span>
-          </div>
-        ))}
+    <>
+      <div className="rounded-[14px] bg-[#eff6ff] p-4 shadow-sm">
+        <p className="mb-3 text-base font-bold text-black">동료 키워드</p>
+        <div className="flex flex-wrap gap-2">
+          {visibleKeywords.map((kw) => (
+            <PeerKeywordChip key={kw.text} text={kw.text} count={kw.count} />
+          ))}
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllKeywordsModal(true)}
+              data-testid="student-profile-peer-keywords-more"
+              aria-label="동료 키워드 전체 보기"
+              className="flex items-center rounded-[10px] border border-[#bedbff] bg-white px-3 py-2 text-sm font-bold text-[#155dfc] shadow-sm transition-colors hover:bg-[#f8fbff]"
+            >
+              ...
+            </button>
+          )}
+        </div>
       </div>
-    </div>
+      <PeerKeywordsAllModal
+        open={showAllKeywordsModal}
+        keywords={extra.keywords}
+        onClose={() => setShowAllKeywordsModal(false)}
+      />
+    </>
   );
 }
 
@@ -357,6 +447,7 @@ function PeerKeywordsDisplay({ extra }: { extra: ResolvedStudentExtra }) {
 function StudentProfileModal({
   student,
   studentExtras,
+  peerEvaluations,
   editForm,
   courseId,
   onClose,
@@ -364,6 +455,7 @@ function StudentProfileModal({
 }: {
   student: Student;
   studentExtras: Record<string, StudentExtra>;
+  peerEvaluations: Record<string, PeerEvaluationSummary>;
   editForm?: EditForm;
   courseId?: string;
   onClose: () => void;
@@ -371,7 +463,7 @@ function StudentProfileModal({
 }) {
   const [showDirectChat, setShowDirectChat] = useState(false);
   const displayStudent = enrichStudentForDisplay(student, editForm);
-  const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
+  const extra = resolveStudentExtra(displayStudent, studentExtras, peerEvaluations, editForm);
   const majorLabel = displayMajor(displayStudent.major);
   const bioIsPlaceholder =
     extra.detailedBio === NETWORK_BIO_PLACEHOLDER ||
@@ -417,6 +509,7 @@ function StudentProfileModal({
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          <PeerEvaluationBanner summary={extra.peerSummary} />
           <PeerKeywordsDisplay extra={extra} />
 
           <div className="border-t border-[rgba(218,218,218,0.55)]" />
@@ -989,16 +1082,18 @@ function ProfessorNetworkCard({
 function StudentCard({
   student,
   studentExtras,
+  peerEvaluations,
   editForm,
   onClick,
 }: {
   student: Student;
   studentExtras: Record<string, StudentExtra>;
+  peerEvaluations: Record<string, PeerEvaluationSummary>;
   editForm?: EditForm;
   onClick?: () => void;
 }) {
   const displayStudent = enrichStudentForDisplay(student, editForm);
-  const extra = resolveStudentExtra(displayStudent, studentExtras, editForm);
+  const extra = resolveStudentExtra(displayStudent, studentExtras, peerEvaluations, editForm);
   const majorLabel = displayMajor(displayStudent.major);
   const bioLabel = displayBio(displayStudent.bio, extra.detailedBio, undefined, {
     isSelf: displayStudent.isSelf,
@@ -1009,6 +1104,7 @@ function StudentCard({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       data-testid={`student-network-card-${student.id}`}
       className={`rounded-[14px] border-2 p-6 flex flex-col gap-3 hover:shadow-md transition-all cursor-pointer text-left w-full ${isSelf
@@ -1036,7 +1132,7 @@ function StudentCard({
         }`}
       >
         <p
-          className={`text-xs text-center leading-[1.6] ${
+          className={`break-keep text-xs text-center leading-[1.6] ${
             bioIsPlaceholder ? "text-[#9ca3af] italic" : "text-[#1c398e]"
           }`}
         >
@@ -1074,6 +1170,7 @@ export default function StudentsNetworkPage() {
   const [assignedStudentIds, setAssignedStudentIds] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [studentExtras, setStudentExtras] = useState<Record<string, StudentExtra>>({});
+  const [peerEvaluations, setPeerEvaluations] = useState<Record<string, PeerEvaluationSummary>>({});
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const emptyEditForm: EditForm = {
@@ -1126,10 +1223,11 @@ export default function StudentsNetworkPage() {
     return Promise.all([
       api.studentNetwork.getStudents(courseId),
       api.studentNetwork.getExtras(),
+      api.studentNetwork.getPeerEvaluations(courseId),
       api.studentNetwork.getEditForm(),
       courseId ? api.courses.getById(courseId) : Promise.resolve(undefined),
     ])
-      .then(([studentData, extraData, formData, courseData]) => {
+      .then(([studentData, extraData, peerData, formData, courseData]) => {
         const useCourseScope = Boolean(courseId);
         const list =
           useCourseScope || studentData.length > 0 ? studentData : fallbackStudents;
@@ -1139,6 +1237,7 @@ export default function StudentsNetworkPage() {
             ? extraData
             : fallbackStudentExtras;
         setStudentExtras(enrichStudentExtras(list, baseExtras));
+        setPeerEvaluations(peerData);
         setCourse(courseData ?? null);
         setEditForm({
           major: formData.major,
@@ -1157,8 +1256,12 @@ export default function StudentsNetworkPage() {
   }, [reloadNetwork]);
 
   const networkRealtimeTables = useMemo(
-    () =>
-      courseId ? [{ table: "ai_course_memberships", filter: `course_id=eq.${courseId}` }] : [],
+    () => (courseId
+      ? [
+          { table: "ai_course_memberships", filter: `course_id=eq.${courseId}` },
+          { table: "ai_team_detail_peer_reviews" },
+        ]
+      : []),
     [courseId]
   );
 
@@ -1510,6 +1613,7 @@ export default function StudentsNetworkPage() {
                 key={item.student.id}
                 student={item.student}
                 studentExtras={studentExtras}
+                peerEvaluations={peerEvaluations}
                 editForm={item.student.isSelf ? editForm : undefined}
                 onClick={() =>
                   item.student.isSelf
@@ -1543,6 +1647,7 @@ export default function StudentsNetworkPage() {
         <StudentProfileModal
           student={selectedStudent}
           studentExtras={studentExtras}
+          peerEvaluations={peerEvaluations}
           courseId={courseId}
           onClose={() => setSelectedStudent(null)}
         />
@@ -1552,6 +1657,7 @@ export default function StudentsNetworkPage() {
         <StudentProfileModal
           student={displaySelfStudent}
           studentExtras={studentExtras}
+          peerEvaluations={peerEvaluations}
           editForm={editForm}
           courseId={courseId}
           onClose={() => setShowMyProfileModal(false)}

@@ -165,6 +165,7 @@ export default function CourseDetailPage() {
                 type="button"
                 disabled={archiving}
                 onClick={handleArchiveCourse}
+                data-testid="course-archive-button"
                 className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {archiving ? "종료 중..." : "수업 종료"}

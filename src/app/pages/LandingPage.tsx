@@ -130,7 +130,7 @@ export default function LandingPage() {
                 비밀번호를 잊으셨나요?
               </PlaceholderFooterLink>
               <span className="cc-text-muted mx-2">|</span>
-              <Link to="/signin" className="cc-link font-medium">
+              <Link to="/signin" className="cc-link font-medium" data-testid="landing-signup-link">
                 회원가입
               </Link>
             </div>

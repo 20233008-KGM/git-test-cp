@@ -167,6 +167,7 @@ export default function SignInPage() {
                   name="name"
                   onChange={handlechange}
                   placeholder="홍길동"
+                  data-testid="signup-name"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
@@ -181,6 +182,7 @@ export default function SignInPage() {
                   name="email"
                   onChange={handlechange}
                   placeholder="student@example.com"
+                  data-testid="signup-email"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
               </div>
@@ -197,6 +199,7 @@ export default function SignInPage() {
                   placeholder="••••••••"
                   minLength={8}
                   autoComplete="new-password"
+                  data-testid="signup-password"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <p className="mt-1.5 text-xs text-gray-500" data-testid="signup-password-hint">
@@ -213,6 +216,7 @@ export default function SignInPage() {
                   // name이 "role"이므로 handlechange에서 form.role을 바꿉니다.
                   name="role"
                   onChange={handlechange}
+                  data-testid="signup-role"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                   {/* value가 실제로 form.role에 저장되는 값입니다. */}
@@ -284,6 +288,7 @@ export default function SignInPage() {
                     value={form.courseCode ?? ""}
                     onChange={handlechange}
                     placeholder="예: WEB-2026"
+                    data-testid="signup-course-code"
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="mt-1 text-xs text-gray-500">
@@ -295,6 +300,7 @@ export default function SignInPage() {
               <button
                 // submit 버튼이라서 클릭하면 form의 onSubmit이 실행됩니다.
                 type="submit"
+                data-testid="signup-submit"
                 className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md text-sm"
               >
                 회원가입

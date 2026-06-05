@@ -1,6 +1,7 @@
 import { auth } from "../firebase";
 import { supabase } from "../supabase";
 import type { MyPageProject } from "../types";
+import { aggregatePositivePeerKeywords } from "../utils/peerEvaluationSummary";
 import type {
   AiReportContext,
   AiReportGenerateRequest,
@@ -54,33 +55,6 @@ function flattenFeedbackSnippet(row: {
   const custom = row.custom_text?.trim() ?? "";
   const parts = [...options, custom].filter(Boolean);
   return truncateSnippet(parts.join(", "), 120);
-}
-
-function aggregatePeerReviewKeywords(
-  rows: Array<{
-    good_keywords?: unknown;
-    bad_keywords?: unknown;
-    comment?: string | null;
-  }>
-): { text: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    const keywords = [
-      ...asArray<string>(row.good_keywords),
-      ...asArray<string>(row.bad_keywords),
-    ];
-    const comment = row.comment?.trim();
-    if (comment) keywords.push(comment);
-    for (const kw of keywords) {
-      const key = kw.trim();
-      if (!key) continue;
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-  }
-  return [...counts.entries()]
-    .map(([text, count]) => ({ text, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 12);
 }
 
 function flattenPeerReviewsSnippet(
@@ -371,7 +345,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   const peerReceivedKeywordsByTeam = new Map<string, { text: string; count: number }[]>();
   const peerReceivedSnippetByTeam = new Map<string, string>();
   for (const [tid, rows] of peerReceivedByTeam) {
-    const keywords = aggregatePeerReviewKeywords(rows);
+    const keywords = aggregatePositivePeerKeywords(rows);
     if (keywords.length > 0) peerReceivedKeywordsByTeam.set(tid, keywords);
     const snippet = flattenPeerReviewsSnippet(rows);
     if (snippet) peerReceivedSnippetByTeam.set(tid, snippet);

@@ -153,6 +153,18 @@ export interface StudentExtra {
   keywords: { text: string; count: number }[];
 }
 
+export type PeerEvaluationTier = "none" | "emerging" | "developing" | "distinct";
+
+export type PeerEvaluationSummary = {
+  title: string;
+  description: string;
+  keywords: { text: string; count: number }[];
+  reviewCount: number;
+  tier: PeerEvaluationTier;
+  illustrationKey: string;
+  dominantTheme?: string;
+};
+
 export interface TeamKeyword {
   id: string;
   label: string;

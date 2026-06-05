@@ -238,7 +238,7 @@ export default function CoursesPage() {
               ))}
             </div>
             {canManageCourses ? (
-              <M3Button variant="filled" type="button" onClick={openCreateModal}>
+              <M3Button variant="filled" type="button" onClick={openCreateModal} data-testid="course-create-open">
                 + 수업 생성
               </M3Button>
             ) : null}
@@ -274,6 +274,7 @@ export default function CoursesPage() {
                 placeholder="수업 코드"
                 aria-describedby="courses-join-code-hint"
                 className="cc-input min-h-[2.75rem] flex-1 px-3 py-2 text-sm"
+                data-testid="courses-join-code-input"
                 required
               />
               <M3Button
@@ -281,6 +282,7 @@ export default function CoursesPage() {
                 variant="filled"
                 disabled={joining}
                 className="cc-courses-join-submit inline-flex h-[2.75rem] shrink-0 items-center justify-center px-5"
+                data-testid="courses-join-submit"
               >
                 {joining ? "등록 중..." : "수업 등록"}
               </M3Button>
@@ -312,6 +314,7 @@ export default function CoursesPage() {
                   onChange={(e) => setJoinCode(e.target.value)}
                   placeholder="수업 코드"
                   className="cc-input min-h-[2.75rem] flex-1 px-3 py-2 text-sm"
+                  data-testid="courses-join-code-input"
                   required
                 />
                 <M3Button
@@ -319,6 +322,7 @@ export default function CoursesPage() {
                   variant="filled"
                   disabled={joining}
                   className="cc-courses-join-submit inline-flex h-[2.75rem] shrink-0 items-center justify-center px-5 sm:w-auto"
+                  data-testid="courses-join-submit"
                 >
                   {joining ? "등록 중..." : "수업 등록"}
                 </M3Button>
@@ -382,6 +386,7 @@ export default function CoursesPage() {
                   required
                   value={form.name}
                   onChange={(event) => updateForm("name", event.target.value)}
+                  data-testid="course-create-name"
                   className="cc-input"
                 />
               </label>
@@ -498,7 +503,7 @@ export default function CoursesPage() {
               <M3Button type="button" variant="outlined" onClick={() => setShowCreateModal(false)}>
                 취소
               </M3Button>
-              <M3Button type="submit" variant="filled" disabled={submitting}>
+              <M3Button type="submit" variant="filled" disabled={submitting} data-testid="course-create-submit">
                 {submitting ? "저장 중..." : "생성"}
               </M3Button>
             </div>
