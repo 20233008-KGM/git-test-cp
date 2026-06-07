@@ -2,6 +2,7 @@ import React, { useCallback, useState, useRef, useEffect, useMemo } from "react"
 import { Link, useNavigate, useParams } from "react-router";
 import { Search, BookOpen, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
+import { supabase } from "../supabase";
 import PeerEvaluationIllustration from "../components/PeerEvaluationIllustration";
 import PeerEvaluationTitleLine from "../components/PeerEvaluationTitleLine";
 import AppModal from "../components/layout/AppModal";
@@ -462,12 +463,53 @@ function StudentProfileModal({
   onEditClick?: () => void;
 }) {
   const [showDirectChat, setShowDirectChat] = useState(false);
+  
+  // ⭐ 실시간 카운트를 담을 상태 추가
+  const [realProjectCount, setRealProjectCount] = useState<number | null>(null);
+
+  // ⭐ 모달창 열릴 때 DB에서 직접 '종료된 수업' 개수 세어오기!
+  useEffect(() => {
+    const fetchRealCount = async () => {
+      try {
+        const { data: memberships } = await supabase
+          .from('ai_course_memberships')
+          .select('course_id')
+          .eq('user_id', student.id);
+
+        if (!memberships || memberships.length === 0) {
+          setRealProjectCount(0);
+          return;
+        }
+
+        const courseIds = memberships.map(m => m.course_id);
+
+        const { count, error } = await supabase
+          .from('ai_courses')
+          .select('*', { count: 'exact', head: true })
+          .in('id', courseIds)
+          .eq('status', 'archived'); // 종료된(archived) 수업만 센다!
+
+        if (error) throw error;
+        setRealProjectCount(count || 0);
+
+      } catch (error) {
+        console.error("횟수 계산 에러:", error);
+        setRealProjectCount(0); // 에러 나면 안전하게 0으로 표시
+      }
+    };
+
+    fetchRealCount();
+  }, [student.id]);
+
   const displayStudent = enrichStudentForDisplay(student, editForm);
   const extra = resolveStudentExtra(displayStudent, studentExtras, peerEvaluations, editForm);
   const majorLabel = displayMajor(displayStudent.major);
   const bioIsPlaceholder =
     extra.detailedBio === NETWORK_BIO_PLACEHOLDER ||
     extra.detailedBio === NETWORK_BIO_PLACEHOLDER_OTHER;
+
+  // ⭐ DB에서 가져온 숫자가 있으면 그걸 보여주고, 아직 로딩 중이면 기존 extra.teamProjectCount를 임시로 보여줌
+  const finalProjectCount = realProjectCount !== null ? realProjectCount : extra.teamProjectCount;
 
   return (
     <AppModal
@@ -493,9 +535,10 @@ function StudentProfileModal({
               </div>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0">
+              {/* ⭐ 여기에 업데이트된 카운트가 표시됩니다! */}
               <p className="text-sm font-bold text-black">
                 팀 프로젝트 경험 :{" "}
-                <span className="text-[#1e68fa]">{extra.teamProjectCount}회</span>
+                <span className="text-[#1e68fa]">{finalProjectCount}회</span>
               </p>
               <button
                 onClick={onClose}

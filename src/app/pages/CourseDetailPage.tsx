@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { api } from "../api/supabase-api";
+import { supabase } from "../supabase";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
 import PageHeader from "../components/layout/PageHeader";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
 import { formatCoursePeriod } from "../utils/courseDates";
 import type { Course, CourseMaterial, StudentProfile, TeamMember } from "../types";
+
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -116,15 +118,54 @@ export default function CourseDetailPage() {
     return "overview";
   }, [searchParams, isStudent]);
 
-  const handleArchiveCourse = async () => {
-    if (!course || !window.confirm(`'${course.name}' 수업을 종료하고 아카이브로 전환할까요?`)) return;
+const handleArchiveCourse = async () => {
+    if (!course || !window.confirm(`'${course.name}' 수업을 종료할까요? (수강생들의 팀 프로젝트 경험치가 +1 증가합니다.)`)) return;
 
     setArchiving(true);
     setErrorMessage("");
 
     try {
+      // 1. 기존 수업 종료(아카이브) API 호출
       const archivedCourse = await api.courses.archive(course.id);
+
+      // 2. 수강생 목록 가져오기
+      const { data: members, error: memberError } = await supabase
+        .from('ai_course_memberships')
+        .select('user_id')
+        .eq('course_id', course.id);
+
+      if (memberError) throw memberError;
+
+      // 3. 학생들 경험치 +1 (빈 칸이면 새로 만드는 Upsert 방식!)
+      if (members && members.length > 0) {
+        for (const member of members) {
+          const studentId = member.user_id;
+
+          const { data: profileData } = await supabase
+            .from('ai_user_learning_profiles')
+            .select('team_project_count')
+            .eq('user_id', studentId)
+            .maybeSingle(); 
+
+          const newCount = (profileData?.team_project_count || 0) + 1;
+
+          const { error: upsertError } = await supabase
+            .from('ai_user_learning_profiles')
+            .upsert(
+              { user_id: studentId, team_project_count: newCount }, 
+              { onConflict: 'user_id' }
+            );
+
+          if (upsertError) {
+            console.error(`학생(${studentId}) 경험치 업데이트 실패:`, upsertError.message);
+          }
+        }
+      }
+
+      // 4. 화면(상태) 업데이트 및 알림
       setCourse(archivedCourse);
+      alert("수업이 종료되었고 경험치가 성공적으로 반영되었습니다!");
+
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "수업을 종료하지 못했습니다.");
     } finally {

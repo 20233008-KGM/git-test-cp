@@ -14,6 +14,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useDebouncedRealtimeReload } from "../hooks/useDebouncedRealtimeReload";
 import { defaultNewCourseDates } from "../utils/courseDates";
 import type { Course, CourseStatus, CreateCourseInput } from "../types";
+import { supabase } from "../supabase";
 
 const defaultStageNames = ["아이디어 기획", "서비스 디자인", "프론트 개발", "백엔드 개발", "발표 및 배포"];
 
@@ -188,15 +189,57 @@ export default function CoursesPage() {
     }
   };
 
-  const handleArchiveCourse = async (course: Course) => {
-    if (!window.confirm(`'${course.name}' 수업을 종료하고 아카이브로 전환할까요?`)) return;
+const handleArchiveCourse = async (course: Course) => {
+    if (!window.confirm(`'${course.name}' 수업을 종료할까요? (수강생들의 팀 프로젝트 경험치가 +1 증가합니다.)`)) return;
 
     setSubmitting(true);
     setErrorMessage("");
 
     try {
+      // 1. 기존 수업 종료(아카이브) API 호출
       await api.courses.archive(course.id);
+
+      // 2. 수강생 목록 가져오기
+      const { data: members, error: memberError } = await supabase
+        .from('ai_course_memberships')
+        .select('user_id')
+        .eq('course_id', course.id);
+
+      if (memberError) throw memberError;
+
+// 3. 학생들 경험치 +1 (빈 칸이면 새로 만드는 Upsert 방식!)
+      if (members && members.length > 0) {
+        for (const member of members) {
+          const studentId = member.user_id;
+
+          // single() 대신 maybeSingle()을 써서 데이터가 없어도 에러가 안 나게 합니다.
+          const { data: profileData } = await supabase
+            .from('ai_user_learning_profiles')
+            .select('team_project_count')
+            .eq('user_id', studentId)
+            .maybeSingle(); 
+
+          const newCount = (profileData?.team_project_count || 0) + 1;
+
+          // update 대신 upsert(있으면 덮어쓰기, 없으면 새로 생성)를 사용합니다!
+          const { error: upsertError } = await supabase
+            .from('ai_user_learning_profiles')
+            .upsert(
+              { user_id: studentId, team_project_count: newCount }, 
+              { onConflict: 'user_id' } // user_id가 겹치면 덮어써라!
+            );
+
+          // 만약 권한 문제(RLS) 등으로 실패하면 개발자 도구에 빨간 글씨로 띄워줍니다.
+          if (upsertError) {
+            console.error(`학생(${studentId}) 경험치 업데이트 실패:`, upsertError.message);
+          }
+        }
+      }
+
+      // 4. 화면 새로고침
       await loadCourses(statusFilter);
+      alert("수업이 종료되었고 경험치가 성공적으로 반영되었습니다!");
+
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "수업을 종료하지 못했습니다.");
     } finally {
