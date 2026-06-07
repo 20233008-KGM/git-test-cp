@@ -1,20 +1,21 @@
-import { Navigate, Outlet, useLocation } from "react-router"; // react-router-dom을 react-router로 변경!
+import { Outlet, useLocation } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function ProtectedRoute() {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  // 1. 로딩 중일 때는 빈 화면을 보여줘서 테스트 봇이 꼬이지 않게 합니다.
-  if (isLoading) {
-    return null;
-  }
+  // 1. 로딩 상태 처리
+  if (isLoading) return null;
 
-  // 2. 로그인이 안 되어 있다면 로그인 페이지('/')로 보냅니다.
+  // 2. 인증되지 않았다면 window.location으로 강제 이동
   if (!isAuthenticated) {
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    if (typeof window !== 'undefined') {
+      window.location.href = "/";
+    }
+    return null; // 이동하는 동안 아무것도 렌더링하지 않음
   }
 
-  // 3. 로그인된 상태라면 정상적으로 화면을 보여줍니다.
+  // 3. 정상 접속
   return <Outlet />;
 }
