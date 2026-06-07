@@ -1,5 +1,5 @@
 import React, { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { api, invalidateApiSessionCache } from "../api/supabase-api";
 import AppModal from "../components/layout/AppModal";
 import M3Button from "../components/layout/M3Button";
@@ -37,6 +37,8 @@ const emptyForm: CreateCourseInput = {
 };
 
 export default function CoursesPage() {
+  const navigate = useNavigate(); // 🌟 1. 강제 이동을 위한 함수 추가
+
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<CourseStatus>("active");
@@ -50,6 +52,13 @@ export default function CoursesPage() {
   const { isAuthenticated, isProfessor, isAdmin, isStudent, user } = useAuth();
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
+
+  // 🌟 2. 방어막 코드 추가! (로그인 안 했으면 즉시 메인 화면으로 쫓아냄)
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate("/");
+    }
+  }, [loading, isAuthenticated, navigate]);
 
   const canManageCourses = isProfessor || isAdmin;
   const openCreateModal = () => {
