@@ -1151,16 +1151,16 @@ export default function MyPage() {
               <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 sm:col-span-2">
                 <dt className="text-[10px] font-bold uppercase text-[#64748b]">소개 · 강의 철학</dt>
                 <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
-                  {(user as any)?.bio || "등록된 소개가 없습니다."}
+                 {(user as any)?.bio || "등록된 소개가 없습니다."}
                 </dd>
-              </div>
+                </div>
 
               <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4 sm:col-span-2 shadow-sm">
                 <dt className="text-[10px] font-bold uppercase text-[#155dfc]">수업 스타일</dt>
-                <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
-                  {(user as any)?.teachingStyle || "충분한 피드백 데이터가 쌓이면 AI가 자동으로 분석하여 생성합니다."}
-                </dd>
-              </div>
+                  <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
+                   {(user as any)?.teaching_style || "충분한 피드백 데이터가 쌓이면 AI가 자동으로 분석하여 생성합니다."}
+                  </dd>
+            </div>
             </dl>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
