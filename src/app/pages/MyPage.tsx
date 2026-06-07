@@ -1114,7 +1114,7 @@ export default function MyPage() {
               학생용 팀플 리포트는 학생 계정에서만 열람할 수 있습니다. 아래에서 소속·연구 정보를 확인하고 수업·평가
               메뉴로 이동하세요.
             </p>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+     <dl className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
                 <dt className="text-[10px] font-bold uppercase text-[#64748b]">소속</dt>
                 <dd className="mt-1 text-[15px] font-bold text-[#0f172a]">
@@ -1128,14 +1128,15 @@ export default function MyPage() {
               <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4">
                 <dt className="text-[10px] font-bold uppercase text-[#64748b]">상담 시간</dt>
                 <dd className="mt-1 text-[15px] font-bold text-[#0f172a]">
-                  {(user as any)?.officeHours || "미입력"}
+                  {(user as any)?.office_hours || (user as any)?.officeHours || "미입력"}
                 </dd>
               </div>
              <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 sm:col-span-2">
                 <dt className="text-[10px] font-bold uppercase text-[#64748b]">연구 분야</dt>
                 <dd className="mt-2 flex flex-wrap gap-2">
-                  {Array.isArray((user as any)?.researchAreas) && (user as any).researchAreas.length > 0 ? (
-                    ((user as any)?.researchAreas as string[]).map((area: string) => (
+                  {/* 여기를 research_areas로 수정했습니다 */}
+                  {Array.isArray((user as any)?.research_areas) && (user as any).research_areas.length > 0 ? (
+                    ((user as any)?.research_areas as string[]).map((area: string) => (
                       <span
                         key={area}
                         className="rounded-full bg-[#eff6ff] px-3 py-1 text-xs font-bold text-[#155dfc]"
@@ -1151,16 +1152,18 @@ export default function MyPage() {
               <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-4 sm:col-span-2">
                 <dt className="text-[10px] font-bold uppercase text-[#64748b]">소개 · 강의 철학</dt>
                 <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
-                 {(user as any)?.bio || "등록된 소개가 없습니다."}
+                  {/* 여기를 bio로 그대로 뒀습니다 */}
+                  {(user as any)?.bio || "등록된 소개가 없습니다."}
                 </dd>
-                </div>
+              </div>
 
               <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-4 sm:col-span-2 shadow-sm">
                 <dt className="text-[10px] font-bold uppercase text-[#155dfc]">수업 스타일</dt>
-                  <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
-                   {(user as any)?.teaching_style || "충분한 피드백 데이터가 쌓이면 AI가 자동으로 분석하여 생성합니다."}
-                  </dd>
-            </div>
+                <dd className="mt-2 text-[14px] leading-relaxed text-[#0f172a] whitespace-pre-wrap">
+                  {/* 여기를 teaching_style로 수정했습니다 */}
+                  {(user as any)?.teaching_style || "충분한 피드백 데이터가 쌓이면 AI가 자동으로 분석하여 생성합니다."}
+                </dd>
+              </div>
             </dl>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
