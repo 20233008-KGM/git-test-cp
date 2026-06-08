@@ -14,6 +14,21 @@ export interface AiReportSection {
   body: string;
 }
 
+/** AI가 생성한 프로젝트별 상세 분석 */
+export interface AiReportPerProject {
+  /** 매칭용 — AI가 입력 데이터의 teamId를 그대로 에코 */
+  team_id?: string;
+  project_title: string;
+  /** 프로젝트 개요 (수업·팀·목표 한두 문장) */
+  overview: string;
+  /** 이 프로젝트가 주는 핵심 가치 */
+  core_value: string;
+  /** 본인이 한 경험 (역할·구체적 기여) */
+  my_experience: string;
+  /** 동료·교수 평가 요약 */
+  eval_summary: string;
+}
+
 export interface AiReportGenerateResponse {
   summary: string;
   problems_solved: string[];
@@ -21,6 +36,12 @@ export interface AiReportGenerateResponse {
   role_description: string;
   growth_reflection: string;
   sections?: AiReportSection[];
+  /** 프로젝트별 상세 분석 (AI 생성) */
+  per_project?: AiReportPerProject[];
+  /** 어떤 문제를 주로 발굴·기획했는지 패턴 분석 */
+  problem_discovery_pattern?: string;
+  /** 주로 어떤 방식으로 문제를 해결해왔는지 */
+  resolution_style?: string;
   generated_at: string;
   model?: string;
 }

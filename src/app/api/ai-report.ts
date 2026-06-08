@@ -7,6 +7,7 @@ import type {
   AiReportGenerateRequest,
   AiReportGenerateResponse,
   AiReportNotReadyError,
+  AiReportPerProject,
   AiReportSection,
   AiReportTeamSnapshot,
   AiReportTroubleshootingCase,
@@ -800,6 +801,12 @@ export interface MyPageReportView {
   troubleshootingCases: AiReportTroubleshootingCase[];
   /** teamId → PAGE02 카드 AI 본문 (sections 매칭) */
   teamDetailBodies: Record<string, string>;
+  /** teamId → AI 분석 프로젝트별 상세 (per_project 매칭) */
+  perProjectDetails: Record<string, AiReportPerProject>;
+  /** 문제 발굴·기획 패턴 분석 */
+  problemDiscoveryPattern?: string;
+  /** 문제 해결 스타일 분석 */
+  resolutionStyle?: string;
   usesLlm: boolean;
   model?: string;
 }
@@ -925,6 +932,26 @@ export function buildMyPageReportView(
     if (body) teamDetailBodies[team.teamId] = body;
   }
 
+  // per_project 매칭: team_id 직접 매칭 → 타이틀 퍼지 매칭 순
+  const perProjectDetails: Record<string, AiReportPerProject> = {};
+  if (effective.per_project && effective.per_project.length > 0) {
+    for (const team of context.teams) {
+      // 1순위: team_id 직접 매칭
+      let match = effective.per_project.find((p) => p.team_id === team.teamId);
+      // 2순위: project_title 퍼지 매칭
+      if (!match) {
+        match = effective.per_project.find(
+          (p) =>
+            p.project_title.trim() === team.projectTitle.trim() ||
+            p.project_title.includes(team.projectTitle) ||
+            team.projectTitle.includes(p.project_title) ||
+            p.project_title.includes(team.teamName)
+        );
+      }
+      if (match) perProjectDetails[team.teamId] = match;
+    }
+  }
+
   const aiCases = mapAiProblemsToCases(context, effective.problems_solved);
   const troubleshootingCases =
     aiCases.length > 0 ? aiCases : context.troubleshootingCases;
@@ -948,6 +975,9 @@ export function buildMyPageReportView(
     page3Intro,
     troubleshootingCases,
     teamDetailBodies,
+    perProjectDetails,
+    problemDiscoveryPattern: effective.problem_discovery_pattern,
+    resolutionStyle: effective.resolution_style,
     usesLlm,
     model: effective.model,
   };
@@ -968,6 +998,40 @@ export function buildDraftReportFromContext(
     return `${t.courseName} · ${t.projectTitle} (${t.memberRole}, 진행 ${t.progress}%, 트러블슈팅 ${t.troubleshootingCount}건, 산출물 ${t.deliverableCount}건${extraText})`;
   });
 
+  const per_project: AiReportPerProject[] = context.teams.map((t) => {
+    const evalParts: string[] = [];
+    if (t.professorFeedbackSnippet) evalParts.push(`교수: ${t.professorFeedbackSnippet}`);
+    if (t.peerReviewsReceived.length > 0) {
+      evalParts.push(`동료 키워드: ${t.peerReviewsReceived.map((k) => `${k.text}(${k.count})`).join(", ")}`);
+    } else if (t.peerReviewSnippet) {
+      evalParts.push(`동료평가: ${t.peerReviewSnippet}`);
+    }
+    return {
+      team_id: t.teamId,
+      project_title: t.projectTitle,
+      overview: `${t.courseName}에서 진행한 ${t.projectTitle}. 진행률 ${t.progress}%, 산출물 ${t.deliverableCount}건.`,
+      core_value: t.retrospectiveSnippet
+        ? t.retrospectiveSnippet
+        : `트러블슈팅 ${t.troubleshootingCount}건 해결을 통한 실전 경험 축적.`,
+      my_experience: `역할: ${t.memberRole}. 트러블슈팅 ${t.troubleshootingCount}건, 산출물 ${t.deliverableCount}건 기여.${t.feedbackSnippet ? ` 팀 피드백: ${t.feedbackSnippet}` : ""}`,
+      eval_summary: evalParts.length > 0 ? evalParts.join(" / ") : "평가 기록 없음.",
+    };
+  });
+
+  const logs = context.troubleshootingCases;
+  const resolvedCount = logs.filter((l) => l.status === "resolved").length;
+  const problem_discovery_pattern =
+    logs.length > 0
+      ? `총 ${logs.length}건의 문제를 발굴·기록했습니다. 주요 문제: ${logs.slice(0, 3).map((l) => (l.problem.length > 50 ? `${l.problem.slice(0, 50)}…` : l.problem)).join(" / ")}.`
+      : "트러블슈팅 로그가 없습니다.";
+
+  const resolution_style =
+    resolvedCount > 0
+      ? `${logs.length}건 중 ${resolvedCount}건 해결(${Math.round((resolvedCount / logs.length) * 100)}%). problem → plan → solution 구조로 접근.`
+      : logs.length > 0
+        ? `${logs.length}건 진행 중. (GEMINI_API_KEY 등록 후 AI가 해결 패턴을 분석합니다.)`
+        : "해결 이력이 없습니다.";
+
   return {
     summary: buildReportSummaryDraft(context),
     problems_solved: buildProblemsSolvedDraft(context),
@@ -981,6 +1045,9 @@ export function buildDraftReportFromContext(
       title: `${t.projectTitle}`,
       body: buildTeamSectionBody(t, context.troubleshootingCases),
     })),
+    per_project: per_project.length > 0 ? per_project : undefined,
+    problem_discovery_pattern,
+    resolution_style,
     generated_at: context.generatedAt,
     model: "draft-db-only",
   };

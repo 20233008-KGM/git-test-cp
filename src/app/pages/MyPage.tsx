@@ -412,6 +412,9 @@ export default function MyPage() {
       : `${profileName} 학생의 문제해결 경험은 단순 오류 수정이 아니라, 원인 파악, 구조 재정리, 재발 방지까지 이어지는 방식으로 기록되어 있습니다. (DB 로그가 없어 예시 사례를 표시합니다.)`;
 
   const teamDetailBodies = reportView?.teamDetailBodies ?? {};
+  const perProjectDetails = reportView?.perProjectDetails ?? {};
+  const problemDiscoveryPattern = reportView?.problemDiscoveryPattern;
+  const resolutionStyle = reportView?.resolutionStyle;
 
   const summaryBullets = useMemo(
     () => reportTextToBullets(summaryParagraph, 4),
@@ -835,6 +838,33 @@ export default function MyPage() {
                     </ul>
                   </div>
                 </div>
+
+                {(problemDiscoveryPattern || resolutionStyle) && (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {problemDiscoveryPattern && (
+                      <div className="rounded-xl border border-[#e0e7ff] bg-[#f5f3ff] p-4">
+                        <p className="text-[10px] font-black text-[#6d28d9]">PROBLEM PATTERN</p>
+                        <h3 className="mt-1.5 text-[13px] font-black text-[#1e1b4b]">문제 발굴 및 기획 패턴</h3>
+                        <GeminiShimmerPanel active={aiTextShimmer}>
+                          <p className="mt-2 text-[10.5px] leading-relaxed text-[#4c1d95]">
+                            <GeminiShimmerText active={aiTextShimmer}>{problemDiscoveryPattern}</GeminiShimmerText>
+                          </p>
+                        </GeminiShimmerPanel>
+                      </div>
+                    )}
+                    {resolutionStyle && (
+                      <div className="rounded-xl border border-[#d1fae5] bg-[#f0fdf4] p-4">
+                        <p className="text-[10px] font-black text-[#065f46]">RESOLUTION STYLE</p>
+                        <h3 className="mt-1.5 text-[13px] font-black text-[#064e3b]">문제 해결 방식</h3>
+                        <GeminiShimmerPanel active={aiTextShimmer}>
+                          <p className="mt-2 text-[10.5px] leading-relaxed text-[#065f46]">
+                            <GeminiShimmerText active={aiTextShimmer}>{resolutionStyle}</GeminiShimmerText>
+                          </p>
+                        </GeminiShimmerPanel>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1257,7 +1287,30 @@ export default function MyPage() {
                 </p>
               </div>
             )}
-            {teamDetailBodies[selectedReportTeam.teamId] && (
+            {perProjectDetails[selectedReportTeam.teamId] && (() => {
+              const detail = perProjectDetails[selectedReportTeam.teamId];
+              return (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-[#dbe7ff] bg-[#f8fbff] p-4">
+                    <p className="mb-1 text-[10px] font-black text-[#155dfc]">프로젝트 개요</p>
+                    <p className="text-sm leading-relaxed text-[#334155]">{detail.overview}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#d1fae5] bg-[#f0fdf4] p-4">
+                    <p className="mb-1 text-[10px] font-black text-[#065f46]">핵심 가치</p>
+                    <p className="text-sm leading-relaxed text-[#064e3b]">{detail.core_value}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#e0e7ff] bg-[#f5f3ff] p-4">
+                    <p className="mb-1 text-[10px] font-black text-[#6d28d9]">내가 한 경험</p>
+                    <p className="text-sm leading-relaxed text-[#4c1d95]">{detail.my_experience}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#fef3c7] bg-[#fffbeb] p-4">
+                    <p className="mb-1 text-[10px] font-black text-[#92400e]">동료·교수 평가 요약</p>
+                    <p className="text-sm leading-relaxed text-[#78350f]">{detail.eval_summary}</p>
+                  </div>
+                </div>
+              );
+            })()}
+            {!perProjectDetails[selectedReportTeam.teamId] && teamDetailBodies[selectedReportTeam.teamId] && (
               <div className="rounded-xl border border-[#dbe7ff] bg-[#eff6ff] p-4">
                 <p className="mb-1 text-xs font-bold text-[#155dfc]">AI 요약</p>
                 <p className="text-sm leading-relaxed text-[#334155]">
