@@ -26,4 +26,8 @@ export type TeamProgressInsightResponse = {
   detected_has_readme?: boolean;
   /** ZIP 해제·인벤토리 스캔 또는 소스 샘플 추출 성공 */
   zip_source_analyzed?: boolean;
+  /** 문서·코드 전체 기반으로 파악한 프로젝트 개요 */
+  project_content?: string;
+  /** 프로젝트의 핵심 가치·목표 */
+  project_value?: string;
 };

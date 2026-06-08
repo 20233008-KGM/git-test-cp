@@ -1021,7 +1021,7 @@ export default function TeamDetailPage() {
               {(progressInsight.source_samples_count ?? 0) > 0
                 ? ` · 소스 ${progressInsight.source_samples_count}개 분석`
                 : (progressInsight.new_deliverables_analyzed ?? 0) > 0
-                  ? ` · 신규 산출물 ${progressInsight.new_deliverables_analyzed}건 ZIP/소스 읽음`
+                  ? ` · 신규 산출물 ${progressInsight.new_deliverables_analyzed}건 문서·소스 읽음`
                   : progressInsight.used_memory
                     ? " · 신규 파일 없음(로그·채팅만 갱신)"
                     : ""}
@@ -1034,6 +1034,17 @@ export default function TeamDetailPage() {
               <p className="cc-ai-insight-panel__summary">
                 {progressInsight?.summary ?? "팀 활동 데이터를 분석 중입니다."}
               </p>
+              {progressInsight?.project_content && (
+                <div className="cc-ai-insight-subblock cc-ai-insight-subblock--project mt-2">
+                  <p className="cc-ai-insight-subblock__label">AI가 파악한 프로젝트</p>
+                  <p className="text-[12px] text-[var(--cc-on-surface-variant)] leading-relaxed">
+                    {progressInsight.project_content}
+                    {progressInsight.project_value && (
+                      <span className="block mt-0.5 text-[11px] opacity-80">{progressInsight.project_value}</span>
+                    )}
+                  </p>
+                </div>
+              )}
               {(progressInsight?.gaps?.length ?? 0) > 0 && (
                 <ul className="cc-ai-insight-list cc-ai-insight-list--gap space-y-1">
                   {progressInsight!.gaps.slice(0, 2).map((item) => (

@@ -28,6 +28,8 @@ export type TeamProgressInsightView = {
   source_samples_count?: number;
   detected_has_readme?: boolean;
   zip_source_analyzed?: boolean;
+  project_content?: string;
+  project_value?: string;
 };
 
 function parseStringList(value: unknown, max = 5): string[] {
@@ -103,7 +105,7 @@ export function isClientMetadataFallbackInsight(insight: {
   );
 }
 
-/** Edge ZIP·README 분석 결과가 있으면 DB 폴백보다 Edge를 쓸지 */
+/** Edge ZIP·README·문서(PDF/PPTX/DOCX) 분석 결과가 있으면 DB 폴백보다 Edge를 쓸지 */
 export function shouldPreferEdgeProgressInsight(
   edge: TeamProgressInsightView | null,
   hasArchiveDeliverable: boolean
@@ -114,7 +116,8 @@ export function shouldPreferEdgeProgressInsight(
   return (
     (edge.source_samples_count ?? 0) > 0 ||
     edge.detected_has_readme === true ||
-    edge.zip_source_analyzed === true
+    edge.zip_source_analyzed === true ||
+    (edge.new_deliverables_analyzed ?? 0) > 0
   );
 }
 
@@ -197,6 +200,14 @@ function mapInsightPayload(payload: TeamProgressInsightResponse): TeamProgressIn
           : undefined,
       detected_has_readme: detectedHasReadme,
       zip_source_analyzed: payload.zip_source_analyzed === true,
+      project_content:
+        typeof payload.project_content === "string" && payload.project_content.trim()
+          ? payload.project_content.trim()
+          : undefined,
+      project_value:
+        typeof payload.project_value === "string" && payload.project_value.trim()
+          ? payload.project_value.trim()
+          : undefined,
     },
     { detectedHasReadme }
   );
