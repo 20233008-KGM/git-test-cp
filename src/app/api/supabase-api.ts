@@ -1962,6 +1962,8 @@ async function sendTeamDetailChatMessageInDb(
     .getMinutes()
     .toString()
     .padStart(2, "0")}`;
+  // sort_order 컬럼은 bigint — 밀리초 타임스탬프로 메시지 순서 보장
+  const sortOrder = now.getTime();
 
   const { data, error } = await supabase
     .from("ai_team_detail_chat_messages")
@@ -1973,7 +1975,7 @@ async function sendTeamDetailChatMessageInDb(
       display_time: displayTime,
       is_mine: true,
       is_anon: input.isAnon,
-      sort_order: now.getTime(),
+      sort_order: sortOrder,
     })
     .select("id, sender, text, display_time, is_mine, is_anon")
     .single();
