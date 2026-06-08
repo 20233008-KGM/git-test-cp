@@ -72,6 +72,9 @@ export default function CourseDetailPage() {
     if (!id) return;
     setLoading(true);
     try {
+      if (isProfessor) {
+        await api.courses.syncProfessorInstructor(id);
+      }
       const [courseData, teamCards, materials] = await Promise.all([
         api.courses.getById(id),
         api.teamCards.getAll(id),
@@ -85,7 +88,7 @@ export default function CourseDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, user?.id]);
+  }, [id, isProfessor, user?.id]);
 
   useEffect(() => {
     void loadCourseDetail();
@@ -237,7 +240,7 @@ export default function CourseDetailPage() {
           </span>
         }
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
             {canLeaveCourse && (
               <M3Button
                 variant="outlined-danger"
@@ -250,20 +253,20 @@ export default function CourseDetailPage() {
               </M3Button>
             )}
             {canArchiveCourse && (
-              <button
+              <M3Button
+                variant="outlined-danger"
                 type="button"
                 disabled={archiving || leaving}
-                onClick={handleArchiveCourse}
+                onClick={() => void handleArchiveCourse()}
                 data-testid="course-archive-button"
-                className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {archiving ? "종료 중..." : "수업 종료"}
-              </button>
+              </M3Button>
             )}
             <Link to="/app/courses" className="cc-link px-3 py-2 text-sm">
               {"\uBAA9\uB85D\uC73C\uB85C"}
             </Link>
-          </>
+          </div>
         }
       />
 
