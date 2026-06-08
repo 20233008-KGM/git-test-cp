@@ -9,10 +9,7 @@ interface NavItem {
   path: string;
 }
 
-const navItems: NavItem[] = [
-  { label: "수업", path: "/app/courses" },
-  { label: "강의계획서", path: "/app/syllabi" },
-];
+const navItems: NavItem[] = [{ label: "수업", path: "/app/courses" }];
 
 const DESKTOP_NAV_MQ = "(min-width: 768px)";
 
