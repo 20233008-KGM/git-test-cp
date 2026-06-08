@@ -86,6 +86,8 @@ export interface AiReportTeamSnapshot {
   professorProjectEvalReceived: boolean;
   /** 교수 피드백 요약 (학생 코멘트·총체 평가 일부, 최대 ~120자) */
   professorFeedbackSnippet?: string;
+  /** AI가 산출물·트러블슈팅 분석 후 추출한 프로젝트 핵심 가치 */
+  projectValue?: string;
 }
 
 /** 리포트 3페이지용 트러블슈팅 사례 (DB 로그 기반) */

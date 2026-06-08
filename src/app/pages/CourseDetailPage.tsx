@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
-import { api } from "../api/supabase-api";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { api, invalidateApiSessionCache } from "../api/supabase-api";
 import { supabase } from "../supabase";
 import StudentQuickProfileModal from "../components/StudentQuickProfileModal";
+import M3Button from "../components/layout/M3Button";
 import PageHeader from "../components/layout/PageHeader";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
@@ -12,10 +13,12 @@ import type { Course, CourseMaterial, StudentProfile, TeamMember } from "../type
 
 export default function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [archiving, setArchiving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [myTeamMembers, setMyTeamMembers] = useState<TeamMember[]>([]);
@@ -56,6 +59,13 @@ export default function CourseDetailPage() {
   };
   const canArchiveCourse = Boolean(
     course && course.status === "active" && (isAdmin || (isProfessor && course.professorId === user?.id))
+  );
+  const isCourseInstructor = Boolean(course && user?.id && course.professorId === user.id);
+  const canLeaveCourse = Boolean(
+    (isStudent || isProfessor) &&
+      course &&
+      course.status === "active" &&
+      !(isStudent && isCourseInstructor)
   );
 
   const loadCourseDetail = useCallback(async () => {
@@ -118,7 +128,34 @@ export default function CourseDetailPage() {
     return "overview";
   }, [searchParams, isStudent]);
 
-const handleArchiveCourse = async () => {
+  const handleLeaveCourse = async () => {
+    if (!course || !id) return;
+    const teamNote = myTeamId ? " 소속 팀에서도 탈퇴됩니다." : "";
+    const confirmMessage = isProfessor && isCourseInstructor
+      ? `'${course.name}' 수업에서 나갈까요? 담당 교수 권한이 해제되고 내 강의 목록에서 제거됩니다. 수업은 계속 진행됩니다.`
+      : isProfessor
+        ? `'${course.name}' 수업에서 나갈까요? 내 강의 목록에서 제거됩니다.`
+        : `'${course.name}' 수업에서 나갈까요? 내 강의 목록에서 제거됩니다.${teamNote}`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setLeaving(true);
+    setErrorMessage("");
+
+    try {
+      await api.memberships.leave(id);
+      invalidateApiSessionCache();
+      navigate("/app/courses");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "수업 나가기에 실패했습니다.");
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const handleArchiveCourse = async () => {
     if (!course || !window.confirm(`'${course.name}' 수업을 종료할까요? (수강생들의 팀 프로젝트 경험치가 +1 증가합니다.)`)) return;
 
     setArchiving(true);
@@ -201,10 +238,21 @@ const handleArchiveCourse = async () => {
         }
         actions={
           <>
+            {canLeaveCourse && (
+              <M3Button
+                variant="outlined-danger"
+                type="button"
+                disabled={leaving || archiving}
+                onClick={() => void handleLeaveCourse()}
+                data-testid="course-leave-button"
+              >
+                {leaving ? "나가는 중..." : "수업 나가기"}
+              </M3Button>
+            )}
             {canArchiveCourse && (
               <button
                 type="button"
-                disabled={archiving}
+                disabled={archiving || leaving}
                 onClick={handleArchiveCourse}
                 data-testid="course-archive-button"
                 className="rounded-lg border border-red-200 px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"

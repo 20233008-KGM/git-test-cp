@@ -827,6 +827,79 @@ body,
   opacity: 0.6;
 }
 
+/* ── 전체 강의 카탈로그 카드 ── */
+.cc-catalog-card .cc-course-card__code {
+  cursor: default;
+  pointer-events: none;
+}
+
+.cc-catalog-card .cc-course-card__code:hover {
+  background: var(--cc-surface-sunken);
+  border-color: var(--cc-border-subtle);
+}
+
+.cc-catalog-card__footer {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: auto;
+  padding-top: 0.625rem;
+  border-top: 1px dashed var(--cc-border-subtle);
+}
+
+.cc-catalog-card__join {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: auto;
+  min-height: 1.75rem;
+  margin: 0;
+  padding: 0.3125rem 0.625rem;
+  border: none;
+  border-radius: var(--m3-shape-small, 0.5rem);
+  background-color: var(--cc-primary, #155dfc);
+  color: var(--cc-on-primary, #ffffff);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow: var(--m3-elevation-1, 0 1px 2px rgb(15 23 42 / 0.08), 0 2px 6px rgb(21 93 252 / 0.18));
+  transition:
+    background-color 0.2s cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 0.2s cubic-bezier(0.2, 0, 0, 1),
+    transform 0.15s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.cc-catalog-card__join:hover:not(:disabled) {
+  background-color: var(--cc-primary-hover, #1248d4);
+  box-shadow: var(--m3-elevation-2, 0 2px 4px rgb(15 23 42 / 0.1), 0 6px 16px rgb(21 93 252 / 0.22));
+  transform: translateY(-1px);
+}
+
+.cc-catalog-card__join:active:not(:disabled) {
+  background-color: var(--cc-primary-active, #0f3cb8);
+  transform: translateY(0);
+  box-shadow: var(--m3-elevation-1, 0 1px 2px rgb(15 23 42 / 0.08));
+}
+
+.cc-catalog-card__join:focus-visible {
+  outline: 2px solid var(--cc-primary, #155dfc);
+  outline-offset: 2px;
+}
+
+.cc-catalog-card__join:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cc-catalog-card__join-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+}
+
 /** 카드 호버: 그림자만 (translate로 레이아웃 흔들림 방지) */
 .cc-hover-elevate {
   transition:

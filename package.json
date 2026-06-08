@@ -42,7 +42,9 @@
     "verify:archived-kim:json": "node scripts/verify-archived-kim-setup.mjs --json",
     "supabase:apply-remote-full": "node scripts/build-apply-remote-full.mjs",
     "prelaunch:check": "node scripts/prelaunch-check.mjs",
-    "prelaunch:check:json": "node scripts/prelaunch-check.mjs --json"
+    "prelaunch:check:json": "node scripts/prelaunch-check.mjs --json",
+    "import:catalog": "node scripts/import-course-catalog.mjs",
+    "create:courses-xlsx": "node scripts/create-courses-xlsx.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -115,7 +117,8 @@
     "@vitejs/plugin-react": "4.7.0",
     "firebase-admin": "^13.6.0",
     "tailwindcss": "4.1.12",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "xlsx": "^0.18.5"
   },
   "peerDependencies": {
     "react": "18.3.1",

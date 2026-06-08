@@ -133,6 +133,16 @@
   background: color-mix(in srgb, var(--cc-primary) 8%, transparent);
 }
 
+.m3-btn--outlined-danger {
+  background: transparent;
+  color: var(--cc-error);
+  border: 1px solid var(--cc-error-border);
+}
+
+.m3-btn--outlined-danger:hover {
+  background: var(--cc-error-bg);
+}
+
 .m3-btn--text {
   background: transparent;
   color: var(--cc-primary);

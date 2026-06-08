@@ -77,6 +77,13 @@ function flattenPeerReviewsSnippet(
   return truncateSnippet(parts.join(" · "), 150);
 }
 
+/** ai_team_detail_ai_memory.memory_markdown 에서 프로젝트 핵심 가치 추출 */
+export function extractProjectValueFromMemoryMarkdown(markdown: string): string | undefined {
+  const valueMatch = markdown.match(/##\s*프로젝트 핵심 가치\s*\n([\s\S]*?)(?=\n##|\s*$)/);
+  const text = valueMatch?.[1]?.trim();
+  return text || undefined;
+}
+
 function flattenRetrospectiveSnippet(sections: unknown): string {
   if (!sections || typeof sections !== "object") return "";
   const record = sections as Record<string, unknown>;
@@ -173,6 +180,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     peerReceivedResult,
     profStudentResult,
     profProjectResult,
+    aiMemoryResult,
   ] = await Promise.all([
     supabase
       .from("ai_teams")
@@ -217,6 +225,10 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       .from("ai_team_detail_professor_project_evals")
       .select("team_id, completion_comment, problem_solving_comment, holistic_comment")
       .in("team_id", teamIds),
+    supabase
+      .from("ai_team_detail_ai_memory")
+      .select("team_id, memory_markdown")
+      .in("team_id", teamIds),
   ]);
 
   if (teamsResult.error) throw teamsResult.error;
@@ -239,6 +251,16 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   }
   if (profProjectResult.error && !isMissingRelationError(profProjectResult.error)) {
     throw profProjectResult.error;
+  }
+
+  const projectValueByTeam = new Map<string, string>();
+  if (!aiMemoryResult.error) {
+    for (const row of aiMemoryResult.data ?? []) {
+      const teamId = row.team_id as string;
+      const markdown = (row.memory_markdown as string) ?? "";
+      const value = extractProjectValueFromMemoryMarkdown(markdown);
+      if (value) projectValueByTeam.set(teamId, value);
+    }
   }
 
   const courseIds = Array.from(
@@ -456,6 +478,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       professorStudentEvalReceived: Boolean(studentComment),
       professorProjectEvalReceived: Boolean(projectEval),
       professorFeedbackSnippet,
+      projectValue: projectValueByTeam.get(team.id),
     };
   });
 
@@ -1010,9 +1033,11 @@ export function buildDraftReportFromContext(
       team_id: t.teamId,
       project_title: t.projectTitle,
       overview: `${t.courseName}에서 진행한 ${t.projectTitle}. 진행률 ${t.progress}%, 산출물 ${t.deliverableCount}건.`,
-      core_value: t.retrospectiveSnippet
-        ? t.retrospectiveSnippet
-        : `트러블슈팅 ${t.troubleshootingCount}건 해결을 통한 실전 경험 축적.`,
+      core_value: t.projectValue?.trim()
+        ? t.projectValue.trim()
+        : t.retrospectiveSnippet
+          ? t.retrospectiveSnippet
+          : `트러블슈팅 ${t.troubleshootingCount}건 해결을 통한 실전 경험 축적.`,
       my_experience: `역할: ${t.memberRole}. 트러블슈팅 ${t.troubleshootingCount}건, 산출물 ${t.deliverableCount}건 기여.${t.feedbackSnippet ? ` 팀 피드백: ${t.feedbackSnippet}` : ""}`,
       eval_summary: evalParts.length > 0 ? evalParts.join(" / ") : "평가 기록 없음.",
     };

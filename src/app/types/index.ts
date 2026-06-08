@@ -81,6 +81,22 @@ export interface CreateCourseInput {
   stages: string[];
 }
 
+export interface CourseCatalogEntry {
+  id: string;
+  courseName: string;
+  courseCode: string;
+  department?: string;
+  semester: string;
+  professor?: string;
+  schedule?: string;
+  room?: string;
+  grade?: string;
+  credit?: string;
+  description?: string;
+  isJoined?: boolean;
+  liveCourseId?: string;
+}
+
 // 팀원 한 명을 동그란 아바타로 보여주기 위해 필요한 정보입니다.
 // initial은 이름 첫 글자, color는 Tailwind CSS 배경색 클래스입니다.
 // 팀 관련 타입

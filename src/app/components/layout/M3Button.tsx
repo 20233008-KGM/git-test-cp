@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router";
 
-type M3Variant = "filled" | "tonal" | "outlined" | "text";
+type M3Variant = "filled" | "tonal" | "outlined" | "outlined-danger" | "text";
 
 type M3ButtonBaseProps = {
   variant?: M3Variant;
@@ -26,6 +26,8 @@ function variantClass(variant: M3Variant) {
       return "m3-btn--tonal";
     case "outlined":
       return "m3-btn--outlined";
+    case "outlined-danger":
+      return "m3-btn--outlined-danger";
     case "text":
       return "m3-btn--text";
     default:

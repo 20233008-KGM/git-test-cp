@@ -33,6 +33,7 @@ import type {
   TeamDeliverableSubmitMeta,
   CourseMaterial,
   CourseSyllabus,
+  CourseCatalogEntry,
   Project,
   Question,
   Answer,
@@ -68,6 +69,7 @@ import {
   TEAM_DELIVERABLE_MAX_BYTES,
 } from "../utils/deliverableUploadLimits";
 import { uploadFileToStorage } from "../utils/storageResumableUpload";
+import { defaultNewCourseDates } from "../utils/courseDates";
 import { buildPeerEvaluationSummary } from "../utils/peerEvaluationSummary";
 
 export { extractDeployLinkFromDescription };
@@ -244,13 +246,26 @@ async function getAccessibleCourseIds(): Promise<string[]> {
     if (error) throw error;
     result = (data ?? []).map((course) => course.id);
   } else if (currentUser.role === "professor") {
-    const { data, error } = await supabase
-      .from("ai_courses")
-      .select("id")
-      .eq("instructor_user_id", currentUser.id);
+    const [teachingResult, membershipResult] = await Promise.all([
+      supabase
+        .from("ai_courses")
+        .select("id")
+        .eq("instructor_user_id", currentUser.id),
+      supabase
+        .from("ai_course_memberships")
+        .select("course_id")
+        .eq("user_id", currentUser.id),
+    ]);
 
-    if (error) throw error;
-    result = (data ?? []).map((course) => course.id);
+    if (teachingResult.error) throw teachingResult.error;
+    if (membershipResult.error) throw membershipResult.error;
+
+    result = Array.from(
+      new Set([
+        ...(teachingResult.data ?? []).map((course) => course.id),
+        ...(membershipResult.data ?? []).map((membership) => membership.course_id),
+      ])
+    );
   } else {
     const [teachingResult, membershipResult] = await Promise.all([
       supabase
@@ -322,6 +337,389 @@ async function joinCourseByCodeInDb(courseCode: string): Promise<{ courseId: str
   invalidateApiSessionCache();
 
   return { courseId: course.id, courseName: course.name };
+}
+
+const DEFAULT_CATALOG_STAGE_NAMES = [
+  "아이디어 기획",
+  "서비스 디자인",
+  "프론트 개발",
+  "백엔드 개발",
+  "발표 및 배포",
+];
+
+type CatalogRow = {
+  id: string;
+  course_name: string;
+  course_code: string;
+  department: string | null;
+  semester: string;
+  professor: string | null;
+  schedule: string | null;
+  room: string | null;
+  grade: string | null;
+  credit: string | null;
+  description: string | null;
+  sort_order: number;
+};
+
+function catalogLiveCourseId(courseCode: string, semester: string): string {
+  const slugCode = courseCode
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const slugSemester = semester
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `course-${slugCode || "unknown"}-${slugSemester || "unknown"}`;
+}
+
+async function resolveInstructorUserIdForCatalog(professorName?: string | null): Promise<string> {
+  const trimmedName = professorName?.trim();
+  if (trimmedName) {
+    const { data: professorRow, error: professorError } = await supabase
+      .from("ai_users")
+      .select("id")
+      .eq("role", "professor")
+      .eq("name", trimmedName)
+      .maybeSingle();
+
+    if (professorError) throw professorError;
+    if (professorRow?.id) return professorRow.id as string;
+  }
+
+  const { data: adminRow, error: adminError } = await supabase
+    .from("ai_users")
+    .select("id")
+    .eq("role", "admin")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (adminError) throw adminError;
+  if (adminRow?.id) return adminRow.id as string;
+
+  const { data: fallbackProfessor, error: fallbackError } = await supabase
+    .from("ai_users")
+    .select("id")
+    .eq("role", "professor")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (fallbackError) throw fallbackError;
+  if (fallbackProfessor?.id) return fallbackProfessor.id as string;
+
+  throw new Error("강의 담당 교수 계정을 찾지 못했습니다.");
+}
+
+async function resolveFallbackInstructorUserId(excludeUserId: string): Promise<string> {
+  const { data: adminRows, error: adminError } = await supabase
+    .from("ai_users")
+    .select("id")
+    .eq("role", "admin")
+    .neq("id", excludeUserId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (adminError) throw adminError;
+  if (adminRows?.[0]?.id) return adminRows[0].id as string;
+
+  const { data: professorRows, error: professorError } = await supabase
+    .from("ai_users")
+    .select("id")
+    .eq("role", "professor")
+    .neq("id", excludeUserId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (professorError) throw professorError;
+  if (professorRows?.[0]?.id) return professorRows[0].id as string;
+
+  throw new Error("담당 교수를 넘길 다른 계정을 찾지 못했습니다.");
+}
+
+async function ensureCourseMembershipInDb(
+  courseId: string,
+  courseName: string
+): Promise<{ courseId: string; courseName: string }> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("ai_course_memberships")
+    .select("id")
+    .eq("course_id", courseId)
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (existingError) throw existingError;
+  if (existing) return { courseId, courseName };
+
+  const membershipRole = currentUser.role === "professor" ? "assistant" : "student";
+  const { error: insertError } = await supabase.from("ai_course_memberships").insert({
+    course_id: courseId,
+    user_id: currentUser.id,
+    role: membershipRole,
+    created_at: new Date().toISOString(),
+  });
+
+  if (insertError) throw insertError;
+  invalidateApiSessionCache();
+
+  return { courseId, courseName };
+}
+
+async function ensureLiveCourseFromCatalog(catalogRow: CatalogRow): Promise<string> {
+  const { data: byCatalogId, error: byCatalogError } = await supabase
+    .from("ai_courses")
+    .select("id")
+    .eq("catalog_id", catalogRow.id)
+    .maybeSingle();
+
+  if (byCatalogError) throw byCatalogError;
+  if (byCatalogId?.id) return byCatalogId.id as string;
+
+  const { data: byCodeSemester, error: byCodeError } = await supabase
+    .from("ai_courses")
+    .select("id, catalog_id")
+    .eq("code", catalogRow.course_code)
+    .eq("semester", catalogRow.semester)
+    .maybeSingle();
+
+  if (byCodeError) throw byCodeError;
+  if (byCodeSemester?.id) {
+    if (!byCodeSemester.catalog_id) {
+      await supabase
+        .from("ai_courses")
+        .update({ catalog_id: catalogRow.id })
+        .eq("id", byCodeSemester.id);
+    }
+    return byCodeSemester.id as string;
+  }
+
+  const courseId = catalogLiveCourseId(catalogRow.course_code, catalogRow.semester);
+  const instructorUserId = await resolveInstructorUserIdForCatalog(catalogRow.professor);
+  const { startDate, endDate } = defaultNewCourseDates();
+
+  const { error: courseError } = await supabase.from("ai_courses").insert({
+    id: courseId,
+    name: catalogRow.course_name.trim(),
+    code: catalogRow.course_code.trim(),
+    instructor_user_id: instructorUserId,
+    schedule: catalogRow.schedule?.trim() || "미정",
+    start_date: startDate,
+    end_date: endDate,
+    room: catalogRow.room?.trim() || null,
+    students_count: 0,
+    max_students: null,
+    semester: catalogRow.semester.trim(),
+    description: catalogRow.description?.trim() || null,
+    status: "active",
+    catalog_id: catalogRow.id,
+  });
+
+  if (courseError) throw courseError;
+
+  const { error: stageError } = await supabase.from("ai_course_stages").insert(
+    DEFAULT_CATALOG_STAGE_NAMES.map((stage, index) => ({
+      course_id: courseId,
+      name: stage,
+      position: index + 1,
+      is_required: true,
+    }))
+  );
+
+  if (stageError) {
+    await supabase.from("ai_courses").delete().eq("id", courseId);
+    throw stageError;
+  }
+
+  invalidateApiSessionCache();
+  return courseId;
+}
+
+async function listCatalogFromDb(params?: {
+  search?: string;
+  semester?: string;
+}): Promise<CourseCatalogEntry[]> {
+  let query = supabase
+    .from("ai_course_catalog")
+    .select(
+      "id, course_name, course_code, department, semester, professor, schedule, room, grade, credit, description, sort_order"
+    )
+    .order("sort_order", { ascending: true });
+
+  if (params?.semester?.trim()) {
+    query = query.eq("semester", params.semester.trim());
+  }
+  if (params?.search?.trim()) {
+    query = query.ilike("course_name", `%${params.search.trim()}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    if (isMissingRelationError(error)) return [];
+    throw error;
+  }
+
+  const currentUser = await getCurrentAiUser();
+  const joinedByCatalogId = new Map<string, string>();
+  const joinedCodeSemesterKeys = new Set<string>();
+
+  if (currentUser) {
+    const { data: memberships, error: membershipError } = await supabase
+      .from("ai_course_memberships")
+      .select("course_id")
+      .eq("user_id", currentUser.id);
+
+    if (membershipError) throw membershipError;
+
+    const courseIds = (memberships ?? []).map((row) => row.course_id as string);
+    if (courseIds.length > 0) {
+      const { data: linkedCourses, error: linkedError } = await supabase
+        .from("ai_courses")
+        .select("id, catalog_id, code, semester")
+        .in("id", courseIds);
+
+      if (linkedError) throw linkedError;
+
+      for (const course of linkedCourses ?? []) {
+        const catalogId = course.catalog_id as string | null;
+        const courseId = course.id as string;
+        if (catalogId) joinedByCatalogId.set(catalogId, courseId);
+
+        const code = (course.code as string | null)?.trim();
+        const semester = (course.semester as string | null)?.trim();
+        if (code && semester) {
+          joinedCodeSemesterKeys.add(`${code}::${semester}`);
+        }
+      }
+    }
+  }
+
+  return (data ?? [])
+    .map((row) => {
+      const catalogId = row.id as string;
+      const courseCode = row.course_code as string;
+      const semester = row.semester as string;
+      const codeSemesterKey = `${courseCode.trim()}::${semester.trim()}`;
+      const liveCourseId = joinedByCatalogId.get(catalogId);
+      const isJoined = Boolean(liveCourseId) || joinedCodeSemesterKeys.has(codeSemesterKey);
+
+      return {
+        id: catalogId,
+        courseName: row.course_name as string,
+        courseCode,
+        department: (row.department as string | null) ?? undefined,
+        semester,
+        professor: (row.professor as string | null) ?? undefined,
+        schedule: (row.schedule as string | null) ?? undefined,
+        room: (row.room as string | null) ?? undefined,
+        grade: (row.grade as string | null) ?? undefined,
+        credit: (row.credit as string | null) ?? undefined,
+        description: (row.description as string | null) ?? undefined,
+        isJoined,
+        liveCourseId,
+      };
+    })
+    .filter((entry) => !entry.isJoined);
+}
+
+async function leaveCourseMembershipInDb(courseId: string): Promise<void> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student" && currentUser.role !== "professor") {
+    throw new Error("학생 또는 교수만 수업에서 나갈 수 있습니다.");
+  }
+
+  const { data: courseRow, error: courseError } = await supabase
+    .from("ai_courses")
+    .select("id, name, status, instructor_user_id")
+    .eq("id", courseId)
+    .maybeSingle();
+
+  if (courseError) throw courseError;
+  if (!courseRow) throw new Error("수업을 찾을 수 없습니다.");
+  if (courseRow.status !== "active") {
+    throw new Error("진행 중인 수업에서만 나갈 수 있습니다.");
+  }
+
+  const isInstructor = courseRow.instructor_user_id === currentUser.id;
+
+  if (currentUser.role === "student") {
+    if (isInstructor) {
+      throw new Error("담당 교수는 수업에서 나갈 수 없습니다.");
+    }
+
+    const { data: membership, error: membershipLookupError } = await supabase
+      .from("ai_course_memberships")
+      .select("id")
+      .eq("course_id", courseId)
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (membershipLookupError) throw membershipLookupError;
+    if (!membership) throw new Error("이 수업에 등록되어 있지 않습니다.");
+
+    const myTeamId = await getMyTeamIdInCourseFromDb(courseId, currentUser.id);
+    if (myTeamId) {
+      await leaveTeamInDb(myTeamId);
+    }
+  } else if (isInstructor) {
+    const fallbackInstructorId = await resolveFallbackInstructorUserId(currentUser.id);
+    const { error: instructorUpdateError } = await supabase
+      .from("ai_courses")
+      .update({ instructor_user_id: fallbackInstructorId })
+      .eq("id", courseId);
+
+    if (instructorUpdateError) throw instructorUpdateError;
+  } else {
+    const { data: membership, error: membershipLookupError } = await supabase
+      .from("ai_course_memberships")
+      .select("id")
+      .eq("course_id", courseId)
+      .eq("user_id", currentUser.id)
+      .maybeSingle();
+
+    if (membershipLookupError) throw membershipLookupError;
+    if (!membership) throw new Error("이 수업에 등록되어 있지 않습니다.");
+  }
+
+  const { error: deleteError } = await supabase
+    .from("ai_course_memberships")
+    .delete()
+    .eq("course_id", courseId)
+    .eq("user_id", currentUser.id);
+
+  if (deleteError) throw deleteError;
+  invalidateApiSessionCache();
+}
+
+async function joinFromCatalogInDb(catalogId: string): Promise<{ courseId: string; courseName: string }> {
+  const trimmedId = catalogId.trim();
+  if (!trimmedId) throw new Error("강의를 선택해주세요.");
+
+  const { data: catalogRow, error: catalogError } = await supabase
+    .from("ai_course_catalog")
+    .select(
+      "id, course_name, course_code, department, semester, professor, schedule, room, grade, credit, description, sort_order"
+    )
+    .eq("id", trimmedId)
+    .maybeSingle();
+
+  if (catalogError) {
+    if (isMissingRelationError(catalogError)) {
+      throw new Error("강의 카탈로그가 준비되지 않았습니다.");
+    }
+    throw catalogError;
+  }
+  if (!catalogRow) throw new Error("강의를 찾을 수 없습니다.");
+
+  const courseId = await ensureLiveCourseFromCatalog(catalogRow as CatalogRow);
+  return ensureCourseMembershipInDb(courseId, catalogRow.course_name as string);
 }
 
 async function getSelectedCourseId(courseId?: string): Promise<string | null> {
@@ -5654,6 +6052,11 @@ export const api = {
   },
   memberships: {
     joinByCode: joinCourseByCodeInDb,
+    leave: leaveCourseMembershipInDb,
+  },
+  catalog: {
+    list: listCatalogFromDb,
+    join: joinFromCatalogInDb,
   },
   students: {
     getAll: getStudentsFromDb,

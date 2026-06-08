@@ -368,32 +368,12 @@ export default function TeamDetailPage() {
   }, [selectedTeamId, deliverables, troubleshootingLogs]);
 
   const projectEvalAutoHints = useMemo(() => {
-    const fileList =
-      deliverables.length > 0
-        ? deliverables
-            .map((item) => {
-              const sub = item.subtitle?.trim();
-              const desc = item.description?.trim();
-              const extra = [sub, desc].filter(Boolean).join(" — ");
-              return extra ? `${item.fileName} (${extra})` : item.fileName;
-            })
-            .join("\n")
-        : "업로드된 산출물 없음";
-    const inProgress =
-      troubleshootingLogs
-        .filter((log) => log.status === "in-progress")
-        .map((log) => log.problem)
-        .filter(Boolean)
-        .join(" / ") || "";
-    const solvedList =
-      troubleshootingLogs
-        .filter((log) => log.status === "resolved")
-        .map((log) => log.problem)
-        .filter(Boolean)
-        .join(" / ") || "";
-    const solved = solvedList || inProgress || "기록된 트러블슈팅 없음";
-    const resolvedCount = troubleshootingLogs.filter((log) => log.status === "resolved").length;
-    const inProgressCount = troubleshootingLogs.filter((log) => log.status === "in-progress").length;
+    const resolvedLogs = troubleshootingLogs.filter((log) => log.status === "resolved");
+    const inProgressLogs = troubleshootingLogs.filter((log) => log.status === "in-progress");
+    const troubleshootingForEval =
+      resolvedLogs.length > 0 ? resolvedLogs : inProgressLogs;
+    const resolvedCount = resolvedLogs.length;
+    const inProgressCount = inProgressLogs.length;
     const narrative = [
       `팀 DB 기준 요약 (AI 생성 아님): 산출물 ${deliverables.length}건`,
       resolvedCount > 0 || inProgressCount > 0
@@ -403,7 +383,7 @@ export default function TeamDetailPage() {
     ]
       .filter(Boolean)
       .join(" · ");
-    return { files: fileList, solved, narrative };
+    return { troubleshootingForEval, narrative };
   }, [deliverables, troubleshootingLogs]);
 
   const handleSaveStudentEvals = async () => {
@@ -1631,12 +1611,6 @@ export default function TeamDetailPage() {
                   작업 완성도
                 </h3>
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
-                  {/* 설명란 */}
-                  <div className="bg-white rounded-[5px] shadow-md p-4 mb-4">
-                    <p className="text-[17px] text-black whitespace-pre-wrap">
-                      {projectEvalAutoHints.files}
-                    </p>
-                  </div>
                   {/* 평가 입력란 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4">
                     <textarea
@@ -1661,11 +1635,31 @@ export default function TeamDetailPage() {
                   문제 해결력
                 </h3>
                 <div className="bg-[#eff6ff] rounded-[10px] shadow-md p-4">
-                  {/* 문제 해결 목록 */}
+                  {/* 트러블슈팅 로그 참고 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4 mb-4">
-                    <p className="text-[17px] text-black whitespace-pre-wrap">
-                      {projectEvalAutoHints.solved}
-                    </p>
+                    {projectEvalAutoHints.troubleshootingForEval.length === 0 ? (
+                      <p className="text-[17px] text-black whitespace-pre-wrap">
+                        기록된 트러블슈팅 없음
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {projectEvalAutoHints.troubleshootingForEval.map((log, index) => (
+                          <div
+                            key={log.id}
+                            className={index > 0 ? "border-t border-gray-200 pt-3" : undefined}
+                          >
+                            <p className="text-[17px] text-black whitespace-pre-wrap">
+                              <span className="font-bold">문제:</span> {log.problem}
+                            </p>
+                            {log.solution?.trim() ? (
+                              <p className="mt-1 text-[17px] text-black whitespace-pre-wrap">
+                                <span className="font-bold">해결 방법:</span> {log.solution}
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* 평가 입력란 */}
                   <div className="bg-white rounded-[5px] shadow-md p-4">

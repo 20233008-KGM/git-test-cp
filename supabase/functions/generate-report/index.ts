@@ -548,9 +548,11 @@ function buildDraftReportFromEdgeContext(ctx: EdgeGatherContext): ReportResponse
       team_id: String(team.teamId ?? ""),
       project_title: String(team.projectTitle),
       overview: `${team.courseName}에서 진행한 ${team.projectTitle}. 진행률 ${team.progress}%, 산출물 ${team.deliverableCount}건.`,
-      core_value: team.retrospectiveSnippet
-        ? team.retrospectiveSnippet
-        : `트러블슈팅 ${team.troubleshootingCount}건 해결을 통한 실전 경험 축적.`,
+      core_value: (team as TeamShape & { projectValue?: string }).projectValue?.trim()
+        ? String((team as TeamShape & { projectValue?: string }).projectValue).trim()
+        : team.retrospectiveSnippet
+          ? team.retrospectiveSnippet
+          : `트러블슈팅 ${team.troubleshootingCount}건 해결을 통한 실전 경험 축적.`,
       my_experience: `역할: ${team.memberRole}. 트러블슈팅 ${team.troubleshootingCount}건, 산출물 ${team.deliverableCount}건 기여.${team.feedbackSnippet ? ` 팀 피드백: ${team.feedbackSnippet}` : ""}`,
       eval_summary: evalParts.length > 0 ? evalParts.join(" / ") : "평가 기록 없음.",
     };

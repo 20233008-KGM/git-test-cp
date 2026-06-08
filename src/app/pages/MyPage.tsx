@@ -1295,10 +1295,6 @@ export default function MyPage() {
                     <p className="mb-1 text-[10px] font-black text-[#155dfc]">프로젝트 개요</p>
                     <p className="text-sm leading-relaxed text-[#334155]">{detail.overview}</p>
                   </div>
-                  <div className="rounded-xl border border-[#d1fae5] bg-[#f0fdf4] p-4">
-                    <p className="mb-1 text-[10px] font-black text-[#065f46]">핵심 가치</p>
-                    <p className="text-sm leading-relaxed text-[#064e3b]">{detail.core_value}</p>
-                  </div>
                   <div className="rounded-xl border border-[#e0e7ff] bg-[#f5f3ff] p-4">
                     <p className="mb-1 text-[10px] font-black text-[#6d28d9]">내가 한 경험</p>
                     <p className="text-sm leading-relaxed text-[#4c1d95]">{detail.my_experience}</p>
