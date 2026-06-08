@@ -48,11 +48,12 @@ export default function CoursesPage() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const { isAuthenticated, isProfessor, isAdmin, isStudent, user } = useAuth();
+  const { isAuthenticated, isProfessor, isAdmin, user } = useAuth();
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
 
   const canManageCourses = isProfessor || isAdmin;
+  const showJoinByCode = isAuthenticated && statusFilter === "active";
   const openCreateModal = () => {
     const nextStages = [...emptyForm.stages];
     setForm({
@@ -280,7 +281,7 @@ const handleArchiveCourse = async (course: Course) => {
             </div>
             <Link to="/app/syllabi">
               <M3Button variant="outlined" type="button">
-                {isStudent ? "강의계획서로 수업 등록" : "강의계획서 검색"}
+                강의계획서 검색
               </M3Button>
             </Link>
             {canManageCourses ? (
@@ -298,11 +299,11 @@ const handleArchiveCourse = async (course: Course) => {
         </div>
       )}
 
-      {isStudent && statusFilter === "active" && (
+      {showJoinByCode && (
         <form
           onSubmit={handleJoinCourse}
           data-testid="courses-join-by-code-banner"
-          className="cc-alert-info cc-courses-join-row mb-6 rounded-2xl p-4 sm:p-5"
+          className="cc-alert-info cc-courses-join-row mb-6 rounded-2xl border-2 border-[var(--cc-primary)] p-4 sm:p-5"
         >
           <div className="min-w-0 flex-1">
             <label htmlFor="courses-join-code-banner" className="cc-label mb-1 block font-bold">
@@ -350,7 +351,7 @@ const handleArchiveCourse = async (course: Course) => {
           className="m3-surface-card border-dashed p-8 text-center sm:p-10"
         >
           <p className="cc-text-secondary">등록된 수업이 없습니다.</p>
-          {isStudent && statusFilter === "active" && (
+          {showJoinByCode && (
             <p className="cc-text-secondary mt-4 text-sm">
               위에서 수업 코드를 입력하거나{" "}
               <Link to="/app/syllabi" className="font-medium text-[var(--cc-primary)] underline">
