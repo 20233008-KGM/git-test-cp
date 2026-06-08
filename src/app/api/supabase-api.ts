@@ -648,15 +648,13 @@ async function ensureLiveCourseFromCatalog(
   }
 
   const courseId = catalogLiveCourseId(catalogRow.course_code, catalogRow.semester);
-  const instructorUserId =
-    options?.instructorUserId ?? (await resolveInstructorUserIdForCatalog(catalogRow.professor));
   const { startDate, endDate } = defaultNewCourseDates();
 
   const { error: courseError } = await supabase.from("ai_courses").insert({
     id: courseId,
     name: catalogRow.course_name.trim(),
     code: catalogRow.course_code.trim(),
-    instructor_user_id: instructorUserId,
+    instructor_user_id: options?.instructorUserId ?? null,
     schedule: catalogRow.schedule?.trim() || "미정",
     start_date: startDate,
     end_date: endDate,
@@ -1022,7 +1020,7 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
   const [coursesResult, professors, membershipsResult, stagesResult] = await Promise.all([
     query,
     getProfessorsFromDb(),
-    supabase.from("ai_course_memberships").select("course_id, role").eq("role", "student"),
+    supabase.from("ai_course_memberships").select("course_id, user_id, role"),
     supabase
       .from("ai_course_stages")
       .select("id, course_id, name, position, description, is_required")
@@ -1033,7 +1031,20 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
   if (membershipsResult.error) throw membershipsResult.error;
   if (stagesResult.error) throw stagesResult.error;
 
+  const professorIds = new Set(professors.map((professor) => professor.id));
+  const membersByCourse = (membershipsResult.data ?? []).reduce<Record<string, Set<string>>>(
+    (result, membership) => {
+      const courseId = membership.course_id as string;
+      const userId = membership.user_id as string;
+      if (!result[courseId]) result[courseId] = new Set();
+      result[courseId].add(userId);
+      return result;
+    },
+    {}
+  );
+
   const studentCounts = (membershipsResult.data ?? []).reduce<Record<string, number>>((result, membership) => {
+    if (membership.role !== "student") return result;
     result[membership.course_id] = (result[membership.course_id] ?? 0) + 1;
     return result;
   }, {});
@@ -1053,7 +1064,16 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
   }, {});
 
   return (coursesResult.data ?? []).map((course) => {
-    const professor = professors.find((item) => item.id === course.instructor_user_id);
+    const instructorId = course.instructor_user_id as string | null;
+    const joinedInstructorId =
+      instructorId &&
+      professorIds.has(instructorId) &&
+      membersByCourse[course.id]?.has(instructorId)
+        ? instructorId
+        : null;
+    const professor = joinedInstructorId
+      ? professors.find((item) => item.id === joinedInstructorId)
+      : undefined;
     const stages = stagesByCourse[course.id] ?? [];
 
     return {
@@ -1061,7 +1081,7 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
       name: course.name,
       code: course.code,
       professor: professor?.name ?? "",
-      professorId: course.instructor_user_id ?? "",
+      professorId: joinedInstructorId ?? "",
       schedule: course.schedule,
       startDate: course.start_date ?? undefined,
       endDate: course.end_date ?? undefined,
@@ -1121,6 +1141,19 @@ async function createCourseInDb(input: CreateCourseInput): Promise<Course> {
   });
 
   if (courseError) throw courseError;
+
+  const { error: membershipError } = await supabase.from("ai_course_memberships").insert({
+    course_id: courseId,
+    user_id: currentUser.id,
+    role: "assistant",
+    created_at: new Date().toISOString(),
+  });
+
+  if (membershipError) {
+    await supabase.from("ai_courses").delete().eq("id", courseId);
+    invalidateApiSessionCache();
+    throw membershipError;
+  }
 
   if (stageNames.length > 0) {
     const { error: stageError } = await supabase.from("ai_course_stages").insert(

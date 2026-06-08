@@ -55,15 +55,13 @@ export default function CatalogCourseCard({ entry, joining, onJoin }: Props) {
               <dd className="cc-course-card__meta-value">{departmentLabel}</dd>
             </div>
           ) : null}
-          {entry.professor ? (
-            <div className="cc-course-card__meta-item">
-              <dt className="cc-course-card__meta-label">
-                <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                교수
-              </dt>
-              <dd className="cc-course-card__meta-value">{entry.professor}</dd>
-            </div>
-          ) : null}
+          <div className="cc-course-card__meta-item">
+            <dt className="cc-course-card__meta-label">
+              <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              교수
+            </dt>
+            <dd className="cc-course-card__meta-value text-[var(--cc-text-muted)]">입장 후 배정</dd>
+          </div>
           {entry.schedule ? (
             <div className="cc-course-card__meta-item">
               <dt className="cc-course-card__meta-label">

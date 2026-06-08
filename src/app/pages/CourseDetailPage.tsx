@@ -291,7 +291,7 @@ export default function CourseDetailPage() {
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">{"\uB2F4\uB2F9 \uAD50\uC218"}</p>
-            <p className="font-bold text-gray-900">{course.professor}</p>
+            <p className="font-bold text-gray-900">{course.professor || "미배정"}</p>
           </div>
           {formatCoursePeriod(course.startDate, course.endDate) ? (
             <div className="bg-gray-50 p-4 rounded-lg" data-testid="course-detail-period">
