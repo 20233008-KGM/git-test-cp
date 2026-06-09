@@ -184,8 +184,13 @@ export default function MyPage() {
 
   useEffect(() => {
     if (!canViewStudentReport || !reportContext || !reportContextReady) return;
-    void loadAiReport(reportContext);
-  }, [canViewStudentReport, reportContext, reportContextReady, loadAiReport]);
+    const draft = api.aiReport.buildDraftFromContext(reportContext);
+    setAiReport(draft);
+    setReportActivitySummary(api.aiReport.formatActivitySummary(reportContext));
+    setAiReportMessage(
+      "DB 집계 초안으로 표시합니다. AI 문단이 필요하면 아래 「AI 리포트 갱신」을 눌러 주세요."
+    );
+  }, [canViewStudentReport, reportContext, reportContextReady]);
 
   const reportView = useMemo(() => {
     if (!reportContext) return null;
@@ -656,6 +661,15 @@ export default function MyPage() {
                   >
                     {currentReportPage.nextLabel ?? "다음"}
                     <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reportContext && void loadAiReport(reportContext)}
+                    disabled={aiReportLoading || !reportContext}
+                    data-testid="mypage-ai-report-refresh"
+                    className="rounded-lg border border-[#93c5fd] bg-white px-4 py-2 text-[12px] font-bold text-[#155dfc] disabled:opacity-50"
+                  >
+                    {aiReportLoading ? "AI 생성 중…" : "AI 리포트 갱신"}
                   </button>
                   <button
                     type="button"

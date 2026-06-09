@@ -188,6 +188,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     profStudentResult,
     profProjectResult,
     aiMemoryResult,
+    userContextResult,
   ] = await Promise.all([
     supabase
       .from("ai_teams")
@@ -234,8 +235,13 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       .in("team_id", teamIds),
     supabase
       .from("ai_team_detail_ai_memory")
-      .select("team_id, memory_markdown")
+      .select("team_id, memory_markdown, workspace_excerpt, updated_at")
       .in("team_id", teamIds),
+    supabase
+      .from("ai_user_ai_context")
+      .select("report_excerpt, context_markdown, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle(),
   ]);
 
   if (teamsResult.error) throw teamsResult.error;
@@ -350,7 +356,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       });
     }
   }
-  for (const item of staleMeetingDeliverables.slice(0, 8)) {
+  for (const item of staleMeetingDeliverables.slice(0, 1)) {
     void persistMeetingSummaryForDeliverable({
       deliverableId: item.deliverableId,
       fileName: item.fileName,
@@ -531,6 +537,11 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     };
   });
 
+  const userContextRow =
+    userContextResult.error && !isMissingRelationError(userContextResult.error)
+      ? null
+      : userContextResult.data;
+
   return {
     userId,
     userName: user.name,
@@ -550,6 +561,8 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
     deliverableFileNames: deliverables
       .map((d) => d.file_name)
       .filter((name): name is string => Boolean(name?.trim())),
+    userContextExcerpt: userContextRow?.report_excerpt?.trim() || undefined,
+    userContextMarkdown: userContextRow?.context_markdown?.trim() || undefined,
   };
 }
 
@@ -861,6 +874,9 @@ export function mapReportContextToMyPageProjects(context: AiReportContext): MyPa
 
 /** 마이페이지 PAGE 01 요약 문단 (A4 summary + 평균 진행률) */
 export function buildMyPageSummaryParagraph(context: AiReportContext): string {
+  if (context.userContextExcerpt?.trim()) {
+    return context.userContextExcerpt.trim();
+  }
   const base = buildReportSummaryDraft(context);
   if (context.teams.length === 0) return base;
   return `${base} 평균 진행률은 ${averageTeamProgress(context)}%입니다.`;

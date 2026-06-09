@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import {
   fetchTeamProgressInsightFromEdge,
   isClientMetadataFallbackInsight,
   isShallowProgressInsight,
+  loadCachedTeamProgressInsight,
   normalizeProgressInsightForDisplay,
   shouldPreferEdgeProgressInsight,
 } from "../api/ai-team-progress";
@@ -316,6 +317,38 @@ export default function TeamDetailPage() {
     return { deliverable: latest.d, url: latest.url };
   }, [deliverables]);
 
+  const refreshProgressInsight = useCallback(async () => {
+    if (!selectedTeamId) return;
+    setInsightLoading(true);
+    try {
+      const edge = await fetchTeamProgressInsightFromEdge(selectedTeamId, "ko");
+      const fallback = normalizeProgressInsightForDisplay(
+        buildTeamProgressInsight(deliverables, troubleshootingLogs)
+      );
+      const hasArchiveDeliverable = deliverables.some(
+        (d) => d.kind !== "link" && isDeliverableArchiveFile(d.fileName, d.mimeType)
+      );
+      const preferEdge = shouldPreferEdgeProgressInsight(edge, hasArchiveDeliverable);
+      const fallbackIsGeneric = isClientMetadataFallbackInsight(fallback);
+      if (preferEdge && edge) {
+        setProgressInsight(edge);
+      } else if (edge && fallbackIsGeneric && !isShallowProgressInsight(edge)) {
+        setProgressInsight(edge);
+      } else {
+        setProgressInsight(fallback);
+      }
+    } catch (error) {
+      console.warn("팀 진행 인사이트 갱신 실패:", error);
+      setProgressInsight(
+        normalizeProgressInsightForDisplay(
+          buildTeamProgressInsight(deliverables, troubleshootingLogs)
+        )
+      );
+    } finally {
+      setInsightLoading(false);
+    }
+  }, [selectedTeamId, deliverables, troubleshootingLogs]);
+
   useEffect(() => {
     if (!selectedTeamId) return;
 
@@ -326,27 +359,17 @@ export default function TeamDetailPage() {
       setProgressInsight(null);
 
       try {
-        const edge = await fetchTeamProgressInsightFromEdge(selectedTeamId, "ko");
+        const cached = await loadCachedTeamProgressInsight(selectedTeamId);
         if (cancelled) return;
-
-        const fallback = normalizeProgressInsightForDisplay(
-          buildTeamProgressInsight(deliverables, troubleshootingLogs)
-        );
-
-        const hasArchiveDeliverable = deliverables.some(
-          (d) => d.kind !== "link" && isDeliverableArchiveFile(d.fileName, d.mimeType)
-        );
-
-        const preferEdge = shouldPreferEdgeProgressInsight(edge, hasArchiveDeliverable);
-        const fallbackIsGeneric = isClientMetadataFallbackInsight(fallback);
-
-        if (preferEdge && edge) {
-          setProgressInsight(edge);
-        } else if (edge && fallbackIsGeneric && !isShallowProgressInsight(edge)) {
-          setProgressInsight(edge);
-        } else {
-          setProgressInsight(fallback);
+        if (cached) {
+          setProgressInsight(normalizeProgressInsightForDisplay(cached));
+          return;
         }
+        setProgressInsight(
+          normalizeProgressInsightForDisplay(
+            buildTeamProgressInsight(deliverables, troubleshootingLogs)
+          )
+        );
       } catch (error) {
         console.warn("팀 진행 인사이트 로드 실패:", error);
         if (!cancelled) {
@@ -823,45 +846,37 @@ export default function TeamDetailPage() {
   const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
   const [aiRecommendationError, setAiRecommendationError] = useState<string | null>(null);
 
+  const loadTroubleshootingRecommendation = useCallback(async () => {
+    if (!selectedTeamId) return;
+    setAiRecommendationLoading(true);
+    setAiRecommendationError(null);
+    try {
+      const result = await api.teamDetail.recommendTroubleshootingAi({
+        teamId: selectedTeamId,
+        locale: "ko",
+      });
+      setAiRecommendation({
+        problem: result.problem,
+        plan: result.plan,
+        rationale: result.rationale,
+        model: result.model,
+      });
+    } catch (error) {
+      setAiRecommendation(null);
+      setAiRecommendationError(
+        error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다."
+      );
+    } finally {
+      setAiRecommendationLoading(false);
+    }
+  }, [selectedTeamId]);
+
   useEffect(() => {
     if (!selectedTeamId) {
       setAiRecommendation(null);
       setAiRecommendationError(null);
-      return;
     }
-
-    let cancelled = false;
-    setAiRecommendationLoading(true);
-    setAiRecommendationError(null);
-
-    void api.teamDetail
-      .recommendTroubleshootingAi({ teamId: selectedTeamId, locale: "ko" })
-      .then((result) => {
-        if (!cancelled) {
-          setAiRecommendation({
-            problem: result.problem,
-            plan: result.plan,
-            rationale: result.rationale,
-            model: result.model,
-          });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setAiRecommendation(null);
-          setAiRecommendationError(
-            error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다."
-          );
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setAiRecommendationLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTeamId, troubleshootingLogs.length, deliverables.length]);
+  }, [selectedTeamId]);
 
   const totalFeedbackCount = useMemo(
     () => Object.values(feedbackCounts).reduce((sum, count) => sum + count, 0),
@@ -984,13 +999,24 @@ export default function TeamDetailPage() {
           className="cc-ai-insight-panel"
           data-testid="team-progress-insight-panel"
         >
-          <h3
-            className={`cc-ai-insight-panel__title ${
-              insightLoading ? "cc-gemini-shimmer-text" : ""
-            }`}
-          >
-            ✨ AI 통합 진행상황 요약
-          </h3>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3
+              className={`cc-ai-insight-panel__title ${
+                insightLoading ? "cc-gemini-shimmer-text" : ""
+              }`}
+            >
+              ✨ AI 통합 진행상황 요약
+            </h3>
+            <button
+              type="button"
+              data-testid="team-progress-insight-refresh"
+              onClick={() => void refreshProgressInsight()}
+              disabled={insightLoading || !selectedTeamId}
+              className="rounded-full border border-[#93c5fd] bg-white px-3 py-1 text-[11px] font-bold text-[#155dfc] disabled:opacity-50"
+            >
+              {insightLoading ? "분석 중…" : "AI 요약 갱신"}
+            </button>
+          </div>
           {!insightLoading &&
           progressInsight &&
           (progressInsight.used_memory ||
@@ -1216,6 +1242,15 @@ export default function TeamDetailPage() {
                       AI 추천
                     </span>
                     <span className="text-xs font-bold text-[#1e2939]">Gemini</span>
+                    <button
+                      type="button"
+                      data-testid="team-trouble-ai-refresh"
+                      onClick={() => void loadTroubleshootingRecommendation()}
+                      disabled={aiRecommendationLoading || !selectedTeamId}
+                      className="ml-auto rounded-full border border-[#93c5fd] bg-white px-3 py-1 text-[10px] font-bold text-[#155dfc] disabled:opacity-50"
+                    >
+                      {aiRecommendationLoading ? "생성 중…" : "AI 추천 받기"}
+                    </button>
                     {aiRecommendation?.model &&
                       !aiRecommendationLoading &&
                       aiRecommendation.model !== "draft-db-only" && (
@@ -1240,6 +1275,13 @@ export default function TeamDetailPage() {
                   {!aiRecommendationLoading && aiRecommendationError && (
                     <p className="text-xs text-[#dc2626]" data-testid="team-trouble-ai-error">
                       {aiRecommendationError}
+                    </p>
+                  )}
+                  {!aiRecommendationLoading &&
+                    !aiRecommendationError &&
+                    !aiRecommendation && (
+                    <p className="text-xs text-[#6a7282]">
+                      「AI 추천 받기」를 누르면 팀 활동을 분석해 다음 조사할 문제를 제안합니다.
                     </p>
                   )}
                   {!aiRecommendationLoading && !aiRecommendationError && aiRecommendation && (

@@ -129,4 +129,8 @@ export interface AiReportContext {
   totalProfessorProjectEvalsReceived: number;
   /** 팀 산출물 파일명 (기술·역량 초안용) */
   deliverableFileNames: string[];
+  /** ai_user_ai_context.report_excerpt (Compaction Agent) */
+  userContextExcerpt?: string;
+  /** ai_user_ai_context.context_markdown 전체 */
+  userContextMarkdown?: string;
 }

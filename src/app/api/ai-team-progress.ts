@@ -213,6 +213,47 @@ function mapInsightPayload(payload: TeamProgressInsightResponse): TeamProgressIn
   );
 }
 
+function extractMemorySection(markdown: string, heading: string): string | undefined {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`##\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`, "i");
+  const match = markdown.match(re);
+  return match?.[1]?.trim() || undefined;
+}
+
+/** DB 팀 메모리 캐시 (24h 이내) — Edge Gemini 호출 없이 표시 */
+export async function loadCachedTeamProgressInsight(
+  teamId: string,
+  maxAgeMs = 24 * 60 * 60 * 1000
+): Promise<TeamProgressInsightView | null> {
+  const { data, error } = await supabase
+    .from("ai_team_detail_ai_memory")
+    .select("memory_markdown, last_insight_summary, workspace_excerpt, updated_at")
+    .eq("team_id", teamId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const updatedAt = data.updated_at ? new Date(String(data.updated_at)).getTime() : 0;
+  if (!updatedAt || Date.now() - updatedAt > maxAgeMs) return null;
+
+  const summary = String(data.workspace_excerpt ?? data.last_insight_summary ?? "").trim();
+  if (!summary) return null;
+
+  const markdown = String(data.memory_markdown ?? "");
+  return {
+    summary,
+    strengths: [],
+    gaps: [],
+    next_steps: [],
+    architecture_risks: [],
+    improvements: [],
+    model: "cached-memory",
+    used_memory: true,
+    project_content: extractMemorySection(markdown, "프로젝트 내용"),
+    project_value: extractMemorySection(markdown, "프로젝트 핵심 가치"),
+  };
+}
+
 export async function fetchTeamProgressInsightFromEdge(
   teamId: string,
   locale: "ko" | "en" = "ko"

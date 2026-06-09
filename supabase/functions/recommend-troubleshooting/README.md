@@ -34,6 +34,10 @@ supabase functions deploy recommend-troubleshooting
 | `GEMINI_API_KEY` | Google AI Studio API 키 (결제 미연결 권장) |
 | `GEMINI_MODEL` | 선택, 기본 `gemini-2.5-flash` |
 | `MEETING_SUMMARY_USE_GEMINI` | `true`일 때만 회의록 요약에 Gemini 사용 |
+| `AI_REPORT_USE_GEMINI` | `true`일 때만 `generate-report`에 Gemini (기본 off) |
+| `AI_PROGRESS_USE_GEMINI` | `true`일 때만 progress-insight에 Gemini (기본 off) |
+| `AI_TROUBLESHOOT_USE_GEMINI` | `true`일 때만 troubleshooting에 Gemini (기본 off) |
+| `AI_DAILY_GEMINI_BUDGET` | 일일 호출 상한 (기본 `120`) |
 
 키 없음: troubleshooting → `draft-db-only` 200 · progress-insight → `heuristic-insight` 200 · meeting-summary → 휴리스틱 폴백
 

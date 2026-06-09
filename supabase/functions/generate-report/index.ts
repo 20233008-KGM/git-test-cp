@@ -22,6 +22,8 @@
 
 // Supabase DB에 접속하는 라이브러리 (인터넷에서 불러옴 — Deno Edge 환경 방식)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { readGeminiApiKey, readGeminiModelId, reportGeminiEnabled } from "../_shared/gemini-env.ts";
+import { tryReserveGeminiCall } from "../_shared/gemini-budget.ts";
 
 /**
  * CORS: 브라우저가 "다른 도메인 API"를 호출할 때 허용 헤더.
@@ -813,11 +815,15 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
     const context = await gatherContext(supabase, userId);
 
-    const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
-    if (geminiKey) {
-      const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
-      const report = await callGemini(geminiKey, modelId, locale, context);
-      return jsonResponse(report);
+    const geminiKey = readGeminiApiKey();
+    if (geminiKey && reportGeminiEnabled()) {
+      const budget = await tryReserveGeminiCall(supabase);
+      if (budget.allowed) {
+        const modelId = readGeminiModelId(DEFAULT_GEMINI_MODEL);
+        const report = await callGemini(geminiKey, modelId, locale, context);
+        return jsonResponse(report);
+      }
+      console.warn("[generate-report] Gemini skipped:", budget.reason ?? "budget");
     }
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY")?.trim();

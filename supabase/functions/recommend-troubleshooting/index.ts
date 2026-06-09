@@ -1,11 +1,19 @@
 /**
  * recommend-troubleshooting — 팀 상세 트러블슈팅 AI 추천
  *
- * Secret: GEMINI_API_KEY (generate-report와 동일)
+ * Secret: GEMINI_API_KEY · MEETING_SUMMARY_USE_GEMINI (회의록) · 선택 GEMINI_MODEL
  * 배포: supabase functions deploy recommend-troubleshooting
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  meetingSummaryGeminiEnabled,
+  progressInsightGeminiEnabled,
+  readGeminiApiKey,
+  readGeminiModelId,
+  troubleshootGeminiEnabled,
+} from "../_shared/gemini-env.ts";
+import { tryReserveGeminiCall } from "../_shared/gemini-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1934,11 +1942,6 @@ async function callGeminiMeetingSummary(
   return trimmed;
 }
 
-function meetingSummaryGeminiEnabled(): boolean {
-  const flag = Deno.env.get("MEETING_SUMMARY_USE_GEMINI")?.trim().toLowerCase();
-  return flag === "true" || flag === "1" || flag === "yes";
-}
-
 function isGeminiQuotaOrRateLimitError(status: number, errText: string): boolean {
   if (status === 429 || status === 402) return true;
   const lower = errText.toLowerCase();
@@ -2003,8 +2006,8 @@ async function summarizeMeetingDeliverable(
     }
   }
 
-  const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
-  const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
+  const geminiKey = readGeminiApiKey();
+  const modelId = readGeminiModelId(DEFAULT_GEMINI_MODEL);
   const geminiAllowed =
     meetingSummaryGeminiEnabled() &&
     Boolean(geminiKey) &&
@@ -2014,31 +2017,37 @@ async function summarizeMeetingDeliverable(
   let modelUsed = "heuristic";
 
   if (geminiAllowed && geminiKey) {
-    try {
-      summary = await callGeminiMeetingSummary(
-        geminiKey,
-        modelId,
-        locale,
-        fileName,
-        documentText,
-        binaryParts
-      );
-      modelUsed = modelId;
-    } catch (geminiError) {
-      if (documentText.length <= 20) throw geminiError;
-      if (shouldFallbackMeetingSummaryToHeuristic(geminiError)) {
-        console.warn(
-          "[meeting-summary] Gemini quota/rate limit — heuristic fallback",
-          geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
+    const budget = await tryReserveGeminiCall(supabase);
+    if (budget.allowed) {
+      try {
+        summary = await callGeminiMeetingSummary(
+          geminiKey,
+          modelId,
+          locale,
+          fileName,
+          documentText,
+          binaryParts
         );
-      } else {
-        console.warn(
-          "[meeting-summary] Gemini failed — heuristic fallback",
-          geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
-        );
+        modelUsed = modelId;
+      } catch (geminiError) {
+        if (documentText.length <= 20) throw geminiError;
+        if (shouldFallbackMeetingSummaryToHeuristic(geminiError)) {
+          console.warn(
+            "[meeting-summary] Gemini quota/rate limit — heuristic fallback",
+            geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
+          );
+        } else {
+          console.warn(
+            "[meeting-summary] Gemini failed — heuristic fallback",
+            geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
+          );
+        }
+        summary = heuristicMeetingSummary(documentText, fileName);
+        modelUsed = "heuristic";
       }
+    } else {
+      console.warn("[meeting-summary] Gemini skipped:", budget.reason ?? "budget");
       summary = heuristicMeetingSummary(documentText, fileName);
-      modelUsed = "heuristic";
     }
   } else if (documentText.length > 20) {
     summary = heuristicMeetingSummary(documentText, fileName);
@@ -2092,7 +2101,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const intent = body.intent === "progress-insight" ? "progress-insight" : "troubleshooting";
-    const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
+    const geminiKey = readGeminiApiKey();
     if (intent === "progress-insight") {
       const gathered = await gatherTeamContext(supabase, teamId, {
         maxSourceSnippets: MAX_SOURCE_SNIPPETS_PROGRESS,
@@ -2102,25 +2111,29 @@ Deno.serve(async (req: Request) => {
       const { deliverable_rows, memory, processed_deliverable_ids, ...context } = gathered;
       const sourceSignals = analyzeSourceCodeSignals(context.source_snippets);
 
-      if (geminiKey) {
-        const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
-        const rawInsight = await callGeminiProgressInsight(geminiKey, modelId, locale, context);
-        const insight = normalizeProgressInsightForDisplay(rawInsight, sourceSignals);
-        const nextAnalyzed = new Set(memory.analyzed_deliverable_ids);
-        for (const id of processed_deliverable_ids) nextAnalyzed.add(id);
-        for (const row of deliverable_rows) {
-          if ((row.storage_path ?? "").startsWith("link://")) nextAnalyzed.add(row.id);
+      if (geminiKey && progressInsightGeminiEnabled()) {
+        const budget = await tryReserveGeminiCall(supabase);
+        if (budget.allowed) {
+          const modelId = readGeminiModelId(DEFAULT_GEMINI_MODEL);
+          const rawInsight = await callGeminiProgressInsight(geminiKey, modelId, locale, context);
+          const insight = normalizeProgressInsightForDisplay(rawInsight, sourceSignals);
+          const nextAnalyzed = new Set(memory.analyzed_deliverable_ids);
+          for (const id of processed_deliverable_ids) nextAnalyzed.add(id);
+          for (const row of deliverable_rows) {
+            if ((row.storage_path ?? "").startsWith("link://")) nextAnalyzed.add(row.id);
+          }
+          const memoryMarkdown = buildMemoryMarkdown(context.team.name, rawInsight);
+          await saveTeamAiMemory(supabase, teamId, memoryMarkdown, nextAnalyzed, insight.summary);
+          return jsonResponse({
+            ...insight,
+            used_memory: Boolean(memory.memory_markdown),
+            new_deliverables_analyzed: processed_deliverable_ids.length,
+            source_samples_count: countUsableSourceSnippets(context.source_snippets),
+            detected_has_readme: sourceSignals.hasReadme,
+            zip_source_analyzed: hasAnalyzedZipContent(context.source_snippets),
+          });
         }
-        const memoryMarkdown = buildMemoryMarkdown(context.team.name, rawInsight);
-        await saveTeamAiMemory(supabase, teamId, memoryMarkdown, nextAnalyzed, insight.summary);
-        return jsonResponse({
-          ...insight,
-          used_memory: Boolean(memory.memory_markdown),
-          new_deliverables_analyzed: processed_deliverable_ids.length,
-          source_samples_count: countUsableSourceSnippets(context.source_snippets),
-          detected_has_readme: sourceSignals.hasReadme,
-          zip_source_analyzed: hasAnalyzedZipContent(context.source_snippets),
-        });
+        console.warn("[progress-insight] Gemini skipped:", budget.reason ?? "budget");
       }
 
       const rawHeuristic = buildHeuristicProgressInsight(context);
@@ -2153,10 +2166,14 @@ Deno.serve(async (req: Request) => {
       incrementalSourceOnly: true,
       alwaysSampleLatestFileCount: TROUBLESHOOTING_ALWAYS_SAMPLE_LATEST_FILES,
     });
-    if (geminiKey) {
-      const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
-      const recommendation = await callGemini(geminiKey, modelId, locale, gathered);
-      return jsonResponse(recommendation);
+    if (geminiKey && troubleshootGeminiEnabled()) {
+      const budget = await tryReserveGeminiCall(supabase);
+      if (budget.allowed) {
+        const modelId = readGeminiModelId(DEFAULT_GEMINI_MODEL);
+        const recommendation = await callGemini(geminiKey, modelId, locale, gathered);
+        return jsonResponse(recommendation);
+      }
+      console.warn("[troubleshooting] Gemini skipped:", budget.reason ?? "budget");
     }
 
     return jsonResponse(buildDraftRecommendation(gathered));
