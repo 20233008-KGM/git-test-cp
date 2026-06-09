@@ -1,239 +1,153 @@
 ﻿# CampusConnect
 
-웹개발 수업 협업을 위한 올인원 플랫폼
+대학 팀 프로젝트의 **협업 과정**과 **성장 이력**을 남기는 올인원 웹 플랫폼입니다.
 
-> **개발 상태 (2026-05-20):** Alpha → Beta 진입 · 진행률 ~58%  
-> 인간: [`doc/for_human/00_pre_launch_order.md`](doc/for_human/00_pre_launch_order.md) · 리포트 확인: [`37_verify_ai_report.md`](doc/for_human/37_verify_ai_report.md) · AI: [`doc/starter.txt`](doc/starter.txt)
+> **개발 상태 (2026-06-09):** Beta · 진행률 ~88%  
+> **프로덕션:** https://git-test-cp.vercel.app
 
-## 🎯 프로젝트 개요
+## 핵심 기능
 
-CampusConnect는 학생들이 팀 프로젝트를 효율적으로 진행할 수 있도록 돕는 협업 플랫폼입니다.
+CampusConnect는 세 가지 축으로 구성됩니다.
 
-### 주요 기능
+| 축 | 설명 | 주요 화면 |
+|----|------|-----------|
+| **수강생 네트워크** | 같은 수업 학생·교수 프로필 탐색, 기술 태그, 1:1 DM | `/app/courses/:id/students` |
+| **팀플 워크스페이스** | 팀 진행·산출물·트러블슈팅·Q&A·채팅·동료평가·회고 | `/app/courses/:id/teams/:teamId` |
+| **마이페이지** | 종료 팀플 집계, A4 리포트, Gemini AI 자동 채움 | `/app/mypage` |
 
-- 📚 **수강 과목 관리** - 수강 중인 과목 확인 및 상세 정보
-- 👥 **수강자 네트워크** - 팀원 찾기 및 프로필 확인
-- 🎲 **랜덤 팀 생성** - 공정한 팀 구성을 위한 자동 팀 매칭
-- 🚀 **팀 프로젝트** - 진행상황 관리 및 공유
-- 💬 **Q&A 게시판** - 질문하고 답변 공유
-- 📊 **대시보드** - 한눈에 보는 학습 현황
+### 기타 주요 기능
 
-## 🛠 기술 스택
+- 수업 생성·보관·수업 코드 (`CC-XXXX-XXXX`) · 강의 카탈로그 검색·자율 입장
+- 공지 게시판 · 강의자료 · 수업 스테이지 · 강의계획서 검색
+- 교수 팀 평가·제출 현황 · 종료 수업 아카이브 조회
+- 파일·링크·폴더 산출물 (최대 500MB) · Supabase Realtime 채팅
 
-- **Frontend**: React 18.3.1 + TypeScript
-- **Routing**: React Router 7
-- **Styling**: Tailwind CSS 4
-- **Build Tool**: Vite 6
-- **UI Components**: Radix UI, Shadcn UI
-- **Icons**: Lucide React
-- **State Management**: React Hooks (향후 확장 가능)
+## 기술 스택
 
-## 📂 프로젝트 구조
+| 레이어 | 기술 |
+|--------|------|
+| Frontend | React 18 · TypeScript · Vite 6 · Tailwind CSS 4 · React Router 7 |
+| UI | Radix UI · Lucide · MUI (일부) |
+| Auth | Firebase Authentication |
+| Backend | Supabase (PostgreSQL · PostgREST · Storage · Realtime) |
+| AI | Supabase Edge Functions + Google Gemini (`generate-report`, `recommend-troubleshooting`, `extract-syllabus`) |
+| Test | Playwright E2E · GitHub Actions CI |
+| Deploy | Vercel (SPA) |
 
-```
-src/
-├── app/
-│   ├── App.tsx                 # 메인 앱 (RouterProvider)
-│   ├── routes.tsx              # 라우팅 설정
-│   │
-│   ├── components/             # 재사용 가능한 컴포넌트
-│   │   ├── Navigation.tsx      # 네비게이션 바
-│   │   ├── ui/                 # UI 컴포넌트 라이브러리
-│   │   └── figma/              # Figma 관련 컴포넌트
-│   │
-│   ├── layouts/                # 레이아웃 컴포넌트
-│   │   └── MainLayout.tsx      # 메인 레이아웃
-│   │
-│   ├── pages/                  # 페이지 컴포넌트
-│   │   ├── LandingPage.tsx
-│   │   ├── CoursesPage.tsx
-│   │   ├── CourseDetailPage.tsx
-│   │   ├── StudentProfilePage.tsx
-│   │   ├── ProjectsPage.tsx
-│   │   ├── QnAPage.tsx
-│   │   └── ...
-│   │
-│   ├── types/                  # TypeScript 타입 정의
-│   │   └── index.ts
-│   │
-│   ├── hooks/                  # 커스텀 Hooks
-│   │   └── useAuth.ts
-│   │
-│   └── api/                    # API 및 데이터
-│       └── supabase-api.ts        # Supabase API facade
-│
-├── imports/                    # Figma 가져온 컴포넌트
-└── styles/                     # 전역 스타일
+## 시작하기
+
+### 요구 사항
+
+- Node.js 20+
+- [pnpm](https://pnpm.io/) 10+
+
+### 설치 및 실행
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-## 🚀 시작하기
+브라우저: http://localhost:5173
 
-### 설치
+### 환경 변수
 
-프로젝트는 이미 설정되어 있으며, Vite 개발 서버가 실행 중입니다.
+프로젝트 루트에 `.env` 파일을 만들고 아래 값을 설정합니다. (값은 Firebase·Supabase 콘솔에서 확인)
 
-### 개발 모드
+```env
+# Firebase
+VITE_FIREBASE_API_KEY=
+VITE_FIREBASE_AUTH_DOMAIN=
+VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_STORAGE_BUCKET=
+VITE_FIREBASE_MESSAGING_SENDER_ID=
+VITE_FIREBASE_APP_ID=
 
-개발 서버는 자동으로 실행됩니다. 코드 변경 시 자동으로 새로고침됩니다.
+# Supabase
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
 
-## 📱 주요 페이지
-
-### 1. 랜딩 페이지 (`/`)
-- 로그인 폼
-- 서비스 소개
-- Footer
-
-### 2. 수강 과목 (`/app/courses`)
-- 수강 중인 과목 목록
-- 과목 카드 (이름, 교수, 시간, 인원)
-
-### 3. 과목 상세 (`/app/courses/:id`)
-- 과목 정보
-- 수강생 목록
-- 팀 목록
-
-### 4. 프로필 (`/app/profile`)
-- 내 프로필 정보
-- 기술 스택
-- 자기소개
-
-### 5. 팀 목록 (`/app/teams`) ⭐ 신규
-- 1조~5조 팀 카드 그리드 (5열)
-- 팀별 배지, 팀원, 진행률 표시
-- 팀 상세 모달 (프로젝트 제목, 입장하기, 체크리스트, 통계)
-- 통계 모달 (주차별 커밋/파일/라인 수)
-- 주목받는 프로젝트 모달
-- 공지사항 섹션
-
-### 6. 팀 상세 (`/app/teams/:id`) ⭐ 신규
-- 파일 트리 및 코드 실행
-- 프로젝트 미리보기
-- 주차별 진행률 차트
-- 팀원 목록 및 기여도
-- 채팅 모달 (팀원/교수님 채팅방)
-- 평가 모달 (개별 팀원 평가)
-
-### 7. 프로젝트 (`/app/projects`)
-- 진행 중인 프로젝트 목록
-- 프로젝트 상태 (계획 중, 진행 중, 검토 중, 완료)
-
-### 8. Q&A (`/app/qna`)
-- 질문 목록
-- 검색 기능
-- 태그 필터
-
-### 9. 랜덤 팀 생성 (`/app/teams/random`)
-- 팀 크기 설정
-- 랜덤 팀 생성
-- 생성된 팀 목록
-
-## 🔧 확장 가이드
-
-### 새로운 페이지 추가
-
-1. **페이지 컴포넌트 생성**
-```tsx
-// src/app/pages/NewPage.tsx
-export default function NewPage() {
-  return <div>새 페이지 내용</div>;
-}
+# E2E (선택 — 로컬 Playwright)
+E2E_TEST_EMAIL=
+E2E_TEST_PASSWORD=
 ```
 
-2. **라우트 등록**
-```tsx
-// src/app/routes.tsx
-import NewPage from "./pages/NewPage";
+상세: [`doc/for_human/34_github_ci_secrets.md`](doc/for_human/34_github_ci_secrets.md)
 
-// children 배열에 추가
-{
-  path: "new-page",
-  Component: NewPage,
-}
+## 프로젝트 구조
+
+```
+git-test/
+├── src/app/
+│   ├── api/              # supabase-api.ts, ai-report.ts
+│   ├── components/       # Navigation, UI, 모달
+│   ├── contexts/         # AuthContext
+│   ├── layouts/          # MainLayout, appShell
+│   ├── pages/            # 35+ 페이지 컴포넌트
+│   ├── routes.tsx        # 라우팅
+│   └── types/            # TypeScript 타입
+├── supabase/
+│   ├── migrations/       # DB 스키마·RLS
+│   ├── functions/        # Edge Functions (AI)
+│   └── seed/             # 테스트·아카이브 시드
+├── tests/e2e/            # Playwright 테스트
+├── scripts/              # 검증·시드·import 유틸
+└── doc/
+    ├── for_human/        # 사람용 문서 (00~38)
+    └── for_agent/        # AI·개발자용 문서
 ```
 
-3. **네비게이션 추가 (선택)**
-```tsx
-// src/app/components/Navigation.tsx
-const navItems: NavItem[] = [
-  // ...
-  { label: "새 페이지", path: "/app/new-page" },
-];
+## 주요 라우트
+
+| 경로 | 설명 |
+|------|------|
+| `/` | 랜딩·로그인 |
+| `/signin` | 회원가입 |
+| `/app/courses` | 수업 목록 (현재/종료) |
+| `/app/courses/:id` | 수업 상세 |
+| `/app/courses/:id/students` | 수강자 네트워크 |
+| `/app/courses/:id/teams` | 팀 목록 |
+| `/app/courses/:id/teams/:teamId` | 팀 워크스페이스 |
+| `/app/courses/:id/announcements` | 공지 게시판 |
+| `/app/courses/:id/messages` | 1:1 DM |
+| `/app/mypage` | 마이페이지 (리포트) |
+| `/app/mypage/profile` | 내 정보 수정 |
+| `/app/mypage/archived-courses` | 과거 수업 |
+| `/app/syllabi` | 강의계획서 검색 |
+| `/app/profile/professor` | 교수 프로필 |
+
+## 자주 쓰는 스크립트
+
+```bash
+pnpm dev                    # 개발 서버
+pnpm build                  # 프로덕션 빌드
+pnpm test:e2e               # Playwright 전체
+pnpm test:e2e:smoke         # 핵심 회귀 (자격증명 자동 분기)
+pnpm prelaunch:check        # 런칭 전 점검
+pnpm verify:archived-kim    # 종료 수업 시드 검증
+pnpm import:catalog         # 강의 카탈로그 import
 ```
 
-### 새로운 API 엔드포인트 추가
+## 문서
 
-```tsx
-// src/app/api/supabase-api.ts
-export const api = {
-  // 기존 API...
-  newResource: {
-    getAll: () => Promise.resolve([...]),
-    getById: (id: string) => Promise.resolve(...),
-  },
-};
-```
+| 목적 | 문서 |
+|------|------|
+| 처음 읽기 | [`doc/for_human/00_start_here.md`](doc/for_human/00_start_here.md) |
+| **프로젝트 현황** | [`doc/for_human/01_project_status.md`](doc/for_human/01_project_status.md) |
+| 서비스 소개 | [`doc/for_human/04_project_intro.md`](doc/for_human/04_project_intro.md) |
+| AI 기능 설명 | [`doc/for_human/11_ai_system_explained.md`](doc/for_human/11_ai_system_explained.md) |
+| 인간 할 일 | [`doc/for_human/28_human_action_items.md`](doc/for_human/28_human_action_items.md) |
+| 런칭 체크 | [`doc/for_human/36_launch_one_pager.md`](doc/for_human/36_launch_one_pager.md) |
+| 개발자 상세 | [`doc/for_agent/02_current_state.md`](doc/for_agent/02_current_state.md) |
 
-### 타입 정의 추가
+AI 세션 시작 시: `doc/starter.txt` 읽기
 
-```tsx
-// src/app/types/index.ts
-export interface NewType {
-  id: string;
-  // ...
-}
-```
+## 현재 상태 요약
 
-## 🎨 스타일링 가이드
+**완료:** Firebase 인증 · Supabase CRUD 대부분 · Gemini AI 리포트 · 프로덕션 배포 · E2E 48 코어 플로우
 
-- **Tailwind CSS** 우선 사용
-- 반응형 디자인 (모바일 퍼스트)
-- 일관된 색상 체계:
-  - Primary: Blue (#155DFC)
-  - Background: Gray-50
-  - Text: Gray-900
+**남은 일:** RLS 강화 승인 (H-001) · GitHub CI 시크릿 (H-004) · 이용약관 확인 (H-006)
 
-## 📝 코딩 규칙
+## 라이선스
 
-1. **컴포넌트**: 함수형 컴포넌트 + TypeScript
-2. **파일명**: PascalCase for components, camelCase for utilities
-3. **Props**: interface로 정의
-4. **State**: useState, useEffect 활용
-5. **타입**: types/index.ts에 중앙 관리
-
-## 🔐 인증
-
-현재는 Mock 인증을 사용합니다. `useAuth` 훅을 통해 관리됩니다.
-
-실제 API 연동 시:
-1. `src/app/hooks/useAuth.ts` 수정
-2. API 엔드포인트 연결
-3. 토큰 관리 구현
-
-## 🌐 향후 계획
-
-### 기능 추가
-- [ ] 실시간 채팅
-- [ ] 알림 시스템
-- [ ] 파일 업로드
-- [ ] 캘린더 통합
-- [ ] 성적 관리
-
-### 기술 개선
-- [ ] 실제 백엔드 API 연동
-- [ ] 상태 관리 라이브러리 (Zustand/Redux)
-- [ ] React Query for data fetching
-- [ ] 테스트 추가 (Jest, React Testing Library)
-- [ ] CI/CD 파이프라인
-
-## 📄 라이선스
-
-본 서비스는 교육 목적으로 제작된 프로젝트입니다.
-
-## 👥 기여자
-
-- 개발: [팀명/개발자명]
-- 디자인: Figma
-
----
-
-**CampusConnect** - 학생들의 협업을 더 쉽게 🚀
+교육 목적으로 제작된 프로젝트입니다.
