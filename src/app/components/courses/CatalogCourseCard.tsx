@@ -1,14 +1,20 @@
 import React from "react";
-import { BookOpen, Clock, LogIn, MapPin, User } from "lucide-react";
+import { BookOpen, Clock, GraduationCap, LogIn, MapPin, User } from "lucide-react";
 import type { CourseCatalogEntry } from "../../types";
 
 type Props = {
   entry: CourseCatalogEntry;
   joining: boolean;
+  isMyInstructorCourse?: boolean;
   onJoin: (entry: CourseCatalogEntry) => void;
 };
 
-export default function CatalogCourseCard({ entry, joining, onJoin }: Props) {
+export default function CatalogCourseCard({
+  entry,
+  joining,
+  isMyInstructorCourse = false,
+  onJoin,
+}: Props) {
   const departmentLabel = [
     entry.department,
     entry.grade ? `${entry.grade}학년` : null,
@@ -17,10 +23,21 @@ export default function CatalogCourseCard({ entry, joining, onJoin }: Props) {
     .filter(Boolean)
     .join(" · ");
 
+  const hasAssignedProfessor = Boolean(entry.professorId?.trim());
+  const cardClassName = [
+    "cc-course-card cc-catalog-card m3-surface-card--elevated flex h-full flex-col",
+    hasAssignedProfessor ? "cc-course-card--with-professor" : "cc-course-card--no-professor",
+    isMyInstructorCourse ? "cc-course-card--my-instructor" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <article
-      className="cc-course-card cc-catalog-card m3-surface-card--elevated flex h-full flex-col"
+      className={cardClassName}
       data-testid={`catalog-course-${entry.id}`}
+      data-course-has-professor={hasAssignedProfessor ? "true" : "false"}
+      data-course-my-instructor={isMyInstructorCourse ? "true" : "false"}
     >
       <div className="cc-course-card__accent" aria-hidden />
 
@@ -28,9 +45,29 @@ export default function CatalogCourseCard({ entry, joining, onJoin }: Props) {
         <div className="cc-course-card__head">
           <div className="cc-course-card__head-row">
             <span className="cc-course-card__semester">{entry.semester}</span>
-            <span className="cc-badge-success rounded-full px-2.5 py-0.5 text-[11px] font-bold">
-              수강 가능
-            </span>
+            <div className="cc-course-card__badges">
+              {hasAssignedProfessor ? (
+                <span
+                  className={`cc-course-card__professor-badge ${
+                    isMyInstructorCourse ? "cc-course-card__professor-badge--mine" : ""
+                  }`}
+                  data-testid={`catalog-course-professor-badge-${entry.id}`}
+                >
+                  <GraduationCap className="h-3 w-3 shrink-0" aria-hidden />
+                  {isMyInstructorCourse ? "내 담당 수업" : "담당 교수 배정"}
+                </span>
+              ) : (
+                <span
+                  className="cc-course-card__professor-badge cc-course-card__professor-badge--empty"
+                  data-testid={`catalog-course-professor-badge-${entry.id}`}
+                >
+                  교수 미배정
+                </span>
+              )}
+              <span className="cc-badge-success rounded-full px-2.5 py-0.5 text-[11px] font-bold">
+                수강 가능
+              </span>
+            </div>
           </div>
 
           <div className="cc-course-card__title-row">
@@ -60,7 +97,13 @@ export default function CatalogCourseCard({ entry, joining, onJoin }: Props) {
               <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
               교수
             </dt>
-            <dd className="cc-course-card__meta-value text-[var(--cc-text-muted)]">입장 후 배정</dd>
+            <dd
+              className={`cc-course-card__meta-value ${
+                hasAssignedProfessor ? "cc-course-card__meta-value--professor" : ""
+              }`}
+            >
+              {hasAssignedProfessor ? entry.professor || "배정됨" : "미배정"}
+            </dd>
           </div>
           {entry.schedule ? (
             <div className="cc-course-card__meta-item">

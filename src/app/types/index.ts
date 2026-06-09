@@ -89,6 +89,8 @@ export interface CourseCatalogEntry {
   department?: string;
   semester: string;
   professor?: string;
+  /** ai_courses.instructor_user_id — 담당 교수가 수업에 입장한 경우 */
+  professorId?: string;
   schedule?: string;
   room?: string;
   grade?: string;

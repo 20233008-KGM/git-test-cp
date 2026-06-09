@@ -322,14 +322,21 @@ export default function CoursesPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-                {catalog.map((entry) => (
-                  <CatalogCourseCard
-                    key={entry.id}
-                    entry={entry}
-                    joining={catalogJoiningId === entry.id}
-                    onJoin={handleCatalogJoin}
-                  />
-                ))}
+                {catalog.map((entry) => {
+                  const isMyInstructorCourse = Boolean(
+                    isProfessor && user?.id && entry.professorId === user.id
+                  );
+
+                  return (
+                    <CatalogCourseCard
+                      key={entry.id}
+                      entry={entry}
+                      joining={catalogJoiningId === entry.id}
+                      isMyInstructorCourse={isMyInstructorCourse}
+                      onJoin={handleCatalogJoin}
+                    />
+                  );
+                })}
               </div>
             )}
           </section>

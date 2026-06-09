@@ -723,6 +723,86 @@ async function listCatalogFromDb(params?: {
     throw error;
   }
 
+  const catalogIds = (data ?? []).map((row) => row.id as string);
+  const instructorByCatalogId = new Map<string, { professorId: string; professorName: string }>();
+
+  if (catalogIds.length > 0) {
+    const { data: liveCourses, error: liveCoursesError } = await supabase
+      .from("ai_courses")
+      .select("id, catalog_id, instructor_user_id")
+      .in("catalog_id", catalogIds)
+      .eq("status", "active");
+
+    if (liveCoursesError && !isMissingRelationError(liveCoursesError)) {
+      throw liveCoursesError;
+    }
+
+    const liveCourseByCatalogId = new Map<string, { id: string; instructor_user_id: string | null }>();
+    for (const course of liveCourses ?? []) {
+      const catalogId = course.catalog_id as string | null;
+      if (!catalogId) continue;
+      const existing = liveCourseByCatalogId.get(catalogId);
+      const instructorId = course.instructor_user_id as string | null;
+      if (!existing) {
+        liveCourseByCatalogId.set(catalogId, {
+          id: course.id as string,
+          instructor_user_id: instructorId,
+        });
+        continue;
+      }
+      if (!existing.instructor_user_id && instructorId) {
+        liveCourseByCatalogId.set(catalogId, {
+          id: course.id as string,
+          instructor_user_id: instructorId,
+        });
+      }
+    }
+
+    const liveCourseIds = Array.from(liveCourseByCatalogId.values()).map((item) => item.id);
+    if (liveCourseIds.length > 0) {
+      const [professors, membershipsResult] = await Promise.all([
+        getProfessorsFromDb(),
+        supabase
+          .from("ai_course_memberships")
+          .select("course_id, user_id")
+          .in("course_id", liveCourseIds),
+      ]);
+
+      if (membershipsResult.error) throw membershipsResult.error;
+
+      const professorIds = new Set(professors.map((professor) => professor.id));
+      const membersByCourse = (membershipsResult.data ?? []).reduce<Record<string, Set<string>>>(
+        (result, membership) => {
+          const courseId = membership.course_id as string;
+          const userId = membership.user_id as string;
+          if (!result[courseId]) result[courseId] = new Set();
+          result[courseId].add(userId);
+          return result;
+        },
+        {}
+      );
+
+      for (const [catalogId, liveCourse] of liveCourseByCatalogId) {
+        const instructorId = liveCourse.instructor_user_id;
+        const joinedInstructorId =
+          instructorId &&
+          professorIds.has(instructorId) &&
+          membersByCourse[liveCourse.id]?.has(instructorId)
+            ? instructorId
+            : null;
+        if (!joinedInstructorId) continue;
+
+        const professor = professors.find((item) => item.id === joinedInstructorId);
+        if (!professor?.name) continue;
+
+        instructorByCatalogId.set(catalogId, {
+          professorId: joinedInstructorId,
+          professorName: professor.name,
+        });
+      }
+    }
+  }
+
   const currentUser = await getCurrentAiUser();
   const joinedByCatalogId = new Map<string, string>();
   const joinedCodeSemesterKeys = new Set<string>();
@@ -767,13 +847,16 @@ async function listCatalogFromDb(params?: {
       const liveCourseId = joinedByCatalogId.get(catalogId);
       const isJoined = Boolean(liveCourseId) || joinedCodeSemesterKeys.has(codeSemesterKey);
 
+      const assignedInstructor = instructorByCatalogId.get(catalogId);
+
       return {
         id: catalogId,
         courseName: row.course_name as string,
         courseCode,
         department: (row.department as string | null) ?? undefined,
         semester,
-        professor: (row.professor as string | null) ?? undefined,
+        professor: assignedInstructor?.professorName ?? (row.professor as string | null) ?? undefined,
+        professorId: assignedInstructor?.professorId,
         schedule: (row.schedule as string | null) ?? undefined,
         room: (row.room as string | null) ?? undefined,
         grade: (row.grade as string | null) ?? undefined,
