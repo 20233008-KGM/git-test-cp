@@ -16,6 +16,7 @@ supabase functions deploy recommend-troubleshooting
 |--------|------|------------|
 | (생략) `troubleshooting` | 다음 조사할 문제 제안 | `ai-troubleshooting.ts` |
 | `progress-insight` | 진행 요약·기억 저장 | `ai-team-progress.ts` |
+| `meeting-summary` | 회의록 PDF/문서 1~2문장 요약 | `ai-meeting-minutes.ts` |
 
 ### progress-insight
 
@@ -30,10 +31,13 @@ supabase functions deploy recommend-troubleshooting
 
 | Name | 설명 |
 |------|------|
-| `GEMINI_API_KEY` | Google AI API 키 |
+| `GEMINI_API_KEY` | Google AI Studio API 키 (결제 미연결 권장) |
 | `GEMINI_MODEL` | 선택, 기본 `gemini-2.5-flash` |
+| `MEETING_SUMMARY_USE_GEMINI` | `true`일 때만 회의록 요약에 Gemini 사용 |
 
-키 없음: troubleshooting → `draft-db-only` 200 · progress-insight → `heuristic-insight` 200
+키 없음: troubleshooting → `draft-db-only` 200 · progress-insight → `heuristic-insight` 200 · meeting-summary → 휴리스틱 폴백
+
+회의록: Gemini 한도 초과(429 등) 시 **재시도 없이** 휴리스틱으로 폴백
 
 ## 요청 (troubleshooting)
 

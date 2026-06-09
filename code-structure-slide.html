@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CampusConnect — 코드 구조</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #e8efff;
+      --primary: #3b6fd9;
+      --primary-light: #5b8def;
+      --primary-pale: #d4e0f7;
+      --text: #1a1a2e;
+      --text-muted: #5a6478;
+      --folder: #3b6fd9;
+      --file: #8b9dc3;
+      --code-bg: #1e2433;
+      --code-surface: #252b3b;
+      --shadow: 0 8px 32px rgba(41, 73, 137, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Noto Sans KR", system-ui, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .slide-content {
+      width: 1280px;
+      height: 620px;
+      display: grid;
+      grid-template-columns: 1fr 1.05fr;
+      gap: 40px;
+      padding: 8px 12px;
+    }
+
+    /* ── Infographic ── */
+    .infographic {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 0.02em;
+    }
+
+    .section-label::before {
+      content: "";
+      width: 4px;
+      height: 16px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    .tree-card {
+      flex: 1;
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 32px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(59, 111, 217, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .tree-root {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--primary-pale);
+    }
+
+    .tree-root .icon { color: var(--primary); }
+    .tree-root .name {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .tree-branch {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      position: relative;
+    }
+
+    .tree-lines {
+      width: 28px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .tree-lines .vline {
+      width: 2px;
+      flex: 1;
+      background: var(--primary-pale);
+      min-height: 8px;
+    }
+
+    .tree-lines .hline {
+      width: 14px;
+      height: 2px;
+      background: var(--primary-pale);
+      align-self: flex-end;
+    }
+
+    .tree-lines .corner {
+      width: 14px;
+      height: 14px;
+      border-left: 2px solid var(--primary-pale);
+      border-bottom: 2px solid var(--primary-pale);
+      border-radius: 0 0 0 4px;
+      margin-left: 14px;
+    }
+
+    .tree-node {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .tree-node:hover { background: rgba(59, 111, 217, 0.06); }
+
+    .tree-node .icon { flex-shrink: 0; }
+    .tree-node .label {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .tree-node .desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .tree-node.folder .icon { color: var(--folder); }
+    .tree-node.file .icon { color: var(--file); }
+
+    .tree-children {
+      margin-left: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      border-left: 2px solid var(--primary-pale);
+      padding-left: 0;
+    }
+
+    .layer-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 20px;
+      background: var(--primary-pale);
+      color: var(--primary);
+    }
+
+    /* ── Code capture ── */
+    .code-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .code-window {
+      flex: 1;
+      background: var(--code-bg);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow), 0 2px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .code-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      background: var(--code-surface);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot.red { background: #ff5f57; }
+    .dot.yellow { background: #febc2e; }
+    .dot.green { background: #28c840; }
+
+    .code-filename {
+      margin-left: 8px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    .code-body {
+      padding: 20px 24px;
+      overflow: auto;
+      flex: 1;
+    }
+
+    .code-body pre {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #c8d0e0;
+      tab-size: 2;
+    }
+
+    .kw { color: #c792ea; }
+    .fn { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .cm { color: #546e7a; font-style: italic; }
+    .ty { color: #ffcb6b; }
+    .op { color: #89ddff; }
+    .num { color: #f78c6c; }
+    .prop { color: #f07178; }
+
+    .stack-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stack-chip {
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-muted);
+      border: 1px solid rgba(59, 111, 217, 0.12);
+      box-shadow: 0 2px 8px rgba(59, 111, 217, 0.06);
+    }
+
+    .stack-chip strong { color: var(--primary); font-weight: 600; }
+
+    /* SVG icons */
+  </style>
+</head>
+<body>
+  <div class="slide-content">
+    <!-- Left: Folder tree infographic -->
+    <div class="infographic">
+      <div class="section-label">프로젝트 디렉터리 구조</div>
+      <div class="tree-card">
+        <div class="tree-root">
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          <span class="name">git-test/</span>
+        </div>
+
+        <div class="tree-node folder">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          <span class="label">src/app/</span>
+          <span class="desc">React 프론트엔드</span>
+        </div>
+        <div class="tree-children">
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">pages/</span><span class="desc">35+ 화면</span></div>
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">api/</span><span class="desc">Supabase API</span></div>
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">components/</span><span class="desc">UI·레이아웃</span></div>
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">routes.tsx</span><span class="desc">라우팅</span></div>
+        </div>
+
+        <div class="tree-node folder" style="margin-top:10px">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          <span class="label">supabase/</span>
+          <span class="desc">백엔드·DB</span>
+        </div>
+        <div class="tree-children">
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">migrations/</span><span class="desc">스키마·RLS</span></div>
+          <div class="tree-node file"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg><span class="label">functions/</span><span class="desc">Gemini AI</span></div>
+        </div>
+
+        <div class="tree-node folder" style="margin-top:10px">
+          <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          <span class="label">tests/e2e/</span>
+          <span class="desc">Playwright</span>
+        </div>
+
+        <div class="layer-badges">
+          <span class="badge">Frontend · React + Vite</span>
+          <span class="badge">Auth · Firebase</span>
+          <span class="badge">Data · Supabase</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Code capture -->
+    <div class="code-section">
+      <div class="section-label">라우팅 진입점 — routes.tsx</div>
+      <div class="code-window">
+        <div class="code-titlebar">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="code-filename">src/app/routes.tsx</span>
+        </div>
+        <div class="code-body">
+<pre><span class="kw">import</span> { createBrowserRouter } <span class="kw">from</span> <span class="str">"react-router"</span>;
+<span class="kw">import</span> MainLayout <span class="kw">from</span> <span class="str">"./layouts/MainLayout"</span>;
+<span class="kw">import</span> ProtectedRoute <span class="kw">from</span> <span class="str">"./components/ProtectedRoute"</span>;
+<span class="kw">import</span> CoursesPage <span class="kw">from</span> <span class="str">"./pages/CoursesPage"</span>;
+<span class="kw">import</span> TeamDetailPage <span class="kw">from</span> <span class="str">"./pages/TeamDetailPage"</span>;
+<span class="kw">import</span> MyPage <span class="kw">from</span> <span class="str">"./pages/MyPage"</span>;
+<span class="cm">// ... 35+ 페이지 컴포넌트</span>
+
+<span class="kw">export const</span> <span class="fn">router</span> <span class="op">=</span> <span class="fn">createBrowserRouter</span>([
+  { <span class="prop">path</span>: <span class="str">"/"</span>, <span class="prop">Component</span>: LandingPage },
+  { <span class="prop">path</span>: <span class="str">"/signin"</span>, <span class="prop">Component</span>: SignInPage },
+  {
+    <span class="prop">path</span>: <span class="str">"/app"</span>,
+    <span class="prop">Component</span>: ProtectedRoute,
+    <span class="prop">children</span>: [
+      { <span class="prop">Component</span>: MainLayout, <span class="prop">children</span>: [
+        { <span class="prop">path</span>: <span class="str">"courses"</span>, <span class="prop">Component</span>: CoursesPage },
+        { <span class="prop">path</span>: <span class="str">"courses/:id/teams/:teamId"</span>,
+          <span class="prop">Component</span>: TeamDetailPage },
+        { <span class="prop">path</span>: <span class="str">"mypage"</span>, <span class="prop">Component</span>: MyPage },
+        <span class="cm">// 수강자 네트워크 · 공지 · DM · 강의계획서 …</span>
+      ]},
+    ],
+  },
+]);</pre>
+        </div>
+      </div>
+      <div class="stack-row">
+        <span class="stack-chip"><strong>React 18</strong> + TypeScript</span>
+        <span class="stack-chip"><strong>Vite 6</strong> 빌드</span>
+        <span class="stack-chip"><strong>Tailwind 4</strong> 스타일</span>
+        <span class="stack-chip"><strong>React Router 7</strong></span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

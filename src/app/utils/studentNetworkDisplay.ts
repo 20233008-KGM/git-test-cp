@@ -8,6 +8,49 @@ export const NETWORK_BIO_PLACEHOLDER =
 export const NETWORK_BIO_PLACEHOLDER_OTHER = "아직 자기소개가 없습니다";
 export const NETWORK_TAGS_EMPTY_LABEL = "관심 태그 없음";
 
+export type ParsedPortfolioFile = {
+  fileName: string;
+  publicUrl?: string;
+};
+
+/** `ai_user_learning_profiles.portfolio_file` — JSON 또는 레거시 파일명/URL */
+export function parsePortfolioFile(raw: string | null | undefined): ParsedPortfolioFile {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) return { fileName: "" };
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as { fileName?: string; publicUrl?: string };
+      if (typeof parsed === "object" && parsed !== null && parsed.fileName?.trim()) {
+        return {
+          fileName: parsed.fileName.trim(),
+          publicUrl: parsed.publicUrl?.trim() || undefined,
+        };
+      }
+    } catch {
+      /* fall through to legacy */
+    }
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const segment = trimmed.split("/").pop() || "portfolio";
+    try {
+      return { fileName: decodeURIComponent(segment), publicUrl: trimmed };
+    } catch {
+      return { fileName: segment, publicUrl: trimmed };
+    }
+  }
+
+  return { fileName: trimmed };
+}
+
+export function serializePortfolioFile(fileName: string, publicUrl: string): string {
+  return JSON.stringify({
+    fileName: fileName.trim(),
+    publicUrl: publicUrl.trim(),
+  });
+}
+
 type NetworkProfileMeta = {
   mbti?: string;
   careerInterest?: string;
@@ -96,6 +139,7 @@ export function buildMinimalStudentExtra(
     temperature: 37,
     teamProjectCount: 0,
     portfolioFile: "",
+    portfolioUrl: undefined,
     detailedBio: displayBio(bio, null),
     keywords: [],
     hasLearningProfile: false,
@@ -138,7 +182,9 @@ export function resolveStudentExtra(
       minimal.peerSummary = summary;
     }
     if (student.isSelf && editHints?.portfolioFileName?.trim()) {
-      minimal.portfolioFile = editHints.portfolioFileName.trim();
+      const parsed = parsePortfolioFile(editHints.portfolioFileName);
+      minimal.portfolioFile = parsed.fileName;
+      minimal.portfolioUrl = parsed.publicUrl;
     }
     return minimal;
   }
@@ -150,12 +196,19 @@ export function resolveStudentExtra(
     meta,
     { isSelf: student.isSelf },
   );
-  const portfolioFile =
-    raw.portfolioFile?.trim() ||
-    (student.isSelf ? editHints?.portfolioFileName?.trim() ?? "" : "");
+  const portfolioFromDb = {
+    fileName: raw.portfolioFile?.trim() ?? "",
+    publicUrl: raw.portfolioUrl,
+  };
+  const portfolioFromHints =
+    student.isSelf && editHints?.portfolioFileName?.trim()
+      ? parsePortfolioFile(editHints.portfolioFileName)
+      : null;
+  const portfolioFile = portfolioFromDb.fileName || portfolioFromHints?.fileName || "";
+  const portfolioUrl = portfolioFromDb.publicUrl || portfolioFromHints?.publicUrl;
 
   const hasLearningProfile =
-    Boolean(raw.portfolioFile?.trim()) ||
+    Boolean(portfolioFile) ||
     raw.teamProjectCount > 0 ||
     raw.keywords.length > 0 ||
     (Boolean(raw.detailedBio?.trim()) && !isProfileMetaJson(raw.detailedBio));
@@ -166,6 +219,7 @@ export function resolveStudentExtra(
     temperature: hasLearningProfile ? Number(raw.temperature) || 37 : 37,
     teamProjectCount: raw.teamProjectCount,
     portfolioFile,
+    portfolioUrl,
     detailedBio,
     keywords,
     hasLearningProfile: hasLearningProfile || Boolean(summary && summary.keywords.length > 0),

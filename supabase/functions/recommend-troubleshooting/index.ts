@@ -16,8 +16,15 @@ const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
 type RecommendRequest = {
   teamId?: string;
+  deliverableId?: string;
   locale?: "ko" | "en";
-  intent?: "troubleshooting" | "progress-insight";
+  intent?: "troubleshooting" | "progress-insight" | "meeting-summary";
+};
+
+type MeetingSummaryResponse = {
+  summary: string;
+  generated_at: string;
+  model: string;
 };
 
 type TroubleshootingLogRow = {
@@ -1615,6 +1622,441 @@ async function callGemini(
   };
 }
 
+function meetingSummaryLooksLikeFileName(fileName: string, summary: string): boolean {
+  const normalizedFile = fileName.normalize("NFC").trim();
+  const normalizedSummary = summary.normalize("NFC").trim();
+  if (!normalizedSummary) return true;
+  if (normalizedSummary === normalizedFile) return true;
+  const fileBase = normalizedFile.replace(/\.[^.]+$/, "");
+  if (normalizedSummary === fileBase) return true;
+  return (
+    normalizedSummary.length <= fileBase.length + 4 &&
+    normalizedSummary.replace(/\s/g, "") === fileBase.replace(/\s/g, "")
+  );
+}
+
+async function extractPdfTextFromPublicUrl(publicUrl: string): Promise<string> {
+  if (!publicUrl.trim()) return "";
+  try {
+    const response = await fetch(publicUrl);
+    if (!response.ok) return "";
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const { extractText, getDocumentProxy } = await import("npm:unpdf@0.12.1");
+    const pdf = await getDocumentProxy(bytes);
+    const result = await extractText(pdf, { mergePages: true });
+    const merged = Array.isArray(result.text) ? result.text.join("\n") : String(result.text ?? "");
+    return merged.replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n").trim();
+  } catch (err) {
+    console.warn("[meeting-summary] pdf text extract failed", err);
+    return "";
+  }
+}
+
+function deliverableRowLooksLikePdf(row: DeliverableRow): boolean {
+  const mime = (row.mime_type ? String(row.mime_type) : "").toLowerCase();
+  const path = resolveDeliverableObjectPath(row) ?? "";
+  return mime === "application/pdf" || /\.pdf$/i.test(path) || /\.pdf$/i.test(String(row.file_name ?? ""));
+}
+
+const MEETING_SUBSTANCE_KEYWORDS = [
+  "담당", "역할", "결정", "확정", "진행", "발표", "과제", "이슈", "해결", "일정",
+  "분담", "합의", "논의", "계획", "마감", "제출", "준비", "완료", "수정", "보완",
+  "피드백", "검토", "자료", "발표자", "팀원", "목표", "방향", "교수", "프로젝트",
+  "과목", "구현", "개발", "발표일", "중간", "최종",
+];
+
+const MEETING_SECTION_HEADER_PATTERNS = [
+  /^교수님의?\s*(질문|피드백)/,
+  /^질문\s*[,·/]\s*답변$/,
+  /^해결해야\s*하는\s*(과제|이슈)?$/,
+  /^역할\s*분담$/,
+  /^회의\s*안건$/,
+  /^참석자$/,
+  /^일시$/,
+  /^장소$/,
+  /^다음\s*(회의|액션|일정)$/,
+  /^액션\s*아이템$/,
+  /^논의\s*사항$/,
+  /^진행\s*상황$/,
+];
+
+function isMeetingSectionHeader(segment: string): boolean {
+  const trimmed = segment.normalize("NFC").trim();
+  if (!trimmed) return true;
+  if (trimmed.length <= 16) return true;
+  if (MEETING_SECTION_HEADER_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
+  if (/^(질문|답변|안건|참석|일시|장소|역할|과제|이슈)\s*[,·/]/.test(trimmed) && trimmed.length <= 28) {
+    return true;
+  }
+  return false;
+}
+
+function splitMeetingSegments(text: string): string[] {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split(/(?:•|·|\n+|(?<=\d)\.\s+)/)
+    .map((part) => part.replace(/^\d+\.\s*/, "").trim())
+    .filter((part) => part.length >= 10);
+}
+
+function scoreMeetingSegment(segment: string, fileName: string): number {
+  const trimmed = segment.normalize("NFC").trim();
+  if (!trimmed || isMeetingSectionHeader(trimmed)) return -20;
+  if (meetingSummaryLooksLikeFileName(fileName, trimmed)) return -20;
+
+  let score = Math.min(trimmed.length, 96) / 12;
+  for (const keyword of MEETING_SUBSTANCE_KEYWORDS) {
+    if (trimmed.includes(keyword)) score += 2.5;
+  }
+  if (/[다음하겠했었음니다]$/.test(trimmed)) score += 2;
+  if (trimmed.length >= 28) score += 1.5;
+  if (trimmed.length <= 20) score -= 4;
+  return score;
+}
+
+function truncateMeetingSummary(text: string, maxLen: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen - 1)}…`;
+}
+
+function heuristicMeetingSummaryLooksLowQuality(fileName: string, summary: string): boolean {
+  const normalizedSummary = summary.normalize("NFC").trim();
+  if (!normalizedSummary) return true;
+  if (meetingSummaryLooksLikeFileName(fileName, normalizedSummary)) return true;
+
+  const keywordHits = MEETING_SUBSTANCE_KEYWORDS.filter((keyword) =>
+    normalizedSummary.includes(keyword)
+  ).length;
+  const hasSubstance =
+    keywordHits >= 2 ||
+    (normalizedSummary.length >= 32 && keywordHits >= 1) ||
+    (/[다음하겠했었음니다]$/.test(normalizedSummary) && normalizedSummary.length >= 28);
+  if (!hasSubstance) return true;
+
+  const segments = splitMeetingSegments(normalizedSummary);
+  if (segments.length > 0) {
+    const headerLikeCount = segments.filter((segment) => isMeetingSectionHeader(segment)).length;
+    if (headerLikeCount >= segments.length) return true;
+  }
+  if (MEETING_SECTION_HEADER_PATTERNS.some((pattern) => pattern.test(normalizedSummary))) {
+    return true;
+  }
+  return false;
+}
+
+function heuristicMeetingSummary(text: string, fileName: string): string {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").trim();
+  if (!normalized || normalized.length < 24) {
+    throw new Error("회의록 본문 텍스트가 부족합니다.");
+  }
+  if (meetingSummaryLooksLikeFileName(fileName, normalized)) {
+    throw new Error("회의록 본문이 파일명과 동일합니다.");
+  }
+
+  const segments = splitMeetingSegments(normalized);
+  const ranked = segments
+    .map((segment, index) => ({ segment, index, score: scoreMeetingSegment(segment, fileName) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || b.segment.length - a.segment.length);
+
+  const picked: string[] = [];
+  for (const item of ranked) {
+    if (picked.some((existing) => existing.includes(item.segment) || item.segment.includes(existing))) {
+      continue;
+    }
+    picked.push(item.segment);
+    if (picked.length >= 2) break;
+  }
+
+  if (picked.length > 0) {
+    const combined = picked
+      .map((segment) => segment.replace(/[.!?。]+$/, "").trim())
+      .join(". ");
+    const summary = truncateMeetingSummary(combined, 140);
+    if (!heuristicMeetingSummaryLooksLowQuality(fileName, summary)) return summary;
+  }
+
+  const sentences = normalized
+    .split(/(?<=[.!?。])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length >= 16 && !isMeetingSectionHeader(sentence));
+
+  const rankedSentences = sentences
+    .map((sentence) => ({ sentence, score: scoreMeetingSegment(sentence, fileName) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (rankedSentences.length >= 2) {
+    const combined = `${rankedSentences[0].sentence} ${rankedSentences[1].sentence}`;
+    const summary = truncateMeetingSummary(combined, 140);
+    if (!heuristicMeetingSummaryLooksLowQuality(fileName, summary)) return summary;
+  }
+  if (rankedSentences.length === 1) {
+    const summary = truncateMeetingSummary(rankedSentences[0].sentence, 140);
+    if (!heuristicMeetingSummaryLooksLowQuality(fileName, summary)) return summary;
+  }
+
+  const fallback = truncateMeetingSummary(normalized, 140);
+  if (heuristicMeetingSummaryLooksLowQuality(fileName, fallback)) {
+    throw new Error("회의록 요약 품질이 충분하지 않습니다.");
+  }
+  return fallback;
+}
+
+async function fetchBinaryPartFromPublicUrl(
+  publicUrl: string,
+  label: string,
+  sourcePath: string,
+  mimeLower: string,
+  expectedSize: number
+): Promise<BinaryPart | null> {
+  if (!publicUrl.trim() || expectedSize > MAX_BINARY_PART_BYTES) return null;
+  try {
+    const response = await fetch(publicUrl);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    if (buffer.byteLength <= 0 || buffer.byteLength > MAX_BINARY_PART_BYTES) return null;
+    const mime = /\.pdf$/i.test(sourcePath) ? "application/pdf"
+      : /\.png$/i.test(sourcePath) ? "image/png"
+      : /\.jpe?g$/i.test(sourcePath) ? "image/jpeg"
+      : /\.webp$/i.test(sourcePath) ? "image/webp"
+      : /\.gif$/i.test(sourcePath) ? "image/gif"
+      : mimeLower.startsWith("image/") ? mimeLower
+      : "application/pdf";
+    return {
+      file_name: label,
+      mime_type: mime,
+      base64: arrayBufferToBase64(buffer),
+      size: buffer.byteLength,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function loadMeetingBinaryParts(
+  supabase: ReturnType<typeof createClient>,
+  row: DeliverableRow
+): Promise<BinaryPart[]> {
+  const path = resolveDeliverableObjectPath(row);
+  if (!path || path.startsWith("link://")) return [];
+
+  const name = String(row.file_name ?? "document");
+  const mime = row.mime_type ? String(row.mime_type) : "";
+  const mimeLower = mime.toLowerCase();
+  const innerPath = storageInnerRelativePath(path);
+  const sourcePath = innerPath ?? path;
+  const label = innerPath ? `${name}::${innerPath}` : name;
+  const size = Number(row.file_size ?? 0);
+  if (size <= 0 || size > MAX_BINARY_PART_BYTES) return [];
+
+  const isPdf =
+    /\.pdf$/i.test(sourcePath) ||
+    /\.pdf$/i.test(path) ||
+    mimeLower === "application/pdf";
+  const isImage =
+    BINARY_EXTS.test(sourcePath) ||
+    /^image\//.test(mimeLower);
+
+  if (!isPdf && !isImage) return [];
+
+  let part = await collectBinaryPart(supabase, path, label, size, sourcePath, mimeLower);
+  if (!part && row.public_url) {
+    part = await fetchBinaryPartFromPublicUrl(
+      String(row.public_url),
+      label,
+      sourcePath,
+      mimeLower,
+      size
+    );
+  }
+  return part ? [part] : [];
+}
+
+async function callGeminiMeetingSummary(
+  apiKey: string,
+  modelId: string,
+  locale: "ko" | "en",
+  fileName: string,
+  text: string,
+  binaryParts: BinaryPart[]
+): Promise<string> {
+  const systemPrompt =
+    locale === "en"
+      ? "Read the attached meeting minutes document. Summarize decisions, tasks, and issues in 1-2 short sentences (max 140 characters). Never repeat or echo the file name. Output plain text only."
+      : "첨부된 회의록 문서를 읽고, 결정 사항·역할 분담·이슈 등 핵심만 한국어 1~2문장(140자 이내)으로 요약하세요. 파일명을 그대로 반복하지 마세요. JSON 없이 요약문만 출력하세요.";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelId)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const contextText =
+    text.trim().length > 20
+      ? truncateText(text, 6000)
+      : binaryParts.length > 0
+        ? "첨부 문서 본문을 읽고 회의 핵심을 요약하세요."
+        : "";
+  if (!contextText && binaryParts.length === 0) {
+    throw new Error("회의록 문서를 읽을 수 없습니다.");
+  }
+  const userParts: object[] = [
+    { text: `참고 파일명: ${fileName}\n\n${contextText}` },
+    ...buildGeminiInlineParts(binaryParts),
+  ];
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: userParts }],
+      generationConfig: { temperature: 0.3 },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    if (isGeminiQuotaOrRateLimitError(response.status, errText)) {
+      throw new Error(`GEMINI_QUOTA:${response.status}:${errText.slice(0, 120)}`);
+    }
+    throw new Error(`Gemini API error (${response.status}): ${errText.slice(0, 200)}`);
+  }
+
+  const completion = await response.json();
+  const content = completion?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content || typeof content !== "string") {
+    throw new Error("Gemini 회의록 요약 응답이 비어 있습니다.");
+  }
+
+  const summary = content.replace(/\s+/g, " ").trim();
+  if (!summary) throw new Error("Gemini 회의록 요약이 비어 있습니다.");
+  const trimmed = truncateText(summary, 140);
+  if (meetingSummaryLooksLikeFileName(fileName, trimmed)) {
+    throw new Error("Gemini 회의록 요약이 파일명과 동일합니다.");
+  }
+  return trimmed;
+}
+
+function meetingSummaryGeminiEnabled(): boolean {
+  const flag = Deno.env.get("MEETING_SUMMARY_USE_GEMINI")?.trim().toLowerCase();
+  return flag === "true" || flag === "1" || flag === "yes";
+}
+
+function isGeminiQuotaOrRateLimitError(status: number, errText: string): boolean {
+  if (status === 429 || status === 402) return true;
+  const lower = errText.toLowerCase();
+  return (
+    lower.includes("quota") ||
+    lower.includes("rate limit") ||
+    lower.includes("resource exhausted") ||
+    lower.includes("billing")
+  );
+}
+
+function shouldFallbackMeetingSummaryToHeuristic(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.startsWith("GEMINI_QUOTA:")) return true;
+  return isGeminiQuotaOrRateLimitError(0, message);
+}
+
+async function summarizeMeetingDeliverable(
+  supabase: ReturnType<typeof createClient>,
+  deliverableId: string,
+  locale: "ko" | "en"
+): Promise<MeetingSummaryResponse> {
+  const { data: row, error } = await supabase
+    .from("ai_team_deliverables")
+    .select(
+      "id, file_name, subtitle, description, mime_type, storage_path, file_size, public_url, created_at"
+    )
+    .eq("id", deliverableId)
+    .maybeSingle();
+
+  if (error || !row) {
+    throw new Error("회의록 파일을 찾을 수 없습니다.");
+  }
+
+  const fileName = String(row.file_name ?? "").trim();
+  const subtitle = row.subtitle ? String(row.subtitle) : null;
+  const description = row.description ? String(row.description) : null;
+  const marker = "회의록".normalize("NFC");
+  const haystack = [fileName, subtitle, description]
+    .map((part) => (part ? part.normalize("NFC") : ""))
+    .filter(Boolean)
+    .join(" ");
+  if (!haystack.includes(marker)) {
+    throw new Error("회의록 파일이 아닙니다.");
+  }
+
+  const deliverableRow = row as DeliverableRow;
+  const { snippets, binaryParts: sampledBinaryParts } = await sampleDeliverableSourceSnippets(
+    supabase,
+    [deliverableRow],
+    4
+  );
+  let documentText = snippets.map((snippet) => snippet.excerpt).join("\n\n").trim();
+  let binaryParts = sampledBinaryParts;
+  if (binaryParts.length === 0) {
+    binaryParts = await loadMeetingBinaryParts(supabase, deliverableRow);
+  }
+  if (documentText.length < 20 && deliverableRowLooksLikePdf(deliverableRow) && row.public_url) {
+    const pdfText = await extractPdfTextFromPublicUrl(String(row.public_url));
+    if (pdfText.length > documentText.length) {
+      documentText = pdfText;
+    }
+  }
+
+  const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
+  const modelId = Deno.env.get("GEMINI_MODEL")?.trim() || DEFAULT_GEMINI_MODEL;
+  const geminiAllowed =
+    meetingSummaryGeminiEnabled() &&
+    Boolean(geminiKey) &&
+    (documentText.length > 20 || binaryParts.length > 0);
+
+  let summary: string;
+  let modelUsed = "heuristic";
+
+  if (geminiAllowed && geminiKey) {
+    try {
+      summary = await callGeminiMeetingSummary(
+        geminiKey,
+        modelId,
+        locale,
+        fileName,
+        documentText,
+        binaryParts
+      );
+      modelUsed = modelId;
+    } catch (geminiError) {
+      if (documentText.length <= 20) throw geminiError;
+      if (shouldFallbackMeetingSummaryToHeuristic(geminiError)) {
+        console.warn(
+          "[meeting-summary] Gemini quota/rate limit — heuristic fallback",
+          geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
+        );
+      } else {
+        console.warn(
+          "[meeting-summary] Gemini failed — heuristic fallback",
+          geminiError instanceof Error ? geminiError.message.slice(0, 120) : geminiError
+        );
+      }
+      summary = heuristicMeetingSummary(documentText, fileName);
+      modelUsed = "heuristic";
+    }
+  } else if (documentText.length > 20) {
+    summary = heuristicMeetingSummary(documentText, fileName);
+  } else {
+    throw new Error("회의록 문서를 읽을 수 없습니다.");
+  }
+
+  if (meetingSummaryLooksLikeFileName(fileName, summary)) {
+    throw new Error("회의록 요약 결과가 파일명과 동일합니다.");
+  }
+
+  return {
+    summary,
+    generated_at: new Date().toISOString(),
+    model: modelUsed,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -1632,15 +2074,24 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = (await req.json()) as RecommendRequest;
+    const locale = body.locale === "en" ? "en" : "ko";
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    if (body.intent === "meeting-summary") {
+      const deliverableId = body.deliverableId?.trim();
+      if (!deliverableId) {
+        return jsonResponse({ error: "deliverableId is required" }, 400);
+      }
+      const result = await summarizeMeetingDeliverable(supabase, deliverableId, locale);
+      return jsonResponse(result);
+    }
+
     const teamId = body.teamId?.trim();
     if (!teamId) {
       return jsonResponse({ error: "teamId is required" }, 400);
     }
 
-    const locale = body.locale === "en" ? "en" : "ko";
     const intent = body.intent === "progress-insight" ? "progress-insight" : "troubleshooting";
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-
     const geminiKey = Deno.env.get("GEMINI_API_KEY")?.trim();
     if (intent === "progress-insight") {
       const gathered = await gatherTeamContext(supabase, teamId, {

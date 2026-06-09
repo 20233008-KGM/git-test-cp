@@ -2,6 +2,13 @@ import { auth } from "../firebase";
 import { supabase } from "../supabase";
 import type { MyPageProject } from "../types";
 import { aggregatePositivePeerKeywords } from "../utils/peerEvaluationSummary";
+import { persistMeetingSummaryForDeliverable } from "./ai-meeting-minutes";
+import {
+  hasStoredMeetingSummary,
+  isMeetingMinutesDeliverable,
+  normalizeMeetingText,
+  parseMeetingSummariesFromDescription,
+} from "../utils/meetingMinutes";
 import type {
   AiReportContext,
   AiReportGenerateRequest,
@@ -194,7 +201,7 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
       .order("sort_order", { ascending: true }),
     supabase
       .from("ai_team_deliverables")
-      .select("team_id, file_name")
+      .select("id, team_id, file_name, subtitle, description")
       .in("team_id", teamIds),
     supabase
       .from("ai_team_detail_feedbacks")
@@ -312,6 +319,46 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
   const deliverables = (deliverablesResult.data ?? []).filter((row) =>
     includedTeamIds.has(row.team_id)
   );
+  const meetingSummariesByTeam = new Map<string, string[]>();
+  const pendingMeetingFileNamesByTeam = new Map<string, string[]>();
+  const staleMeetingDeliverables: Array<{
+    deliverableId: string;
+    fileName: string;
+    description: string | null;
+  }> = [];
+  for (const row of deliverables) {
+    const teamId = row.team_id as string;
+    const fileName = normalizeMeetingText(String(row.file_name ?? "").trim());
+    const subtitle = (row.subtitle as string | null) ?? null;
+    const description = (row.description as string | null) ?? null;
+    const parsed = parseMeetingSummariesFromDescription(description);
+    if (parsed.length > 0) {
+      const existing = meetingSummariesByTeam.get(teamId) ?? [];
+      meetingSummariesByTeam.set(teamId, [...existing, ...parsed]);
+    }
+    if (
+      fileName &&
+      isMeetingMinutesDeliverable(fileName, subtitle, null, description) &&
+      !hasStoredMeetingSummary(description)
+    ) {
+      const pending = pendingMeetingFileNamesByTeam.get(teamId) ?? [];
+      pendingMeetingFileNamesByTeam.set(teamId, [...pending, fileName]);
+      staleMeetingDeliverables.push({
+        deliverableId: row.id as string,
+        fileName,
+        description,
+      });
+    }
+  }
+  for (const item of staleMeetingDeliverables.slice(0, 8)) {
+    void persistMeetingSummaryForDeliverable({
+      deliverableId: item.deliverableId,
+      fileName: item.fileName,
+      existingDescription: item.description,
+    }).catch((reconcileError) =>
+      console.warn("회의록 요약 보정 실패:", item.deliverableId, reconcileError)
+    );
+  }
   const feedbackRows = (feedbacksResult.error ? [] : (feedbacksResult.data ?? [])).filter((row) =>
     includedTeamIds.has(row.team_id)
   );
@@ -466,6 +513,8 @@ export async function gatherAiReportContext(userId: string): Promise<AiReportCon
         .map((d) => d.file_name)
         .filter((name): name is string => Boolean(name?.trim()))
         .slice(0, 5),
+      meetingSummaries: meetingSummariesByTeam.get(team.id) ?? [],
+      pendingMeetingFileNames: pendingMeetingFileNamesByTeam.get(team.id) ?? [],
       sampleProblems: problems,
       feedbackSubmitted: feedbackTeamIds.has(team.id),
       feedbackSnippet: feedbackSnippetByTeam.get(team.id),
@@ -563,6 +612,10 @@ function buildTeamSectionBody(
 
   if (team.deliverableFileNames.length > 0) {
     lines.push(`산출물: ${team.deliverableFileNames.join(", ")}`);
+  }
+
+  if (team.meetingSummaries.length > 0) {
+    lines.push(`회의: ${team.meetingSummaries.join(" / ")}`);
   }
 
   for (const caseItem of teamCases) {

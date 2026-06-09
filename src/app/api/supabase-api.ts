@@ -71,6 +71,12 @@ import {
 import { uploadFileToStorage } from "../utils/storageResumableUpload";
 import { defaultNewCourseDates } from "../utils/courseDates";
 import { buildPeerEvaluationSummary } from "../utils/peerEvaluationSummary";
+import { parsePortfolioFile, serializePortfolioFile } from "../utils/studentNetworkDisplay";
+import {
+  appendMeetingSummaryLine,
+  isMeetingMinutesDeliverable,
+} from "../utils/meetingMinutes";
+import { persistMeetingSummaryForDeliverable } from "./ai-meeting-minutes";
 
 export { extractDeployLinkFromDescription };
 import {
@@ -1683,10 +1689,13 @@ function mapLearningProfileToStudentExtra(
     ? userBio?.trim() || metaPreview
     : detailedRaw || userBio?.trim() || "";
 
+  const portfolio = parsePortfolioFile(row.portfolio_file);
+
   return {
     temperature: Number(row.temperature) || 37,
     teamProjectCount: row.team_project_count ?? 0,
-    portfolioFile: row.portfolio_file?.trim() ?? "",
+    portfolioFile: portfolio.fileName,
+    portfolioUrl: portfolio.publicUrl,
     detailedBio,
     keywords: asArray<{ text: string; count: number }>(row.keywords),
   };
@@ -1796,8 +1805,88 @@ function buildStudentNetworkEditFormFromUser(
     careerInterest: meta.careerInterest?.trim() ?? "",
     hobbies: meta.hobbies?.trim() ?? "",
     bio: user.bio?.trim() ?? "",
-    portfolioFileName: profile?.portfolio_file?.trim() ?? "",
+    portfolioFileName: parsePortfolioFile(profile?.portfolio_file).fileName,
   };
+}
+
+const STUDENT_PORTFOLIOS_BUCKET = "ai_student_portfolios";
+const STUDENT_PORTFOLIO_MAX_BYTES = 50 * 1024 * 1024;
+const STUDENT_PORTFOLIO_ALLOWED_EXT = new Set(["pdf", "zip", "ppt", "pptx"]);
+
+function formatLearningProfileWriteError(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/row-level security|permission denied|42501|policy/i.test(message)) {
+    return new Error(
+      "포트폴리오 메타데이터 저장 권한이 없습니다. Supabase에 learning_profiles 쓰기 정책 마이그레이션을 적용해 주세요."
+    );
+  }
+  return error instanceof Error ? error : new Error(message);
+}
+
+async function uploadStudentPortfolioInDb(
+  file: File
+): Promise<{ fileName: string; publicUrl: string }> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") throw new Error("학생만 포트폴리오를 업로드할 수 있습니다.");
+
+  const extension = getDeliverableExtension(file.name);
+  if (!extension || !STUDENT_PORTFOLIO_ALLOWED_EXT.has(extension)) {
+    throw new Error("PDF, ZIP, PPT 파일만 업로드할 수 있습니다.");
+  }
+  if (file.size > STUDENT_PORTFOLIO_MAX_BYTES) {
+    throw new Error("파일 크기는 50MB 이하여야 합니다.");
+  }
+
+  const storageFileName = buildDeliverableStorageFileName(file.name, extension);
+  const storagePath = `${currentUser.id}/portfolio_${Date.now()}_${storageFileName}`;
+
+  try {
+    await uploadFileToStorage({
+      bucket: STUDENT_PORTFOLIOS_BUCKET,
+      path: storagePath,
+      file,
+      contentType: file.type || undefined,
+      cacheControl: "3600",
+      upsert: false,
+    });
+  } catch (uploadError) {
+    throw formatDeliverableStorageError(uploadError);
+  }
+
+  const { data: urlData } = supabase.storage.from(STUDENT_PORTFOLIOS_BUCKET).getPublicUrl(storagePath);
+  const serialized = serializePortfolioFile(file.name, urlData.publicUrl);
+  const now = new Date().toISOString();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from("ai_user_learning_profiles")
+    .select("user_id")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (fetchError) throw formatLearningProfileWriteError(fetchError);
+
+  if (existing) {
+    const { error } = await supabase
+      .from("ai_user_learning_profiles")
+      .update({ portfolio_file: serialized, updated_at: now })
+      .eq("user_id", currentUser.id);
+    if (error) throw formatLearningProfileWriteError(error);
+  } else {
+    const { error } = await supabase.from("ai_user_learning_profiles").insert({
+      user_id: currentUser.id,
+      temperature: 50,
+      team_project_count: 0,
+      portfolio_file: serialized,
+      detailed_bio: "",
+      keywords: [],
+      created_at: now,
+      updated_at: now,
+    });
+    if (error) throw formatLearningProfileWriteError(error);
+  }
+
+  return { fileName: file.name, publicUrl: urlData.publicUrl };
 }
 
 async function getStudentNetworkEditFormFromDb(): Promise<StudentNetworkEditForm> {
@@ -4731,6 +4820,15 @@ async function uploadTeamDeliverableInDb(
     description: displayName,
   }).catch((activityError) => console.warn("팀 활동 기록 실패:", activityError));
 
+  if (isMeetingMinutesDeliverable(displayName, subtitle, meta?.title, description)) {
+    void persistMeetingSummaryForDeliverable({
+      deliverableId,
+      fileName: displayName,
+      file,
+      existingDescription: description,
+    }).catch((meetingError) => console.warn("회의록 요약 저장 실패:", meetingError));
+  }
+
   return mapped;
 }
 
@@ -4781,6 +4879,19 @@ async function addTeamDeliverableLinkInDb(
     title: "새 링크 등록!",
     description: title,
   }).catch((activityError) => console.warn("팀 활동 기록 실패:", activityError));
+
+  if (isMeetingMinutesDeliverable(title, subtitle, title, description)) {
+    const summaryText =
+      description?.trim() || subtitle?.trim() || "회의록 링크가 등록되었습니다.";
+    const meetingDescription = appendMeetingSummaryLine(description, title, summaryText);
+    void supabase
+      .from("ai_team_deliverables")
+      .update({ description: meetingDescription, updated_at: new Date().toISOString() })
+      .eq("id", deliverableId)
+      .then(({ error: updateError }) => {
+        if (updateError) console.warn("회의록 링크 요약 저장 실패:", updateError);
+      });
+  }
 
   return mapped;
 }
@@ -6303,6 +6414,7 @@ export const api = {
     getTeamKeywords: getTeamKeywordsFromDb,
     getEditForm: getStudentNetworkEditFormFromDb,
     saveProfile: saveStudentNetworkProfileInDb,
+    uploadPortfolio: uploadStudentPortfolioInDb,
   },
   myPage: {
     getProjects: getMyPageProjectsFromDb,

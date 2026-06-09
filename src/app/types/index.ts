@@ -166,6 +166,8 @@ export interface StudentExtra {
   temperature: number;
   teamProjectCount: number;
   portfolioFile: string;
+  /** Supabase Storage public URL when portfolio was uploaded */
+  portfolioUrl?: string;
   detailedBio: string;
   keywords: { text: string; count: number }[];
 }

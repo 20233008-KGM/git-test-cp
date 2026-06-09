@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Home,
   Megaphone,
+  MessageCircle,
   Star,
   Users,
   UsersRound,
@@ -28,6 +29,8 @@ function courseNavIcon(key: string) {
       return BookOpen;
     case "students":
       return Users;
+    case "messages":
+      return MessageCircle;
     case "teams":
       return UsersRound;
     case "announcements":
@@ -264,6 +267,14 @@ function CourseSideNavigation() {
       active: location.pathname.startsWith(courseId ? `/app/courses/${courseId}/students` : "/app/students"),
       disabled: !courseId,
       testId: "course-detail-side-students",
+    },
+    {
+      key: "messages",
+      label: "챗리스트",
+      path: courseId ? `/app/courses/${courseId}/messages` : "/app/courses",
+      active: Boolean(courseId) && location.pathname === `/app/courses/${courseId}/messages`,
+      disabled: !courseId,
+      testId: "course-detail-side-messages",
     },
     {
       key: "teams",

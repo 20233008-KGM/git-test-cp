@@ -952,6 +952,20 @@ export default function MyPage() {
                             {team.sampleProblems.length > 0 && (
                               <p>주요 이슈: {team.sampleProblems.join(" / ")}</p>
                             )}
+                            {(team.meetingSummaries.length > 0 ||
+                              team.pendingMeetingFileNames.length > 0) && (
+                              <p>
+                                회의:{" "}
+                                <span className="font-bold text-[#1e293b]">
+                                  {[
+                                    ...team.meetingSummaries,
+                                    ...team.pendingMeetingFileNames.map(
+                                      (name) => `${name} - 요약 생성 중…`
+                                    ),
+                                  ].join(" / ")}
+                                </span>
+                              </p>
+                            )}
                             <p className="flex flex-wrap gap-1.5 pt-1">
                               {team.feedbackSubmitted && (
                                 <span className="rounded-full bg-[#ecfdf5] px-2 py-0.5 text-[9px] font-bold text-[#047857]">
@@ -1272,6 +1286,22 @@ export default function MyPage() {
               <p className="text-sm text-[#475569]">
                 주요 이슈: {selectedReportTeam.sampleProblems.join(" / ")}
               </p>
+            )}
+            {(selectedReportTeam.meetingSummaries.length > 0 ||
+              selectedReportTeam.pendingMeetingFileNames.length > 0) && (
+              <div className="rounded-xl border border-[#dbe7ff] bg-[#f8fbff] p-4">
+                <p className="mb-2 text-sm font-bold text-[#101828]">회의</p>
+                <ul className="space-y-1.5 text-sm leading-relaxed text-[#475569]">
+                  {selectedReportTeam.meetingSummaries.map((summary) => (
+                    <li key={summary}>{summary}</li>
+                  ))}
+                  {selectedReportTeam.pendingMeetingFileNames.map((name) => (
+                    <li key={`pending-${name}`} className="text-[#64748b]">
+                      {name} - 요약 생성 중…
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {selectedReportTeam.peerReviewsReceived.length > 0 && (
               <div>

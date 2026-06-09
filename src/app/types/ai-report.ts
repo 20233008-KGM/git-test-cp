@@ -63,6 +63,10 @@ export interface AiReportTeamSnapshot {
   deliverableCount: number;
   /** 팀 산출물 파일명 (A4 팀 섹션용, 최대 5건) */
   deliverableFileNames: string[];
+  /** 회의록 요약 (파일명 - 핵심, 업로드 시 자동 생성) */
+  meetingSummaries: string[];
+  /** 요약 대기 중인 회의록 파일명 */
+  pendingMeetingFileNames: string[];
   sampleProblems: string[];
   /** 팀 피드백 제출 여부 (H-007 테이블) */
   feedbackSubmitted: boolean;

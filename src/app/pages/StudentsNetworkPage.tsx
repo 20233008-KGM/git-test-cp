@@ -574,9 +574,26 @@ function StudentProfileModal({
             <div className="border border-gray-200 rounded-[10px] px-4 py-2.5 flex items-center gap-2">
               <span className="text-gray-400 text-sm">📎</span>
               {extra.portfolioFile ? (
-                <span className="text-[#155dfc] text-sm underline cursor-pointer hover:text-blue-700">
-                  {extra.portfolioFile}
-                </span>
+                extra.portfolioUrl ? (
+                  <a
+                    href={extra.portfolioUrl}
+                    download={extra.portfolioFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="student-profile-portfolio-download"
+                    className="text-[#155dfc] text-sm underline hover:text-blue-700"
+                  >
+                    {extra.portfolioFile}
+                  </a>
+                ) : (
+                  <span
+                    className="text-sm text-[#364153]"
+                    data-testid="student-profile-portfolio-filename"
+                    title="업로드된 파일 링크가 없어 다운로드할 수 없습니다"
+                  >
+                    {extra.portfolioFile}
+                  </span>
+                )
               ) : (
                 <span className="text-sm text-[#9ca3af]">등록된 파일 없음</span>
               )}
@@ -1538,15 +1555,6 @@ export default function StudentsNetworkPage() {
                     <Pencil className="h-3.5 w-3.5" />
                     내 정보 수정
                   </Link>
-                  {courseId && (
-                    <Link
-                      to={`/app/courses/${courseId}/messages`}
-                      className="flex items-center justify-center rounded-lg bg-[#101828] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-gray-900"
-                      data-testid="students-network-chat-list-link"
-                    >
-                      챗리스트
-                    </Link>
-                  )}
                 </div>
               )}
             </div>
@@ -1616,15 +1624,6 @@ export default function StudentsNetworkPage() {
                     <Pencil className="h-3.5 w-3.5" />
                     내 정보 수정
                   </Link>
-                  {courseId && (
-                    <Link
-                      to={`/app/courses/${courseId}/messages`}
-                      className="flex items-center justify-center rounded-lg bg-[#101828] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-gray-900"
-                      data-testid="students-network-professor-chat-list-link"
-                    >
-                      챗리스트
-                    </Link>
-                  )}
                 </div>
               )}
             </div>
