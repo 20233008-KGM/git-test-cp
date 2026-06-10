@@ -24,6 +24,9 @@ const retrospectives = stripLeadingComments(
 const feedbacks = stripLeadingComments(
   fs.readFileSync(path.join(root, "supabase/seed/archived_feedbacks_kim_student.sql"), "utf8")
 );
+const mypageReport = stripLeadingComments(
+  fs.readFileSync(path.join(root, "supabase/seed/archived_mypage_report_kim_student.sql"), "utf8")
+);
 
 const out =
   header +
@@ -34,6 +37,8 @@ const out =
   retrospectives +
   "\n\n-- ========== 피드백 시드 ==========\n\n" +
   feedbacks +
+  "\n\n-- ========== 마이페이지 프로필·AI 컨텍스트 ==========\n\n" +
+  mypageReport +
   "\n";
 
 fs.writeFileSync(path.join(root, "supabase/seed/archived_kim_student_bundle.sql"), out, "utf8");

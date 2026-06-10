@@ -24,9 +24,9 @@ function loadDotEnv(filePath) {
 
 loadDotEnv(envFile);
 
-/** 기본 검증 대상: 수동 사용 계정 김학생2 (구 김학생 시드는 673b60f9-…) */
+/** 기본 검증 대상: 마이페이지 시연 김학생 (673b60f9-…) */
 const KIM_STUDENT_ID =
-  process.env.KIM_STUDENT_VERIFY_ID ?? "c9b6a5ca-110d-40d7-851d-703f077deb81";
+  process.env.KIM_STUDENT_VERIFY_ID ?? "673b60f9-3c6c-4ed4-847a-e24536c472a5";
 const url = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
 const key = process.env.VITE_SUPABASE_ANON_KEY;
 
@@ -221,10 +221,39 @@ try {
     missingTables.length === 0 && allArchivedTeamsHaveEval && teammateDisplayResolvable;
   const reportOk = archivedTeamCount > 0;
 
+  let kimTroubleshootingCount = 0;
+  let campusConnectDeliverableCount = 0;
+  let hasCampusConnectCourse = courseNames.some((n) => n.includes("웹프로그래밍"));
+  if (teamIds.length > 0) {
+    const ts = await tryCount(
+      "ai_team_detail_troubleshooting_logs",
+      `team_id=in.(${teamIds.join(",")})&author_user_id=eq.${KIM_STUDENT_ID}&select=id`
+    );
+    kimTroubleshootingCount = ts.count ?? 0;
+    const ccTeam = teamIds.includes("team-swe-schedule") ? "team-swe-schedule" : null;
+    if (ccTeam) {
+      const dels = await tryCount(
+        "ai_team_deliverables",
+        `team_id=eq.${ccTeam}&select=id`
+      );
+      campusConnectDeliverableCount = dels.count ?? 0;
+    }
+  }
+
+  const demoDataOk =
+    archivedTeamCount >= 3 &&
+    kimTroubleshootingCount >= 5 &&
+    campusConnectDeliverableCount >= 6 &&
+    hasCampusConnectCourse;
+
   const report = {
-    ok: reportOk && evalReady,
+    ok: reportOk && evalReady && demoDataOk,
     reportOk,
     evalReady,
+    demoDataOk,
+    kimTroubleshootingCount,
+    campusConnectDeliverableCount,
+    hasCampusConnectCourse,
     kimStudentId: KIM_STUDENT_ID,
     teamMemberships: teamIds.length,
     archivedTeamsForReport: archivedTeamCount,
@@ -266,8 +295,16 @@ try {
             "김학생 팀: ai_team_members + ai_team_detail_teammates(이름 일치) 확인 — vision #53 트러블슈팅 UI",
           ]
         : []),
+      ...(!demoDataOk
+        ? [
+            "마이페이지 시연 시드: 웹프로그래밍 실습·캠퍼스 커넥트·트러블슈팅 author_user_id·산출물 6건+ 확인",
+          ]
+        : []),
       ...(reportOk
-        ? ["마이페이지 「집계 새로고침」 후 PAGE 02 팀 카드 확인"]
+        ? [
+            "마이페이지 「집계 새로고침」 후 PAGE 02 → 캠퍼스 커넥트 모달 확인",
+            "팀 워크스페이스: 트러블슈팅·산출물 탭 게시물 확인",
+          ]
         : ["archived_kim_student_bundle.sql 로 종료 수업·팀 멤버십 시드"]),
     ],
   };

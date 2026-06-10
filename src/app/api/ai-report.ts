@@ -1031,6 +1031,29 @@ function mapAiProblemsToCases(
   });
 }
 
+/** 김학생 시연용: LLM 없을 때 사전 작성 정성 리포트 병합 */
+function mergeKimStudentDemoReport(
+  context: AiReportContext,
+  report: AiReportGenerateResponse
+): AiReportGenerateResponse {
+  if (!shouldUseKimStudentDemoReport(context.userId, report)) return report;
+  const demo = buildKimStudentDemoReport();
+  return {
+    ...report,
+    summary: demo.summary,
+    technologies: demo.technologies,
+    role_description: demo.role_description,
+    growth_reflection: demo.growth_reflection,
+    problem_discovery_pattern: demo.problem_discovery_pattern,
+    resolution_style: demo.resolution_style,
+    problems_solved: demo.problems_solved,
+    sections: demo.sections,
+    per_project: demo.per_project,
+    generated_at: report.generated_at,
+    model: demo.model,
+  };
+}
+
 function findTeamSectionBody(
   team: AiReportTeamSnapshot,
   sections: AiReportSection[] | undefined
@@ -1058,8 +1081,14 @@ export function buildMyPageReportView(
   context: AiReportContext,
   report?: AiReportGenerateResponse | null
 ): MyPageReportView {
-  const effective = report ?? buildDraftReportFromContext(context);
-  const usesLlm = Boolean(report?.model && report.model !== "draft-db-only");
+  const draft = buildDraftReportFromContext(context);
+  const effective = mergeKimStudentDemoReport(
+    context,
+    report ?? draft
+  );
+  const usesLlm = Boolean(
+    report?.model && report.model !== "draft-db-only" && report.model !== "demo-kim-student"
+  );
 
   const growthParts = splitTextBlocks(effective.growth_reflection, 4);
   const baseCompetency = buildMyPageCompetencyItems(context);
@@ -1109,7 +1138,9 @@ export function buildMyPageReportView(
       if (match) perProjectDetails[team.teamId] = match;
     }
   }
-  patchPerProjectMyExperienceFromRetrospective(context, perProjectDetails);
+  if (effective.model !== "demo-kim-student") {
+    patchPerProjectMyExperienceFromRetrospective(context, perProjectDetails);
+  }
 
   const aiCases = mapAiProblemsToCases(context, effective.problems_solved);
   const troubleshootingCases =
@@ -1195,7 +1226,7 @@ export function buildDraftReportFromContext(
         ? `${logs.length}건 진행 중. (GEMINI_API_KEY 등록 후 AI가 해결 패턴을 분석합니다.)`
         : "해결 이력이 없습니다.";
 
-  return {
+  const draft: AiReportGenerateResponse = {
     summary: buildReportSummaryDraft(context),
     problems_solved: buildProblemsSolvedDraft(context),
     technologies: buildTechnologiesDraft(context),
@@ -1214,6 +1245,7 @@ export function buildDraftReportFromContext(
     generated_at: context.generatedAt,
     model: "draft-db-only",
   };
+  return mergeKimStudentDemoReport(context, draft);
 }
 
 /**

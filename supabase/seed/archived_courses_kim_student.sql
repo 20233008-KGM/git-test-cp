@@ -209,12 +209,14 @@ INSERT INTO ai_team_activities (id, team_id, tag, title, description, display_ti
   ('act-cc-5', 'team-swe-schedule', '완료', '최종 발표 완료', '캠퍼스 커넥트 데모를 교수님 앞에서 시연했습니다.', '2025-12-18', 5)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO ai_team_detail_ai_memory (id, team_id, memory_markdown, workspace_excerpt, updated_at) VALUES
-  ('mem-cc-1', 'team-swe-schedule',
+INSERT INTO ai_team_detail_ai_memory (team_id, memory_markdown, workspace_excerpt, updated_at) VALUES
+  ('team-swe-schedule',
    '# 캠퍼스 커넥트\n\n수업 입장·팀플·AI 리포트 통합 플랫폼.',
    '캠퍼스 커넥트는 수업 검색 입장, 동료평가 키워드, AI 회의록·트러블슈팅 분석, 마이페이지 경험 자산화를 하나로 묶은 팀플 협업 서비스입니다.',
    '2025-12-18 09:00:00+00')
-ON CONFLICT (id) DO UPDATE SET workspace_excerpt = EXCLUDED.workspace_excerpt;
+ON CONFLICT (team_id) DO UPDATE SET
+  memory_markdown = EXCLUDED.memory_markdown,
+  workspace_excerpt = EXCLUDED.workspace_excerpt;
 
 -- ========== Course 2: 서비스기획 실습 (2025-1, 종료) ==========
 INSERT INTO ai_courses (
