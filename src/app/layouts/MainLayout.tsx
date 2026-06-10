@@ -319,7 +319,7 @@ function CourseSideNavigation() {
             ? [
                 {
                   key: "peer-review",
-                  label: "조원평가 작성",
+                  label: "조원 피드백",
                   path: myTeamPeerReviewPath,
                   active:
                     Boolean(myTeamPeerReviewPath) &&
