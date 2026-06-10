@@ -5,14 +5,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
 import MyPageShell from "../components/mypage/MyPageShell";
 import ProfileFieldLabel from "../components/mypage/ProfileFieldLabel";
+import PortfolioAttachmentsPanel from "../components/students/PortfolioAttachmentsPanel";
 import { resolveProfileImageUrl } from "../utils/studentNetworkDisplay";
-
-const PORTFOLIO_ACCEPT = ".pdf,.zip,.ppt,.pptx,application/pdf,application/zip,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
+import type { PortfolioFileItem } from "../types";
 
 export default function MyPageProfilePage() {
   const { user, refreshProfile } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const portfolioInputRef = useRef<HTMLInputElement>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [avatarMessage, setAvatarMessage] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -24,8 +23,7 @@ export default function MyPageProfilePage() {
     bio: "",
     skills: [] as string[],
   });
-  const [portfolioFileName, setPortfolioFileName] = useState("");
-  const [pendingPortfolioFile, setPendingPortfolioFile] = useState<File | null>(null);
+  const [portfolioFiles, setPortfolioFiles] = useState<PortfolioFileItem[]>([]);
   const [profileEditSkillDraft, setProfileEditSkillDraft] = useState("");
   const [profileSaveMessage, setProfileSaveMessage] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -73,29 +71,16 @@ export default function MyPageProfilePage() {
     if (user?.role !== "student") return;
     let cancelled = false;
     void api.studentNetwork.getEditForm().then((form) => {
-      if (!cancelled) setPortfolioFileName(form.portfolioFileName);
+      if (!cancelled) setPortfolioFiles(form.portfolioFiles);
     });
     return () => {
       cancelled = true;
     };
   }, [user?.role, user?.id]);
 
-  function handlePortfolioFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const extension = file.name.toLowerCase().split(".").pop() ?? "";
-    if (!["pdf", "zip", "ppt", "pptx"].includes(extension)) {
-      setProfileSaveMessage("PDF, ZIP, PPT 파일만 업로드할 수 있습니다.");
-      return;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      setProfileSaveMessage("파일 크기는 50MB 이하여야 합니다.");
-      return;
-    }
-    setPendingPortfolioFile(file);
-    setProfileSaveMessage(null);
-    if (portfolioInputRef.current) portfolioInputRef.current.value = "";
-  }
+  const reloadPortfolioFiles = () => {
+    void api.studentNetwork.getEditForm().then((form) => setPortfolioFiles(form.portfolioFiles));
+  };
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -132,11 +117,6 @@ export default function MyPageProfilePage() {
     try {
       const saved = await api.myPage.saveStudentProfile(profileEditForm);
       setProfileEditForm(saved);
-      if (pendingPortfolioFile) {
-        const uploaded = await api.studentNetwork.uploadPortfolio(pendingPortfolioFile);
-        setPortfolioFileName(uploaded.fileName);
-        setPendingPortfolioFile(null);
-      }
       await refreshProfile();
       setProfileSaveMessage("프로필이 저장되었습니다.");
     } catch (err) {
@@ -274,44 +254,11 @@ export default function MyPageProfilePage() {
                 </ProfileFieldLabel>
               </div>
             </div>
-            <div>
-              <p className="m3-label-large mb-2 text-[var(--cc-on-surface-variant)]">포트폴리오 파일 업로드</p>
-              <input
-                ref={portfolioInputRef}
-                type="file"
-                accept={PORTFOLIO_ACCEPT}
-                className="hidden"
-                data-testid="mypage-profile-portfolio-input"
-                onChange={handlePortfolioFileChange}
-              />
-              <button
-                type="button"
-                onClick={() => portfolioInputRef.current?.click()}
-                disabled={profileSaving}
-                className="flex w-full flex-col items-center justify-center gap-1 rounded-[var(--m3-shape-medium)] border-2 border-dashed border-[var(--cc-outline-variant)] bg-[var(--cc-surface-container-lowest)] px-4 py-8 transition-colors hover:border-[var(--cc-primary)] hover:bg-[var(--cc-surface-container)] disabled:opacity-50"
-                data-testid="mypage-profile-portfolio-picker"
-              >
-                <span className="text-2xl" aria-hidden>
-                  📂
-                </span>
-                <span className="m3-body-medium font-medium text-[var(--cc-on-surface)]">
-                  클릭하여 파일 선택
-                </span>
-                <span className="m3-body-small text-[var(--cc-on-surface-variant)]">
-                  PDF, ZIP, PPT (최대 50MB)
-                </span>
-              </button>
-              {(pendingPortfolioFile || portfolioFileName) && (
-                <p
-                  className="m3-body-small mt-2 text-[var(--cc-on-surface-variant)]"
-                  data-testid="mypage-profile-portfolio-filename"
-                >
-                  {pendingPortfolioFile
-                    ? `선택됨: ${pendingPortfolioFile.name} (저장 시 업로드)`
-                    : `등록됨: ${portfolioFileName}`}
-                </p>
-              )}
-            </div>
+            <PortfolioAttachmentsPanel
+              files={portfolioFiles}
+              canManage
+              onUpdated={reloadPortfolioFiles}
+            />
             <div>
               <p className="m3-label-large mb-2 text-[var(--cc-on-surface-variant)]">기술 태그</p>
               <div className="flex flex-wrap gap-2">

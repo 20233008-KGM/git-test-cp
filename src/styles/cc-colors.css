@@ -27,6 +27,25 @@
   color: var(--cc-text-muted);
 }
 
+/** 빈 상태·미입력 (italic과 함께 사용, AA 대비) */
+.cc-text-placeholder {
+  color: var(--cc-text-placeholder);
+}
+
+.cc-text-placeholder--empty {
+  font-style: italic;
+}
+
+/** 태그·칩 본문 */
+.cc-chip-neutral {
+  background-color: var(--cc-surface-sunken);
+  color: var(--cc-text-secondary);
+}
+
+.cc-icon-muted {
+  color: var(--cc-text-muted);
+}
+
 .cc-text-success {
   color: var(--cc-success);
 }
@@ -61,8 +80,10 @@
   color: var(--cc-text);
 }
 
-.cc-input::placeholder {
-  color: var(--cc-text-muted);
+.cc-input::placeholder,
+.cc-textarea::placeholder {
+  color: var(--cc-text-placeholder);
+  opacity: 1;
 }
 
 .cc-input:focus {

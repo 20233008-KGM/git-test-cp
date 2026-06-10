@@ -48,13 +48,14 @@
   --cc-surface-muted: var(--cc-slate-50);
   --cc-surface-elevated: var(--cc-surface);
 
-  /* ── Semantic: Text ── */
+  /* ── Semantic: Text (WCAG AA 4.5:1+ on white / --cc-page) ── */
   --cc-on-surface: var(--cc-slate-900);
   --cc-on-surface-variant: var(--cc-slate-600);
   --cc-text: var(--cc-on-surface);
   --cc-text-secondary: var(--cc-on-surface-variant);
-  --cc-text-muted: var(--cc-slate-500);
-  --cc-text-disabled: #94a3b8;
+  --cc-text-muted: #566578;
+  --cc-text-placeholder: #5a6474;
+  --cc-text-disabled: #7c8a9a;
   --cc-text-inverse: #ffffff;
 
   /* ── Semantic: Borders (얇고 낮은 대비) ── */
@@ -74,9 +75,9 @@
   --cc-success: #059669;
   --cc-success-bg: #ecfdf5;
   --cc-success-border: #a7f3d0;
-  --cc-warning: #d97706;
+  --cc-warning: #b45309;
   --cc-warning-bg: #fffbeb;
-  --cc-warning-border: #fde68a;
+  --cc-warning-border: #fcd34d;
   --cc-error: #dc2626;
   --cc-error-bg: #fef2f2;
   --cc-error-border: #fecaca;
@@ -88,8 +89,8 @@
   --cc-footer: #111827;
   --cc-footer-border: #1f2937;
   --cc-on-footer: #f8fafc;
-  --cc-on-footer-muted: #cbd5e1;
-  --cc-on-footer-subtle: #94a3b8;
+  --cc-on-footer-muted: #d8e0ea;
+  --cc-on-footer-subtle: #b8c5d4;
 
   /* 상단 네비 전용 타이포 */
   --cc-font-sans: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Roboto, system-ui, sans-serif;

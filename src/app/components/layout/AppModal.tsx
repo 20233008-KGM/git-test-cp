@@ -96,6 +96,8 @@ export type AppModalProps = {
   testId?: string;
   /** 패널 role=dialog title (접근성) */
   ariaLabel?: string;
+  /** true면 반투명 배경 없이 기존 화면 그대로 노출 */
+  hideBackdrop?: boolean;
 };
 
 /**
@@ -109,6 +111,7 @@ export default function AppModal({
   panelClassName = "",
   testId = "app-modal-overlay",
   ariaLabel,
+  hideBackdrop = false,
 }: AppModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -127,7 +130,7 @@ export default function AppModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-4"
+      className={`fixed inset-0 z-[200] flex items-center justify-center p-4 ${hideBackdrop ? "bg-transparent" : "bg-black/40"}`}
       onClick={onClose}
       data-testid={testId}
       role="presentation"

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useState } from "react";
 import { Crown, LogOut, Users } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api/supabase-api";
@@ -105,7 +105,7 @@ export default function CourseTeamManagePage() {
   if (!isStudent) {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
-        <p className="text-[#4a5565]">팀 관리는 학생 계정에서 이용할 수 있습니다.</p>
+        <p className="cc-text-secondary">팀 관리는 학생 계정에서 이용할 수 있습니다.</p>
       </div>
     );
   }
@@ -114,7 +114,7 @@ export default function CourseTeamManagePage() {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm" data-testid="team-manage-empty">
         <h1 className="mb-2 text-2xl font-black text-[#155dfc]">팀 관리</h1>
-        <p className="mb-6 text-sm text-[#6a7282]">
+        <p className="mb-6 text-sm cc-text-secondary">
           이 수업에 배정된 팀이 없습니다. 팀 목록에서 팀을 만들거나 참여해 주세요.
         </p>
         {courseId && (
@@ -142,7 +142,7 @@ export default function CourseTeamManagePage() {
           </div>
           <div>
             <h1 className="text-2xl font-black text-[#101828]">팀 관리</h1>
-            <p className="mt-1 text-sm text-[#6a7282]">
+            <p className="mt-1 text-sm cc-text-secondary">
               {info.teamName}
               {info.projectTitle ? ` · ${info.projectTitle}` : ""}
             </p>
@@ -214,13 +214,13 @@ export default function CourseTeamManagePage() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-black tracking-tight text-[#101828]">팀플 스테이지 진행</h2>
-              <p className="mt-1 text-xs text-[#6a7282]">팀 진행률을 한눈에 보고 바로 업데이트할 수 있습니다.</p>
+              <p className="mt-1 text-xs cc-text-secondary">팀 진행률을 한눈에 보고 바로 업데이트할 수 있습니다.</p>
             </div>
             <span className="rounded-full border border-[#bfd6ff] bg-[#eaf2ff] px-2.5 py-1 text-[11px] font-bold text-[#2253c1]">
               Leader Control
             </span>
           </div>
-          <p className="mb-3 text-xs text-[#6a7282]">
+          <p className="mb-3 text-xs cc-text-secondary">
             {canEditStages
               ? "수업에 정의된 단계 기준으로, 우리 팀이 어디까지 왔는지 표시합니다. 변경 내용은 팀 목록 카드에도 반영됩니다."
               : info.isArchived
@@ -253,7 +253,7 @@ export default function CourseTeamManagePage() {
           ) : (
             <>
               {info.stageNames.length > 0 && (
-                <p className="mb-2 text-xs font-medium text-[#4a5565]">
+                <p className="mb-2 text-xs font-medium cc-text-secondary">
                   완료 {info.completedStages} / {info.stageNames.length} 단계
                 </p>
               )}
@@ -326,7 +326,7 @@ export default function CourseTeamManagePage() {
         </ul>
 
         {info.myRole === "leader" && !info.isArchived && otherMembers.length === 0 && (
-          <p className="mt-3 text-xs text-[#9ca3af]">
+          <p className="mt-3 text-xs cc-text-placeholder">
             다른 팀원이 없어 팀장을 넘길 수 없습니다. 팀원이 합류하면 여기서 지정할 수 있습니다.
           </p>
         )}

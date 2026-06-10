@@ -38,7 +38,6 @@ export default function SignInPage() {
     email: "",
     password: "",
     role: "student" as UserRole,
-    courseCode: "",
     skills: [],
   });
   const [customSkill, setCustomSkill] = useState("");
@@ -73,10 +72,16 @@ export default function SignInPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setForm((prev: Partial<Signupinput>) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev: Partial<Signupinput>) => {
+      const next = { ...prev, [name]: value };
+      if (name === "role" && value === "professor") {
+        next.skills = [];
+      }
+      return next;
+    });
+    if (name === "role" && value === "professor") {
+      setCustomSkill("");
+    }
   };
 
   // 회원가입 폼이 제출될 때 실행됩니다.
@@ -99,8 +104,7 @@ export default function SignInPage() {
         email: form.email as string,
         password: form.password as string,
         role: form.role as UserRole,
-        courseCode: form.role === "student" ? form.courseCode : undefined,
-        skills: form.skills,
+        skills: form.role === "student" ? form.skills : undefined,
       });
 
       navigate("/app/courses");
@@ -158,7 +162,7 @@ export default function SignInPage() {
             {/* form 안의 submit 버튼을 누르면 onSubmit에 연결된 handleSignIn이 실행됩니다. */}
             <form onSubmit={handleSignIn} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="cc-form-label mb-1.5 block text-sm font-medium">
                   이름
                 </label>
                 <input
@@ -173,7 +177,7 @@ export default function SignInPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="cc-form-label mb-1.5 block text-sm font-medium">
                   이메일
                 </label>
                 <input
@@ -188,7 +192,7 @@ export default function SignInPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="cc-form-label mb-1.5 block text-sm font-medium">
                   비밀번호
                 </label>
                 <input
@@ -209,7 +213,7 @@ export default function SignInPage() {
 
               {/* 역할 선택 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="cc-form-label mb-1.5 block text-sm font-medium">
                   역할
                 </label>
                 <select
@@ -226,74 +230,56 @@ export default function SignInPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  기술·역량 태그 (최대 12개)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {SIGNUP_SKILL_PRESETS.map((skill) => {
-                    const active = selectedSkills.includes(skill);
-                    return (
-                      <button
-                        key={skill}
-                        type="button"
-                        onClick={() => toggleSkill(skill)}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${active
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-gray-300 bg-white text-gray-700 hover:border-blue-400"
-                          }`}
-                      >
-                        {skill}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    type="text"
-                    value={customSkill}
-                    onChange={(e) => setCustomSkill(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addCustomSkill();
-                      }
-                    }}
-                    placeholder="직접 입력"
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={addCustomSkill}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
-                  >
-                    추가
-                  </button>
-                </div>
-                {selectedSkills.length > 0 && (
-                  <p className="mt-2 text-xs text-gray-600">
-                    선택: {selectedSkills.join(", ")}
-                  </p>
-                )}
-              </div>
-
               {form.role === "student" && (
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                    수업 코드 (선택)
+                    기술·역량 태그 (최대 12개)
                   </label>
-                  <input
-                    type="text"
-                    name="courseCode"
-                    value={form.courseCode ?? ""}
-                    onChange={handlechange}
-                    placeholder="예: WEB-2026"
-                    data-testid="signup-course-code"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    가입 후 해당 수업에 자동 등록됩니다. 수업 목록에서도 등록할 수 있습니다.
-                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {SIGNUP_SKILL_PRESETS.map((skill) => {
+                      const active = selectedSkills.includes(skill);
+                      return (
+                        <button
+                          key={skill}
+                          type="button"
+                          onClick={() => toggleSkill(skill)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${active
+                              ? "border-blue-600 bg-blue-600 text-white"
+                              : "border-gray-300 bg-white text-gray-700 hover:border-blue-400"
+                            }`}
+                        >
+                          {skill}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={customSkill}
+                      onChange={(e) => setCustomSkill(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomSkill();
+                        }
+                      }}
+                      placeholder="직접 입력"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomSkill}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                    >
+                      추가
+                    </button>
+                  </div>
+                  {selectedSkills.length > 0 && (
+                    <p className="mt-2 text-xs text-gray-600">
+                      선택: {selectedSkills.join(", ")}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -315,14 +301,14 @@ export default function SignInPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-6 text-sm">
           <div>
             <h3 className="font-bold text-white mb-2">CampusConnect</h3>
-            <p className="text-gray-400 text-xs">
+            <p className="cc-text-muted text-xs">
               학생들의 팀 프로젝트 협업을 위한 올인원 플랫폼
             </p>
           </div>
 
           <div>
             <h4 className="font-semibold text-white mb-2">연락처</h4>
-            <div className="space-y-1 text-xs text-gray-400">
+            <div className="space-y-1 text-xs cc-text-muted">
               <p>support@campusconnect.com</p>
               <p>02-1234-5678</p>
             </div>

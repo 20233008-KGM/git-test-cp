@@ -116,7 +116,7 @@ export default function CourseDirectMessagesPage() {
                         <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
                           {thread.lastMessage}
                         </p>
-                        <p className="mt-1 text-[10px] text-gray-400">{thread.lastTime}</p>
+                        <p className="mt-1 text-[10px] cc-text-muted">{thread.lastTime}</p>
                       </button>
                     </li>
                   );

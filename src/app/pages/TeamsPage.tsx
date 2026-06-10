@@ -23,7 +23,7 @@ function ActivityCard({ activity }: { activity: Activity }) {
         <span className="text-[10px] font-bold text-[#3676ff] bg-[#eff6ff] px-2 py-0.5 rounded-full">
           {activity.tag}
         </span>
-        <span className="text-[10px] text-gray-400">{activity.time}</span>
+        <span className="text-[10px] cc-text-muted">{activity.time}</span>
       </div>
       <p className="text-[11px] font-bold text-[#101828] mb-0.5">{activity.title}</p>
       <p className="text-[10px] text-gray-500 leading-[1.4] line-clamp-2">
@@ -166,7 +166,7 @@ function TeamCardComponent({
             </div>
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-[10px] p-3 text-center">
-              <p className="text-[11px] text-gray-400">아직 활동 기록이 없습니다</p>
+              <p className="text-[11px] cc-text-placeholder cc-text-placeholder--empty">아직 활동 기록이 없습니다</p>
             </div>
           )}
         </div>

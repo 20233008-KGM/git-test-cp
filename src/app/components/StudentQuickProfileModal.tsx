@@ -1,4 +1,4 @@
-import type { StudentProfile } from "../types";
+﻿import type { StudentProfile } from "../types";
 import AppModal from "./layout/AppModal";
 import UserAvatar from "./UserAvatar";
 import { LoadingSpinner } from "./layout/PageLoading";
@@ -28,11 +28,11 @@ export default function StudentQuickProfileModal({
     >
       <div data-testid="student-quick-profile-modal">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h2 className="text-lg font-bold text-[#101828]">수강생 프로필</h2>
+          <h2 className="cc-text-primary text-lg font-bold">수강생 프로필</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-xl font-bold text-gray-400 hover:text-gray-700"
+            className="text-xl font-bold cc-icon-muted hover:text-[var(--cc-on-surface)]"
             aria-label="닫기"
           >
             ✕
@@ -63,20 +63,20 @@ export default function StudentQuickProfileModal({
             <div className="flex items-center gap-3">
               <UserAvatar name={profile.name} imageUrl={profile.imageUrl} size="md" />
               <div>
-              <p className="text-base font-bold text-[#101828]">{profile.name}</p>
-              <p className="text-sm text-[#6a7282]">{profile.studentId}</p>
-              <p className="text-sm text-[#6a7282]">{profile.major}</p>
+              <p className="cc-text-primary text-base font-bold">{profile.name}</p>
+              <p className="text-sm cc-text-secondary">{profile.studentId}</p>
+              <p className="text-sm cc-text-secondary">{profile.major}</p>
               </div>
             </div>
             {profile.bio && (
               <div>
-                <p className="mb-1 text-xs font-bold text-gray-500">자기소개</p>
-                <p className="text-sm text-[#364153] leading-relaxed">{profile.bio}</p>
+                <p className="cc-form-label mb-1 text-xs font-bold">자기소개</p>
+                <p className="cc-text-secondary text-sm leading-relaxed">{profile.bio}</p>
               </div>
             )}
             {(profile.skills?.length ?? 0) > 0 && (
               <div>
-                <p className="mb-2 text-xs font-bold text-gray-500">기술 스택</p>
+                <p className="cc-form-label mb-2 text-xs font-bold">기술 스택</p>
                 <div className="flex flex-wrap gap-2">
                   {profile.skills!.map((skill) => (
                     <span

@@ -73,7 +73,7 @@ export default function DirectChatPanel({
               }`}
             >
               <p>{msg.text}</p>
-              <p className={`mt-1 text-[10px] ${msg.isMine ? "text-blue-100" : "text-gray-400"}`}>
+              <p className={`mt-1 text-[10px] ${msg.isMine ? "text-blue-100" : "cc-text-muted"}`}>
                 {msg.time}
               </p>
             </div>

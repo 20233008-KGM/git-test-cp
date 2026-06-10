@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { api } from "../api/supabase-api";
 import { MAX_PEER_REVIEW_CUSTOM_KEYWORDS } from "../constants/peerReview";
@@ -191,7 +191,7 @@ export default function TeamPeerReviewPage() {
         <div className="flex items-center justify-between border-b border-gray-100 py-2">
           <span className="text-base font-medium text-black">
             {myName}
-            <span className="ml-1 text-sm text-[#6a7282]">(본인)</span>
+            <span className="ml-1 text-sm cc-text-secondary">(본인)</span>
           </span>
         </div>
 

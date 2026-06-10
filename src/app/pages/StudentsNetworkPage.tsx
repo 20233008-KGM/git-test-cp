@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useEffect, useMemo } from "react";
+﻿import React, { useCallback, useState, useRef, useEffect, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Search, BookOpen, Pencil, Shuffle } from "lucide-react";
 import { api } from "../api/supabase-api";
@@ -8,8 +8,9 @@ import PeerEvaluationTitleLine from "../components/PeerEvaluationTitleLine";
 import AppModal from "../components/layout/AppModal";
 import PageLoading from "../components/layout/PageLoading";
 import { useAuth } from "../contexts/AuthContext";
-import type { Course, PeerEvaluationSummary, ProfessorProfile } from "../types";
+import type { Course, PeerEvaluationSummary, PortfolioFileItem, ProfessorProfile, StudentExtra } from "../types";
 import DirectChatModal from "../components/DirectChatModal";
+import PortfolioAttachmentsPanel from "../components/students/PortfolioAttachmentsPanel";
 import UserAvatar from "../components/UserAvatar";
 import PageHeader from "../components/layout/PageHeader";
 import { useDebouncedRealtimeReload } from "../hooks/useDebouncedRealtimeReload";
@@ -40,14 +41,6 @@ interface Student {
   tags: string[];
   avatar?: string;
   image?: string;
-}
-
-interface StudentExtra {
-  temperature: number;
-  teamProjectCount: number;
-  portfolioFile: string;
-  detailedBio: string;
-  keywords: { text: string; count: number }[];
 }
 
 type StudentSortOption = "name-asc" | "name-desc" | "major-asc" | "tag-count-desc";
@@ -308,6 +301,16 @@ function enrichStudentExtras(
       merged[student.id] = buildMinimalStudentExtra(student.bio);
     }
   }
+  for (const key of Object.keys(merged)) {
+    const entry = merged[key];
+    if (entry.portfolioFiles?.length) continue;
+    merged[key] = {
+      ...entry,
+      portfolioFiles: entry.portfolioFile
+        ? [{ fileName: entry.portfolioFile, publicUrl: entry.portfolioUrl }]
+        : [],
+    };
+  }
   return merged;
 }
 
@@ -407,8 +410,8 @@ function PeerKeywordsDisplay({ extra }: { extra: ResolvedStudentExtra }) {
   if (!extra.hasLearningProfile || extra.keywords.length === 0) {
     return (
       <div className="rounded-[14px] border border-dashed border-gray-200 bg-gray-50 p-4 text-center break-keep">
-        <p className="text-sm font-medium text-[#6a7282]">동료 키워드</p>
-        <p className="mt-1 text-xs text-[#9ca3af]">팀 활동 후 동료 평가가 쌓이면 표시됩니다.</p>
+        <p className="text-sm font-medium cc-text-secondary">동료 키워드</p>
+        <p className="mt-1 text-xs cc-text-placeholder">팀 활동 후 동료 평가가 쌓이면 표시됩니다.</p>
       </div>
     );
   }
@@ -454,16 +457,20 @@ function StudentProfileModal({
   peerEvaluations,
   editForm,
   courseId,
+  isArchived = false,
   onClose,
   onEditClick,
+  onPortfolioUpdated,
 }: {
   student: Student;
   studentExtras: Record<string, StudentExtra>;
   peerEvaluations: Record<string, PeerEvaluationSummary>;
   editForm?: EditForm;
   courseId?: string;
+  isArchived?: boolean;
   onClose: () => void;
   onEditClick?: () => void;
+  onPortfolioUpdated?: () => void;
 }) {
   const [showDirectChat, setShowDirectChat] = useState(false);
   
@@ -520,6 +527,7 @@ function StudentProfileModal({
       onClose={onClose}
       testId="student-profile-modal-overlay"
       ariaLabel="수강생 프로필"
+      hideBackdrop
       panelClassName="!p-0 w-full max-w-[520px] overflow-y-auto rounded-[14px] shadow-2xl"
     >
       <div data-testid="student-profile-modal">
@@ -530,9 +538,9 @@ function StudentProfileModal({
               <div>
                 <p className="text-lg font-bold text-[#101828]">
                   {displayStudent.name}
-                  {displayStudent.isSelf && <span className="text-[#6a7282] font-normal text-base"> (나)</span>}
+                  {displayStudent.isSelf && <span className="cc-text-secondary font-normal text-base"> (나)</span>}
                 </p>
-                <p className={`text-sm ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "text-[#9ca3af] italic" : "text-[#6a7282]"}`}>
+                <p className={`text-sm ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "cc-text-placeholder italic" : "cc-text-secondary"}`}>
                   {majorLabel}
                 </p>
               </div>
@@ -545,7 +553,7 @@ function StudentProfileModal({
               </p>
               <button
                 onClick={onClose}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 text-lg font-bold"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors cc-icon-muted hover:text-[var(--cc-on-surface)] text-lg font-bold"
                 aria-label="닫기"
               >
                 ✕
@@ -564,7 +572,7 @@ function StudentProfileModal({
             <p className="text-base font-bold text-black mb-2">자기소개</p>
             <div className={`border rounded-[10px] px-4 py-3 ${bioIsPlaceholder ? "border-dashed border-gray-200 bg-gray-50" : "border-gray-200"}`}>
               <p
-                className={`text-sm leading-relaxed ${bioIsPlaceholder ? "text-[#9ca3af] italic" : "text-[#364153]"}`}
+                className={`text-sm leading-relaxed ${bioIsPlaceholder ? "cc-text-placeholder italic" : "text-[#364153]"}`}
                 data-testid="student-profile-modal-detailed-bio"
               >
                 {extra.detailedBio}
@@ -572,36 +580,11 @@ function StudentProfileModal({
             </div>
           </div>
 
-          <div>
-            <p className="text-base font-bold text-black mb-2">포트폴리오 & 첨부파일</p>
-            <div className="border border-gray-200 rounded-[10px] px-4 py-2.5 flex items-center gap-2">
-              <span className="text-gray-400 text-sm">📎</span>
-              {extra.portfolioFile ? (
-                extra.portfolioUrl ? (
-                  <a
-                    href={extra.portfolioUrl}
-                    download={extra.portfolioFile}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    data-testid="student-profile-portfolio-download"
-                    className="text-[#155dfc] text-sm underline hover:text-blue-700"
-                  >
-                    {extra.portfolioFile}
-                  </a>
-                ) : (
-                  <span
-                    className="text-sm text-[#364153]"
-                    data-testid="student-profile-portfolio-filename"
-                    title="업로드된 파일 링크가 없어 다운로드할 수 없습니다"
-                  >
-                    {extra.portfolioFile}
-                  </span>
-                )
-              ) : (
-                <span className="text-sm text-[#9ca3af]">등록된 파일 없음</span>
-              )}
-            </div>
-          </div>
+          <PortfolioAttachmentsPanel
+            files={extra.portfolioFiles}
+            canManage={Boolean(displayStudent.isSelf && !isArchived)}
+            onUpdated={onPortfolioUpdated}
+          />
 
           {displayStudent.isSelf ? (
             onEditClick ? (
@@ -704,7 +687,7 @@ function ProfessorProfileModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold text-gray-400 transition-colors hover:bg-white/60 hover:text-gray-700"
+              className="cc-icon-muted flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-lg font-bold transition-colors hover:bg-white/60 hover:text-[var(--cc-on-surface)]"
               aria-label="닫기"
             >
               ✕
@@ -717,13 +700,13 @@ function ProfessorProfileModal({
             <div className="grid gap-3 sm:grid-cols-2">
               {profile.office && (
                 <div className="rounded-[10px] border border-gray-200 px-4 py-3">
-                  <p className="text-xs font-semibold text-[#6a7282]">연구실</p>
+                  <p className="text-xs font-semibold cc-text-secondary">연구실</p>
                   <p className="mt-1 text-sm text-[#101828]">{profile.office}</p>
                 </div>
               )}
               {profile.officeHours && (
                 <div className="rounded-[10px] border border-gray-200 px-4 py-3">
-                  <p className="text-xs font-semibold text-[#6a7282]">상담 시간</p>
+                  <p className="text-xs font-semibold cc-text-secondary">상담 시간</p>
                   <p className="mt-1 text-sm text-[#101828]">{profile.officeHours}</p>
                 </div>
               )}
@@ -757,7 +740,7 @@ function ProfessorProfileModal({
             >
               <p
                 className={`text-sm leading-relaxed ${
-                  bioIsPlaceholder ? "italic text-[#9ca3af]" : "text-[#364153]"
+                  bioIsPlaceholder ? "italic cc-text-placeholder" : "text-[#364153]"
                 }`}
                 data-testid="professor-profile-modal-bio"
               >
@@ -776,7 +759,7 @@ function ProfessorProfileModal({
               </div>
             ) : (
               <div className="rounded-[10px] border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-sm italic text-[#9ca3af]">
+                <p className="text-sm italic cc-text-placeholder">
                   추후 AI 분석으로 채워집니다.
                 </p>
               </div>
@@ -796,7 +779,7 @@ function ProfessorProfileModal({
               </div>
             ) : (
               <div className="rounded-[10px] border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-sm italic text-[#9ca3af]">등록된 성장 방식이 없습니다.</p>
+                <p className="text-sm italic cc-text-placeholder">등록된 성장 방식이 없습니다.</p>
               </div>
             )}
           </div>
@@ -846,6 +829,7 @@ interface EditForm {
   hobbies: string;
   bio: string;
   portfolioFileName: string;
+  portfolioFiles: PortfolioFileItem[];
 }
 
 /* ─────────── 랜덤 팀 생성 ─────────── */
@@ -861,10 +845,10 @@ function MiniStudentCard({ student }: { student: Student }) {
     <div className="bg-white rounded-[10px] border border-[#e5e7eb] p-3 flex flex-col items-center gap-1.5 min-w-0">
       <StudentAvatar student={student} size="sm" />
       <p className="text-xs font-bold text-[#101828] text-center truncate w-full">{student.name}</p>
-      <p className="text-[10px] text-[#6a7282] text-center leading-tight">{student.major}</p>
+      <p className="text-[10px] cc-text-secondary text-center leading-tight">{student.major}</p>
       <div className="flex flex-wrap gap-0.5 justify-center">
         {student.tags.slice(0, 2).map((tag) => (
-          <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-[9px] px-1.5 py-0.5 rounded-full">
+          <span key={tag} className="bg-[#f3f4f6] cc-text-secondary text-[9px] px-1.5 py-0.5 rounded-full">
             {tag}
           </span>
         ))}
@@ -965,7 +949,7 @@ function RandomTeamModal({
             <h2 className="text-lg font-bold text-[#1e2939]">키워드 선택</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-700 font-bold text-lg"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors cc-icon-muted hover:text-[var(--cc-on-surface)] font-bold text-lg"
               aria-label="닫기"
             >
               ✕
@@ -990,7 +974,7 @@ function RandomTeamModal({
               data-testid="random-team-size-input"
               className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
             />
-            <span className="text-xs text-[#6a7282]">2~8명</span>
+            <span className="text-xs cc-text-secondary">2~8명</span>
           </div>
 
           {/* 키워드 칩 */}
@@ -1001,7 +985,7 @@ function RandomTeamModal({
                 onClick={() => toggleKeyword(kw.id)}
                 className={`px-4 py-1.5 rounded-[8px] text-sm font-medium transition-all ${activeKeywords.includes(kw.id)
                   ? "bg-[#155dfc] text-white"
-                  : "bg-[#f3f4f6] text-[#4a5565] hover:bg-gray-200"
+                  : "bg-[#f3f4f6] cc-text-secondary hover:bg-gray-200"
                   }`}
               >
                 {kw.label}
@@ -1040,7 +1024,7 @@ function RandomTeamModal({
             ) : (
               <button
                 onClick={() => setShowCustomInput(true)}
-                className="w-8 h-8 bg-[#f3f4f6] text-[#4a5565] rounded-[8px] flex items-center justify-center hover:bg-gray-200 transition-colors font-bold text-base"
+                className="w-8 h-8 bg-[#f3f4f6] cc-text-secondary rounded-[8px] flex items-center justify-center hover:bg-gray-200 transition-colors font-bold text-base"
               >
                 +
               </button>
@@ -1051,7 +1035,7 @@ function RandomTeamModal({
         {/* 팀 그리드 */}
         <div className="flex-1 overflow-y-auto px-7 py-5">
           {teams.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-[#6a7282] text-sm">
+            <div className="flex items-center justify-center h-40 cc-text-secondary text-sm">
               팀을 생성해주세요.
             </div>
           ) : (
@@ -1209,9 +1193,9 @@ function StudentCard({
       <div className="text-center">
         <p className="text-[#101828] font-bold text-lg">
           {displayStudent.name}
-          {isSelf && <span className="text-[#6a7282] font-normal text-base"> (나)</span>}
+          {isSelf && <span className="cc-text-secondary font-normal text-base"> (나)</span>}
         </p>
-        <p className={`text-xs mt-0.5 ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "text-[#9ca3af] italic" : "text-[#6a7282]"}`}>
+        <p className={`text-xs mt-0.5 ${majorLabel === NETWORK_MAJOR_PLACEHOLDER ? "cc-text-placeholder italic" : "cc-text-secondary"}`}>
           {majorLabel}
         </p>
       </div>
@@ -1224,7 +1208,7 @@ function StudentCard({
       >
         <p
           className={`line-clamp-3 break-keep text-xs text-center leading-[1.6] ${
-            bioIsPlaceholder ? "text-[#9ca3af] italic" : "text-[#1c398e]"
+            bioIsPlaceholder ? "cc-text-placeholder italic" : "text-[#1c398e]"
           }`}
         >
           {bioLabel}
@@ -1233,12 +1217,12 @@ function StudentCard({
       <div className="flex flex-wrap gap-1.5 justify-center min-h-[1.5rem]">
         {displayStudent.tags.length > 0 ? (
           displayStudent.tags.map((tag) => (
-            <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-[10px] px-3 py-1 rounded-full">
+            <span key={tag} className="bg-[#f3f4f6] cc-text-secondary text-[10px] px-3 py-1 rounded-full">
               {tag}
             </span>
           ))
         ) : (
-          <span className="bg-[#f9fafb] text-[#9ca3af] text-[10px] px-3 py-1 rounded-full italic">
+          <span className="bg-[#f9fafb] cc-text-placeholder text-[10px] px-3 py-1 rounded-full italic">
             {NETWORK_TAGS_EMPTY_LABEL}
           </span>
         )}
@@ -1271,6 +1255,7 @@ export default function StudentsNetworkPage() {
     hobbies: "",
     bio: "",
     portfolioFileName: "",
+    portfolioFiles: [],
   };
   const [editForm, setEditForm] = useState<EditForm>(emptyEditForm);
 
@@ -1338,6 +1323,7 @@ export default function StudentsNetworkPage() {
           hobbies: formData.hobbies,
           bio: formData.bio,
           portfolioFileName: formData.portfolioFileName,
+          portfolioFiles: formData.portfolioFiles,
         });
       })
       .finally(() => setLoading(false));
@@ -1515,14 +1501,14 @@ export default function StudentsNetworkPage() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-[#101828] text-xl font-bold">{displaySelfStudent.name} (나)</span>
                     {displaySelfStudent.year && (
-                      <span className="text-[#6a7282] text-sm">{displaySelfStudent.year}</span>
+                      <span className="cc-text-secondary text-sm">{displaySelfStudent.year}</span>
                     )}
                   </div>
                   <p
                     className={`text-sm ${
                       displayMajor(displaySelfStudent.major) === NETWORK_MAJOR_PLACEHOLDER
-                        ? "text-[#9ca3af] italic"
-                        : "text-[#6a7282]"
+                        ? "cc-text-placeholder italic"
+                        : "cc-text-secondary"
                     }`}
                   >
                     {displayMajor(displaySelfStudent.major)}
@@ -1530,7 +1516,7 @@ export default function StudentsNetworkPage() {
                   <p
                     className={`text-sm leading-relaxed ${
                       displayBio(displaySelfStudent.bio, null) === NETWORK_BIO_PLACEHOLDER
-                        ? "text-[#9ca3af] italic"
+                        ? "cc-text-placeholder italic"
                         : "text-[#364153]"
                     }`}
                   >
@@ -1539,12 +1525,12 @@ export default function StudentsNetworkPage() {
                   <div className="flex flex-wrap gap-2 mt-1">
                     {displaySelfStudent.tags.length > 0 ? (
                       displaySelfStudent.tags.map((tag) => (
-                        <span key={tag} className="bg-[#f3f4f6] text-[#4a5565] text-xs px-3 py-1 rounded-full">
+                        <span key={tag} className="bg-[#f3f4f6] cc-text-secondary text-xs px-3 py-1 rounded-full">
                           {tag}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-[#9ca3af] italic">{NETWORK_TAGS_EMPTY_LABEL}</span>
+                      <span className="text-xs cc-text-placeholder italic">{NETWORK_TAGS_EMPTY_LABEL}</span>
                     )}
                   </div>
                 </div>
@@ -1583,8 +1569,8 @@ export default function StudentsNetworkPage() {
                   <p
                     className={`text-sm ${
                       courseProfessor.department?.trim()
-                        ? "text-[#6a7282]"
-                        : "italic text-[#9ca3af]"
+                        ? "cc-text-secondary"
+                        : "italic cc-text-placeholder"
                     }`}
                   >
                     {courseProfessor.department?.trim() || "학과/소속 미입력"}
@@ -1593,7 +1579,7 @@ export default function StudentsNetworkPage() {
                     className={`text-sm leading-relaxed ${
                       courseProfessor.bio?.trim()
                         ? "text-[#364153]"
-                        : "italic text-[#9ca3af]"
+                        : "italic cc-text-placeholder"
                     }`}
                   >
                     {courseProfessor.bio?.trim() ||
@@ -1607,13 +1593,13 @@ export default function StudentsNetworkPage() {
                       courseProfessor.researchAreas.map((area) => (
                         <span
                           key={area}
-                          className="rounded-full bg-[#f3f4f6] px-3 py-1 text-xs text-[#4a5565]"
+                          className="rounded-full bg-[#f3f4f6] px-3 py-1 text-xs cc-text-secondary"
                         >
                           {area}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs italic text-[#9ca3af]">연구 분야 미입력</span>
+                      <span className="text-xs italic cc-text-placeholder">연구 분야 미입력</span>
                     )}
                   </div>
                 </div>
@@ -1647,7 +1633,7 @@ export default function StudentsNetworkPage() {
           )}
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <div className="flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 sm:w-72">
-              <Search className="h-4 w-4 shrink-0 text-gray-400" />
+              <Search className="cc-icon-muted h-4 w-4 shrink-0" aria-hidden />
               <input
                 type="text"
                 placeholder="키워드를 입력하세요"
@@ -1723,6 +1709,7 @@ export default function StudentsNetworkPage() {
           studentExtras={studentExtras}
           peerEvaluations={peerEvaluations}
           courseId={courseId}
+          isArchived={isArchived}
           onClose={() => setSelectedStudent(null)}
         />
       )}
@@ -1734,7 +1721,9 @@ export default function StudentsNetworkPage() {
           peerEvaluations={peerEvaluations}
           editForm={editForm}
           courseId={courseId}
+          isArchived={isArchived}
           onClose={() => setShowMyProfileModal(false)}
+          onPortfolioUpdated={() => void reloadNetwork()}
           onEditClick={
             isArchived
               ? undefined

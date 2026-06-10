@@ -7,6 +7,7 @@ import {
   buildStudentFixture,
   createCourseViaUI,
   createTeamViaUI,
+  joinCourseViaCode,
   loginViaUI,
   logoutViaUI,
   openStudentProfileFromNetwork,
@@ -60,8 +61,8 @@ test("다중 사용자: 조원평가가 수강생 프로필에 반영된다", as
     await signupViaUI(page, {
       ...student,
       role: "student",
-      courseCode,
     });
+    await joinCourseViaCode(page, courseCode);
     registry.registerEmail(student.email);
     await registry.flush();
     await logoutViaUI(page);

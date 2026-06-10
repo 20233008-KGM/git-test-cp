@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { extractDeployLinkFromDescription } from "../api/supabase-api";
 import { AiGeneratingIndicator } from "./AiGeneratingIndicator";
 import AppModal from "./layout/AppModal";
@@ -292,7 +292,7 @@ export default function TeamDeliverableSubmitModal({
           )}
 
           {isFileEdit && (
-            <p className="rounded-[8px] border border-gray-200 bg-[#f9fafb] px-3 py-2 text-xs text-[#4a5565]">
+            <p className="rounded-[8px] border border-gray-200 bg-[#f9fafb] px-3 py-2 text-xs cc-text-secondary">
               현재 파일: {editing.fileName}
               {editing.fileSize > 0 ? ` (${(editing.fileSize / 1024).toFixed(1)} KB)` : ""}
             </p>
@@ -366,7 +366,7 @@ export default function TeamDeliverableSubmitModal({
                     >
                       <span className="truncate">
                         📄 {file.name}{" "}
-                        <span className="text-[#6a7282]">({formatByteSize(file.size)})</span>
+                        <span className="cc-text-secondary">({formatByteSize(file.size)})</span>
                       </span>
                       <button
                         type="button"

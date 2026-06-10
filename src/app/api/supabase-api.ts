@@ -37,6 +37,7 @@ import type {
   Project,
   Question,
   Answer,
+  PortfolioFileItem,
 } from "../types";
 import { auth } from "../firebase";
 import { supabase } from "../supabase";
@@ -75,12 +76,22 @@ import {
 import { uploadFileToStorage } from "../utils/storageResumableUpload";
 import { defaultNewCourseDates } from "../utils/courseDates";
 import { buildPeerEvaluationSummary } from "../utils/peerEvaluationSummary";
-import { parsePortfolioFile, resolveProfileImageUrl, serializePortfolioFile } from "../utils/studentNetworkDisplay";
+import {
+  parsePortfolioFile,
+  parsePortfolioFiles,
+  resolveProfileImageUrl,
+  serializePortfolioFile,
+  serializePortfolioFiles,
+  STUDENT_PORTFOLIO_ALLOWED_EXT,
+  STUDENT_PORTFOLIO_MAX_BYTES,
+  STUDENT_PORTFOLIO_MAX_FILES,
+} from "../utils/studentNetworkDisplay";
 import {
   appendMeetingSummaryLine,
   isMeetingMinutesDeliverable,
 } from "../utils/meetingMinutes";
 import { persistMeetingSummaryForDeliverable } from "./ai-meeting-minutes";
+import { notifyTeamMembershipChanged } from "../utils/teamMembershipNav";
 
 export { extractDeployLinkFromDescription };
 import {
@@ -1741,13 +1752,15 @@ function mapLearningProfileToStudentExtra(
     ? userBio?.trim() || metaPreview
     : detailedRaw || userBio?.trim() || "";
 
-  const portfolio = parsePortfolioFile(row.portfolio_file);
+  const portfolioFiles = parsePortfolioFiles(row.portfolio_file);
+  const portfolio = portfolioFiles[0];
 
   return {
     temperature: Number(row.temperature) || 37,
     teamProjectCount: row.team_project_count ?? 0,
-    portfolioFile: portfolio.fileName,
-    portfolioUrl: portfolio.publicUrl,
+    portfolioFile: portfolio?.fileName ?? "",
+    portfolioUrl: portfolio?.publicUrl,
+    portfolioFiles,
     detailedBio,
     keywords: asArray<{ text: string; count: number }>(row.keywords),
   };
@@ -1843,6 +1856,7 @@ const EMPTY_STUDENT_NETWORK_EDIT_FORM: StudentNetworkEditForm = {
   hobbies: "",
   bio: "",
   portfolioFileName: "",
+  portfolioFiles: [],
 };
 
 function buildStudentNetworkEditFormFromUser(
@@ -1851,19 +1865,68 @@ function buildStudentNetworkEditFormFromUser(
 ): StudentNetworkEditForm {
   const meta = parseNetworkProfileMeta(profile?.detailed_bio);
 
+  const portfolioFiles = parsePortfolioFiles(profile?.portfolio_file);
   return {
     major: user.major?.trim() ?? "",
     mbti: meta.mbti?.trim() ?? "",
     careerInterest: meta.careerInterest?.trim() ?? "",
     hobbies: meta.hobbies?.trim() ?? "",
     bio: user.bio?.trim() ?? "",
-    portfolioFileName: parsePortfolioFile(profile?.portfolio_file).fileName,
+    portfolioFileName: portfolioFiles[0]?.fileName ?? "",
+    portfolioFiles,
   };
 }
 
 const STUDENT_PORTFOLIOS_BUCKET = "ai_student_portfolios";
-const STUDENT_PORTFOLIO_MAX_BYTES = 50 * 1024 * 1024;
-const STUDENT_PORTFOLIO_ALLOWED_EXT = new Set(["pdf", "zip", "ppt", "pptx"]);
+
+async function readPortfolioFilesForUser(userId: string): Promise<PortfolioFileItem[]> {
+  const { data, error } = await supabase
+    .from("ai_user_learning_profiles")
+    .select("portfolio_file")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw formatLearningProfileWriteError(error);
+  return parsePortfolioFiles(data?.portfolio_file);
+}
+
+async function writePortfolioFilesForUser(userId: string, files: PortfolioFileItem[]): Promise<void> {
+  const serialized = serializePortfolioFiles(files);
+  const now = new Date().toISOString();
+  const { data: existing, error: fetchError } = await supabase
+    .from("ai_user_learning_profiles")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (fetchError) throw formatLearningProfileWriteError(fetchError);
+
+  if (existing) {
+    const { error } = await supabase
+      .from("ai_user_learning_profiles")
+      .update({ portfolio_file: serialized, updated_at: now })
+      .eq("user_id", userId);
+    if (error) throw formatLearningProfileWriteError(error);
+    return;
+  }
+
+  const { error } = await supabase.from("ai_user_learning_profiles").insert({
+    user_id: userId,
+    temperature: 50,
+    team_project_count: 0,
+    portfolio_file: serialized,
+    detailed_bio: "",
+    keywords: [],
+    created_at: now,
+    updated_at: now,
+  });
+  if (error) throw formatLearningProfileWriteError(error);
+}
+
+function portfolioStoragePathFromPublicUrl(publicUrl: string): string | null {
+  const marker = `/object/public/${STUDENT_PORTFOLIOS_BUCKET}/`;
+  const index = publicUrl.indexOf(marker);
+  if (index < 0) return null;
+  return decodeURIComponent(publicUrl.slice(index + marker.length));
+}
 
 function formatLearningProfileWriteError(error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
@@ -1877,17 +1940,22 @@ function formatLearningProfileWriteError(error: unknown): Error {
 
 async function uploadStudentPortfolioInDb(
   file: File
-): Promise<{ fileName: string; publicUrl: string }> {
+): Promise<PortfolioFileItem> {
   const currentUser = await getCurrentAiUser();
   if (!currentUser) throw new Error("로그인이 필요합니다.");
   if (currentUser.role !== "student") throw new Error("학생만 포트폴리오를 업로드할 수 있습니다.");
 
   const extension = getDeliverableExtension(file.name);
   if (!extension || !STUDENT_PORTFOLIO_ALLOWED_EXT.has(extension)) {
-    throw new Error("PDF, ZIP, PPT 파일만 업로드할 수 있습니다.");
+    throw new Error("지원하지 않는 파일 형식입니다.");
   }
   if (file.size > STUDENT_PORTFOLIO_MAX_BYTES) {
     throw new Error("파일 크기는 50MB 이하여야 합니다.");
+  }
+
+  const existingFiles = await readPortfolioFilesForUser(currentUser.id);
+  if (existingFiles.length >= STUDENT_PORTFOLIO_MAX_FILES) {
+    throw new Error(`첨부파일은 최대 ${STUDENT_PORTFOLIO_MAX_FILES}개까지 등록할 수 있습니다.`);
   }
 
   const storageFileName = buildDeliverableStorageFileName(file.name, extension);
@@ -1907,38 +1975,30 @@ async function uploadStudentPortfolioInDb(
   }
 
   const { data: urlData } = supabase.storage.from(STUDENT_PORTFOLIOS_BUCKET).getPublicUrl(storagePath);
-  const serialized = serializePortfolioFile(file.name, urlData.publicUrl);
-  const now = new Date().toISOString();
+  const uploaded: PortfolioFileItem = { fileName: file.name, publicUrl: urlData.publicUrl };
+  await writePortfolioFilesForUser(currentUser.id, [...existingFiles, uploaded]);
+  return uploaded;
+}
 
-  const { data: existing, error: fetchError } = await supabase
-    .from("ai_user_learning_profiles")
-    .select("user_id")
-    .eq("user_id", currentUser.id)
-    .maybeSingle();
+async function removeStudentPortfolioInDb(publicUrl: string): Promise<PortfolioFileItem[]> {
+  const currentUser = await getCurrentAiUser();
+  if (!currentUser) throw new Error("로그인이 필요합니다.");
+  if (currentUser.role !== "student") throw new Error("학생만 포트폴리오를 삭제할 수 있습니다.");
 
-  if (fetchError) throw formatLearningProfileWriteError(fetchError);
-
-  if (existing) {
-    const { error } = await supabase
-      .from("ai_user_learning_profiles")
-      .update({ portfolio_file: serialized, updated_at: now })
-      .eq("user_id", currentUser.id);
-    if (error) throw formatLearningProfileWriteError(error);
-  } else {
-    const { error } = await supabase.from("ai_user_learning_profiles").insert({
-      user_id: currentUser.id,
-      temperature: 50,
-      team_project_count: 0,
-      portfolio_file: serialized,
-      detailed_bio: "",
-      keywords: [],
-      created_at: now,
-      updated_at: now,
-    });
-    if (error) throw formatLearningProfileWriteError(error);
+  const trimmedUrl = publicUrl.trim();
+  const existingFiles = await readPortfolioFilesForUser(currentUser.id);
+  const nextFiles = existingFiles.filter((file) => file.publicUrl !== trimmedUrl);
+  if (nextFiles.length === existingFiles.length) {
+    throw new Error("삭제할 파일을 찾을 수 없습니다.");
   }
 
-  return { fileName: file.name, publicUrl: urlData.publicUrl };
+  const storagePath = portfolioStoragePathFromPublicUrl(trimmedUrl);
+  if (storagePath) {
+    await supabase.storage.from(STUDENT_PORTFOLIOS_BUCKET).remove([storagePath]);
+  }
+
+  await writePortfolioFilesForUser(currentUser.id, nextFiles);
+  return nextFiles;
 }
 
 async function getStudentNetworkEditFormFromDb(): Promise<StudentNetworkEditForm> {
@@ -1994,7 +2054,6 @@ async function saveStudentNetworkProfileInDb(input: StudentNetworkEditForm): Pro
   if (fetchError) throw fetchError;
 
   const profilePayload = {
-    portfolio_file: input.portfolioFileName.trim(),
     detailed_bio: profileMeta,
     updated_at: now,
   };
@@ -2017,13 +2076,15 @@ async function saveStudentNetworkProfileInDb(input: StudentNetworkEditForm): Pro
     if (error) throw error;
   }
 
+  const portfolioFiles = await readPortfolioFilesForUser(currentUser.id);
   return {
     major,
     mbti: input.mbti.trim(),
     careerInterest: input.careerInterest.trim(),
     hobbies: input.hobbies.trim(),
     bio,
-    portfolioFileName: input.portfolioFileName.trim(),
+    portfolioFileName: portfolioFiles[0]?.fileName ?? "",
+    portfolioFiles,
   };
 }
 
@@ -6004,6 +6065,7 @@ async function createTeamInDb(
     const memberIds = [currentUser.id, ...requestedIds.filter((id) => id !== currentUser.id)];
     await assertStudentsUnassignedInCourse(courseId, memberIds);
     await insertTeamMembersInDb(teamId, courseId, memberIds, currentUser.id);
+    notifyTeamMembershipChanged();
   } else if (requestedIds.length > 0) {
     await assertStudentsUnassignedInCourse(courseId, requestedIds);
     await insertTeamMembersInDb(teamId, courseId, requestedIds, requestedIds[0]);
@@ -6054,6 +6116,7 @@ async function joinTeamInDb(teamId: string): Promise<void> {
   });
 
   if (error) throw error;
+  notifyTeamMembershipChanged();
 }
 
 async function leaveTeamInDb(teamId: string): Promise<void> {
@@ -6119,6 +6182,7 @@ async function leaveTeamInDb(teamId: string): Promise<void> {
     const { error: deleteTeamError } = await supabase.from("ai_teams").delete().eq("id", teamId);
     if (deleteTeamError) throw deleteTeamError;
   }
+  notifyTeamMembershipChanged();
 }
 
 async function updateTeamProfileInDb(
@@ -6472,6 +6536,7 @@ export const api = {
     getEditForm: getStudentNetworkEditFormFromDb,
     saveProfile: saveStudentNetworkProfileInDb,
     uploadPortfolio: uploadStudentPortfolioInDb,
+    removePortfolio: removeStudentPortfolioInDb,
   },
   myPage: {
     getProjects: getMyPageProjectsFromDb,

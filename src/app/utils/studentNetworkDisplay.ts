@@ -1,4 +1,4 @@
-import type { PeerEvaluationSummary, StudentExtra } from "../types";
+import type { PeerEvaluationSummary, PortfolioFileItem, StudentExtra } from "../types";
 
 export const NETWORK_MAJOR_PLACEHOLDER = "전공 미입력";
 /** 본인 카드·모달용 */
@@ -8,47 +8,139 @@ export const NETWORK_BIO_PLACEHOLDER =
 export const NETWORK_BIO_PLACEHOLDER_OTHER = "아직 자기소개가 없습니다";
 export const NETWORK_TAGS_EMPTY_LABEL = "관심 태그 없음";
 
-export type ParsedPortfolioFile = {
-  fileName: string;
-  publicUrl?: string;
-};
+export type { PortfolioFileItem };
+export type ParsedPortfolioFile = PortfolioFileItem;
 
-/** `ai_user_learning_profiles.portfolio_file` — JSON 또는 레거시 파일명/URL */
-export function parsePortfolioFile(raw: string | null | undefined): ParsedPortfolioFile {
+export const STUDENT_PORTFOLIO_MAX_BYTES = 50 * 1024 * 1024;
+export const STUDENT_PORTFOLIO_MAX_FILES = 20;
+export const STUDENT_PORTFOLIO_ACCEPT =
+  ".pdf,.zip,.7z,.rar,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.txt,.md,.json,.csv,.png,.jpg,.jpeg,.webp,.gif,.svg,.ts,.tsx,.js,.jsx,.py,.java,.c,.cpp,.go,.rs,.sql,.yaml,.yml";
+
+export const STUDENT_PORTFOLIO_ALLOWED_EXT = new Set([
+  "pdf",
+  "zip",
+  "7z",
+  "rar",
+  "ppt",
+  "pptx",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "hwp",
+  "hwpx",
+  "txt",
+  "md",
+  "json",
+  "csv",
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "svg",
+  "ts",
+  "tsx",
+  "js",
+  "jsx",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "go",
+  "rs",
+  "sql",
+  "yaml",
+  "yml",
+]);
+
+const STUDENT_PORTFOLIO_IMAGE_EXT = new Set(["png", "jpg", "jpeg", "webp", "gif", "svg"]);
+
+export function isPortfolioImageFileName(fileName: string): boolean {
+  const extension = fileName.toLowerCase().split(".").pop() ?? "";
+  return STUDENT_PORTFOLIO_IMAGE_EXT.has(extension);
+}
+
+function parseSinglePortfolioEntry(
+  entry: unknown
+): PortfolioFileItem | null {
+  if (!entry || typeof entry !== "object") return null;
+  const record = entry as { fileName?: string; publicUrl?: string };
+  const fileName = record.fileName?.trim();
+  if (!fileName) return null;
+  return {
+    fileName,
+    publicUrl: record.publicUrl?.trim() || undefined,
+  };
+}
+
+/** `ai_user_learning_profiles.portfolio_file` — JSON 배열·단일 객체·레거시 파일명/URL */
+export function parsePortfolioFiles(raw: string | null | undefined): PortfolioFileItem[] {
   const trimmed = raw?.trim() ?? "";
-  if (!trimmed) return { fileName: "" };
+  if (!trimmed) return [];
 
   if (trimmed.startsWith("{")) {
     try {
-      const parsed = JSON.parse(trimmed) as { fileName?: string; publicUrl?: string };
-      if (typeof parsed === "object" && parsed !== null && parsed.fileName?.trim()) {
-        return {
-          fileName: parsed.fileName.trim(),
-          publicUrl: parsed.publicUrl?.trim() || undefined,
-        };
+      const parsed = JSON.parse(trimmed) as {
+        files?: unknown[];
+        fileName?: string;
+        publicUrl?: string;
+      };
+      if (Array.isArray(parsed.files)) {
+        return parsed.files
+          .map(parseSinglePortfolioEntry)
+          .filter((item): item is PortfolioFileItem => item !== null);
+      }
+      const single = parseSinglePortfolioEntry(parsed);
+      if (single) return [single];
+    } catch {
+      /* fall through */
+    }
+  }
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown[];
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(parseSinglePortfolioEntry)
+          .filter((item): item is PortfolioFileItem => item !== null);
       }
     } catch {
-      /* fall through to legacy */
+      /* fall through */
     }
   }
 
   if (/^https?:\/\//i.test(trimmed)) {
     const segment = trimmed.split("/").pop() || "portfolio";
     try {
-      return { fileName: decodeURIComponent(segment), publicUrl: trimmed };
+      return [{ fileName: decodeURIComponent(segment), publicUrl: trimmed }];
     } catch {
-      return { fileName: segment, publicUrl: trimmed };
+      return [{ fileName: segment, publicUrl: trimmed }];
     }
   }
 
-  return { fileName: trimmed };
+  return [{ fileName: trimmed }];
+}
+
+/** 첫 번째 파일 (레거시 단일 필드 호환) */
+export function parsePortfolioFile(raw: string | null | undefined): ParsedPortfolioFile {
+  const files = parsePortfolioFiles(raw);
+  return files[0] ?? { fileName: "" };
+}
+
+export function serializePortfolioFiles(files: PortfolioFileItem[]): string {
+  const normalized = files
+    .map((file) => ({
+      fileName: file.fileName.trim(),
+      publicUrl: file.publicUrl?.trim() || undefined,
+    }))
+    .filter((file) => file.fileName);
+  return JSON.stringify({ files: normalized });
 }
 
 export function serializePortfolioFile(fileName: string, publicUrl: string): string {
-  return JSON.stringify({
-    fileName: fileName.trim(),
-    publicUrl: publicUrl.trim(),
-  });
+  return serializePortfolioFiles([{ fileName, publicUrl }]);
 }
 
 type NetworkProfileMeta = {
@@ -155,6 +247,7 @@ export function buildMinimalStudentExtra(
     teamProjectCount: 0,
     portfolioFile: "",
     portfolioUrl: undefined,
+    portfolioFiles: [],
     detailedBio: displayBio(bio, null),
     keywords: [],
     hasLearningProfile: false,
@@ -175,6 +268,7 @@ export function resolveStudentExtra(
     hobbies?: string;
     mbti?: string;
     portfolioFileName?: string;
+    portfolioFiles?: PortfolioFileItem[];
   },
 ): ResolvedStudentExtra {
   const raw = extras[student.id];
@@ -196,10 +290,16 @@ export function resolveStudentExtra(
       minimal.hasLearningProfile = true;
       minimal.peerSummary = summary;
     }
-    if (student.isSelf && editHints?.portfolioFileName?.trim()) {
-      const parsed = parsePortfolioFile(editHints.portfolioFileName);
-      minimal.portfolioFile = parsed.fileName;
-      minimal.portfolioUrl = parsed.publicUrl;
+    const hintFiles =
+      student.isSelf && editHints?.portfolioFiles?.length
+        ? editHints.portfolioFiles
+        : student.isSelf && editHints?.portfolioFileName?.trim()
+          ? parsePortfolioFiles(editHints.portfolioFileName)
+          : [];
+    if (hintFiles.length > 0) {
+      minimal.portfolioFiles = hintFiles;
+      minimal.portfolioFile = hintFiles[0].fileName;
+      minimal.portfolioUrl = hintFiles[0].publicUrl;
     }
     return minimal;
   }
@@ -211,19 +311,24 @@ export function resolveStudentExtra(
     meta,
     { isSelf: student.isSelf },
   );
-  const portfolioFromDb = {
-    fileName: raw.portfolioFile?.trim() ?? "",
-    publicUrl: raw.portfolioUrl,
-  };
-  const portfolioFromHints =
-    student.isSelf && editHints?.portfolioFileName?.trim()
-      ? parsePortfolioFile(editHints.portfolioFileName)
-      : null;
-  const portfolioFile = portfolioFromDb.fileName || portfolioFromHints?.fileName || "";
-  const portfolioUrl = portfolioFromDb.publicUrl || portfolioFromHints?.publicUrl;
+  const portfolioFilesFromDb = raw.portfolioFiles?.length
+    ? raw.portfolioFiles
+    : raw.portfolioFile?.trim()
+      ? [{ fileName: raw.portfolioFile.trim(), publicUrl: raw.portfolioUrl }]
+      : [];
+  const portfolioFilesFromHints =
+    student.isSelf && editHints?.portfolioFiles?.length
+      ? editHints.portfolioFiles
+      : student.isSelf && editHints?.portfolioFileName?.trim()
+        ? parsePortfolioFiles(editHints.portfolioFileName)
+        : [];
+  const portfolioFiles =
+    portfolioFilesFromDb.length > 0 ? portfolioFilesFromDb : portfolioFilesFromHints;
+  const portfolioFile = portfolioFiles[0]?.fileName ?? "";
+  const portfolioUrl = portfolioFiles[0]?.publicUrl;
 
   const hasLearningProfile =
-    Boolean(portfolioFile) ||
+    portfolioFiles.length > 0 ||
     raw.teamProjectCount > 0 ||
     raw.keywords.length > 0 ||
     (Boolean(raw.detailedBio?.trim()) && !isProfileMetaJson(raw.detailedBio));
@@ -235,6 +340,7 @@ export function resolveStudentExtra(
     teamProjectCount: raw.teamProjectCount,
     portfolioFile,
     portfolioUrl,
+    portfolioFiles,
     detailedBio,
     keywords,
     hasLearningProfile: hasLearningProfile || Boolean(summary && summary.keywords.length > 0),

@@ -47,9 +47,6 @@ export async function signupViaUI(
   await page.getByTestId("signup-email").fill(input.email);
   await page.getByTestId("signup-password").fill(input.password);
   await page.getByTestId("signup-role").selectOption(input.role);
-  if (input.role === "student" && input.courseCode) {
-    await page.getByTestId("signup-course-code").fill(input.courseCode);
-  }
   await page.getByTestId("signup-submit").click();
   await expect(page).toHaveURL(/\/app\/courses/, { timeout: 30_000 });
 }

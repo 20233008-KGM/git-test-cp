@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
@@ -1406,7 +1406,7 @@ export default function MyPage() {
                     <h3 className="text-[18px] font-black text-[#101828] mb-1">
                       {selectedProject.title}
                     </h3>
-                    <p className="text-[14px] text-[#4a5565]">
+                    <p className="text-[14px] cc-text-secondary">
                       {selectedProject.period} |{" "}
                       <span className="font-bold text-[#1862ff]">{selectedProject.role}</span>
                     </p>
@@ -1419,7 +1419,7 @@ export default function MyPage() {
                 <div className="px-6 pb-6 space-y-4">
                   {/* 주요 역할 및 기여 */}
                   <div>
-                    <p className="text-[12px] font-bold text-[#6a7282] mb-3">주요 역할 및 기여</p>
+                    <p className="text-[12px] font-bold cc-text-secondary mb-3">주요 역할 및 기여</p>
                     <ul className="space-y-1">
                       {selectedProject.contributions.map((item, i) => (
                         <li key={i} className="flex items-start gap-3 h-6">

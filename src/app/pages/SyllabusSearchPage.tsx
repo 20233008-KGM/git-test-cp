@@ -119,7 +119,7 @@ export default function SyllabusSearchPage() {
                         {s.grade && <span>{s.grade}학년</span>}
                         {s.professor && <span>담당: {s.professor}</span>}
                       </div>
-                      <p className="mt-2 text-xs text-gray-400">
+                      <p className="mt-2 text-xs cc-text-muted">
                         {s.fileName} · {formatBytes(s.fileSize)}
                       </p>
                     </div>

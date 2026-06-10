@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
@@ -22,6 +22,7 @@ import SkipLink from "../components/SkipLink";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import ScrollToTop from "../components/layout/ScrollToTop";
 import { getAppShellClassName } from "./appShell";
+import { NAV_TEAM_MEMBERSHIP_REFRESH_EVENT } from "../utils/teamMembershipNav";
 
 function courseNavIcon(key: string) {
   switch (key) {
@@ -217,23 +218,27 @@ function CourseSideNavigation() {
   const [myTeamId, setMyTeamId] = useState<string | null>(null);
   const [courseStatus, setCourseStatus] = useState<"active" | "archived" | null>(null);
 
-  useEffect(() => {
+  const refreshMyTeamId = useCallback(() => {
     if (!courseId || !user?.id) {
       setMyTeamId(null);
       return;
     }
 
-    let isCancelled = false;
     void api.teamCards.getAll(courseId).then((teams) => {
-      if (isCancelled) return;
       const myTeam = teams.find((team) => team.members.some((member) => member.id === user.id));
       setMyTeamId(myTeam?.id ?? null);
     });
-
-    return () => {
-      isCancelled = true;
-    };
   }, [courseId, user?.id]);
+
+  useEffect(() => {
+    refreshMyTeamId();
+  }, [refreshMyTeamId]);
+
+  useEffect(() => {
+    const handleMembershipChange = () => refreshMyTeamId();
+    window.addEventListener(NAV_TEAM_MEMBERSHIP_REFRESH_EVENT, handleMembershipChange);
+    return () => window.removeEventListener(NAV_TEAM_MEMBERSHIP_REFRESH_EVENT, handleMembershipChange);
+  }, [refreshMyTeamId]);
 
   useEffect(() => {
     if (!courseId) {

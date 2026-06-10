@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -1154,7 +1154,7 @@ export default function TeamDetailPage() {
             {/* 팀 산출물 게시판 */}
             <div className="space-y-3">
               {deliverables.length === 0 ? (
-                <p className="rounded-[10px] border border-dashed border-gray-300 bg-[#f9fafb] px-3 py-4 text-center text-sm text-[#6a7282]">
+                <p className="rounded-[10px] border border-dashed border-gray-300 bg-[#f9fafb] px-3 py-4 text-center text-sm cc-text-secondary">
                   업로드된 산출물이 없습니다.
                 </p>
               ) : (
@@ -1196,9 +1196,9 @@ export default function TeamDetailPage() {
                           </p>
                         )}
                         {item.description && (
-                          <p className="mt-1 text-xs text-[#4a5565] line-clamp-2">{item.description}</p>
+                          <p className="mt-1 text-xs cc-text-secondary line-clamp-2">{item.description}</p>
                         )}
-                        <p className="mt-1 text-xs text-[#6a7282]">
+                        <p className="mt-1 text-xs cc-text-secondary">
                           {item.uploaderName} · {item.kind === "link" ? "링크" : formatFileSize(item.fileSize)} ·{" "}
                           {new Date(item.createdAt).toLocaleString("ko-KR")}
                         </p>
@@ -1292,7 +1292,7 @@ export default function TeamDetailPage() {
                       !aiRecommendationLoading &&
                       aiRecommendation.model !== "draft-db-only" && (
                       <span
-                        className="text-[10px] text-[#6a7282]"
+                        className="text-[10px] cc-text-secondary"
                         data-testid="team-trouble-ai-model"
                       >
                         ({aiRecommendation.model})
@@ -1317,7 +1317,7 @@ export default function TeamDetailPage() {
                   {!aiRecommendationLoading &&
                     !aiRecommendationError &&
                     !aiRecommendation && (
-                    <p className="text-xs text-[#6a7282]">
+                    <p className="text-xs cc-text-secondary">
                       「AI 추천 받기」를 누르면 팀 활동을 분석해 다음 조사할 문제를 제안합니다.
                     </p>
                   )}
@@ -1328,13 +1328,13 @@ export default function TeamDetailPage() {
                         {aiRecommendation.problem}
                       </p>
                       {aiRecommendation.plan?.trim() ? (
-                        <p className="mt-1 text-xs text-[#6a7282]">
+                        <p className="mt-1 text-xs cc-text-secondary">
                           <span className="font-bold">참고:</span> {aiRecommendation.plan}
                         </p>
                       ) : null}
                       {aiRecommendation.rationale &&
                         !aiRecommendation.rationale.startsWith("DB 초안") && (
-                        <p className="mt-2 text-[10px] text-[#6a7282]">{aiRecommendation.rationale}</p>
+                        <p className="mt-2 text-[10px] cc-text-secondary">{aiRecommendation.rationale}</p>
                       )}
                     </>
                   )}
@@ -1383,7 +1383,7 @@ export default function TeamDetailPage() {
                           </div>
                         )}
                       </div>
-                      <span className="text-[10px] text-[#99a1af]">{log.timestamp}</span>
+                      <span className="text-[10px] cc-text-muted">{log.timestamp}</span>
                     </div>
 
                     <div className="space-y-2">
@@ -1459,7 +1459,7 @@ export default function TeamDetailPage() {
           <h3 className="text-lg font-bold text-[#1e2939] text-center mb-2">
             이 팀의 웹 서비스, 어떻게 생각하시나요?
           </h3>
-          <p className="text-sm text-[#6a7282] text-center mb-6">
+          <p className="text-sm cc-text-secondary text-center mb-6">
             배포된 링크를 확인해 보고, 피드백을 남겨주세요.
           </p>
 
@@ -1473,7 +1473,7 @@ export default function TeamDetailPage() {
               <div className="flex flex-col items-center gap-2">
                 <span className="text-4xl">✅</span>
                 <p className="text-base font-bold text-[#1e2939]">피드백이 완료되었습니다!</p>
-                <p className="text-sm text-[#6a7282]">소중한 의견 감사합니다.</p>
+                <p className="text-sm cc-text-secondary">소중한 의견 감사합니다.</p>
               </div>
               {/* 선택된 키워드 요약 */}
               <div className="flex flex-wrap justify-center gap-2">
@@ -1587,7 +1587,7 @@ export default function TeamDetailPage() {
                 msg.isMine ? (
                   /* 내 메시지 — 오른쪽 정렬 */
                   <div key={msg.id} className="flex flex-col items-end">
-                    <p className="text-xs font-medium text-[#6a7282] mb-1">
+                    <p className="text-xs font-medium cc-text-secondary mb-1">
                       {msg.sender}
                     </p>
                     <div className="bg-[#155dfc] rounded-[14px] rounded-tr-[4px] px-4 py-2.5 max-w-[80%] shadow-sm">
@@ -1621,7 +1621,7 @@ export default function TeamDetailPage() {
                 <p className="text-center text-sm font-bold text-gray-500">종료된 수업에서는 채팅을 새로 작성할 수 없습니다.</p>
               ) : (
                 <div className="flex items-center gap-2.5">
-                  <label className="flex items-center gap-1.5 text-xs text-[#6a7282] flex-shrink-0 cursor-pointer select-none">
+                  <label className="flex items-center gap-1.5 text-xs cc-text-secondary flex-shrink-0 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       className="w-3.5 h-3.5 accent-[#155dfc]"

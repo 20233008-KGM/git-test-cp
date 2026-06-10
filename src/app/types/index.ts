@@ -164,12 +164,18 @@ export interface NetworkStudent {
   image?: string;
 }
 
+export interface PortfolioFileItem {
+  fileName: string;
+  publicUrl?: string;
+}
+
 export interface StudentExtra {
   temperature: number;
   teamProjectCount: number;
   portfolioFile: string;
   /** Supabase Storage public URL when portfolio was uploaded */
   portfolioUrl?: string;
+  portfolioFiles: PortfolioFileItem[];
   detailedBio: string;
   keywords: { text: string; count: number }[];
 }
@@ -198,7 +204,9 @@ export interface StudentNetworkEditForm {
   careerInterest: string;
   hobbies: string;
   bio: string;
+  /** @deprecated 첫 파일명 — portfolioFiles 사용 */
   portfolioFileName: string;
+  portfolioFiles: PortfolioFileItem[];
 }
 
 export interface MyPagePeerReview {

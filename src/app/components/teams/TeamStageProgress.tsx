@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 
 type TeamStageProgressProps = {
   completedStages: number;
@@ -148,7 +148,7 @@ export function TeamStageProgress({
 
   if (stages.length === 0) {
     return (
-      <p className="text-sm text-[#6a7282]" data-testid="team-stage-progress-empty">
+      <p className="text-sm cc-text-secondary" data-testid="team-stage-progress-empty">
         이 수업에 등록된 팀플 스테이지가 없습니다. 교수가 수업 설정에서 스테이지를 등록하면 여기에 표시됩니다.
       </p>
     );
@@ -259,7 +259,7 @@ export function TeamStageProgressEditor({
 }) {
   if (stages.length === 0) {
     return (
-      <p className="text-sm text-[#6a7282]" data-testid="team-manage-stage-editor-empty">
+      <p className="text-sm cc-text-secondary" data-testid="team-manage-stage-editor-empty">
         교수가 수업에 팀플 스테이지를 등록하면 여기서 진행 상황을 표시할 수 있습니다.
       </p>
     );
@@ -274,7 +274,7 @@ export function TeamStageProgressEditor({
             완료 {completedStages} / {stages.length} 단계
             {saving ? " · 저장 중…" : ""}
           </p>
-          <p className="text-[11px] font-medium text-[#6a7282]">팀장만 수정 가능</p>
+          <p className="text-[11px] font-medium cc-text-secondary">팀장만 수정 가능</p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
@@ -299,7 +299,7 @@ export function TeamStageProgressEditor({
           </button>
         </div>
       </div>
-      <p className="text-xs text-[#6a7282]">
+      <p className="text-xs cc-text-secondary">
         변경 내용은 팀 목록 카드에도 동일하게 반영됩니다.
       </p>
     </div>
