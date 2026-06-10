@@ -758,46 +758,19 @@ async function listCatalogFromDb(params?: {
       }
     }
 
-    const liveCourseIds = Array.from(liveCourseByCatalogId.values()).map((item) => item.id);
-    if (liveCourseIds.length > 0) {
-      const [professors, membershipsResult] = await Promise.all([
-        getProfessorsFromDb(),
-        supabase
-          .from("ai_course_memberships")
-          .select("course_id, user_id")
-          .in("course_id", liveCourseIds),
-      ]);
-
-      if (membershipsResult.error) throw membershipsResult.error;
-
-      const professorIds = new Set(professors.map((professor) => professor.id));
-      const membersByCourse = (membershipsResult.data ?? []).reduce<Record<string, Set<string>>>(
-        (result, membership) => {
-          const courseId = membership.course_id as string;
-          const userId = membership.user_id as string;
-          if (!result[courseId]) result[courseId] = new Set();
-          result[courseId].add(userId);
-          return result;
-        },
-        {}
-      );
+    if (liveCourseByCatalogId.size > 0) {
+      const professors = await getProfessorsFromDb();
 
       for (const [catalogId, liveCourse] of liveCourseByCatalogId) {
-        const instructorId = liveCourse.instructor_user_id;
-        const joinedInstructorId =
-          instructorId &&
-          professorIds.has(instructorId) &&
-          membersByCourse[liveCourse.id]?.has(instructorId)
-            ? instructorId
-            : null;
-        if (!joinedInstructorId) continue;
-
-        const professor = professors.find((item) => item.id === joinedInstructorId);
-        if (!professor?.name) continue;
+        const assigned = resolveCourseInstructorProfessor(
+          liveCourse.instructor_user_id,
+          professors
+        );
+        if (!assigned) continue;
 
         instructorByCatalogId.set(catalogId, {
-          professorId: joinedInstructorId,
-          professorName: professor.name,
+          professorId: assigned.professorId,
+          professorName: assigned.professorName,
         });
       }
     }
@@ -1047,6 +1020,17 @@ async function getProfessorsFromDb(): Promise<ProfessorProfile[]> {
   return ((data ?? []) as AiUser[]).map(toProfessorProfile);
 }
 
+/** ai_courses.instructor_user_id → 담당 교수 (멤버십 여부와 무관, vision #170) */
+function resolveCourseInstructorProfessor(
+  instructorUserId: string | null | undefined,
+  professors: ProfessorProfile[]
+): { professorId: string; professorName: string } | null {
+  if (!instructorUserId) return null;
+  const professor = professors.find((item) => item.id === instructorUserId);
+  if (!professor) return null;
+  return { professorId: professor.id, professorName: professor.name };
+}
+
 async function getProfessorByIdFromDb(id: string): Promise<ProfessorProfile | undefined> {
   const professors = await getProfessorsFromDb();
   return professors.find((professor) => professor.id === id);
@@ -1126,18 +1110,6 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
   if (membershipsResult.error) throw membershipsResult.error;
   if (stagesResult.error) throw stagesResult.error;
 
-  const professorIds = new Set(professors.map((professor) => professor.id));
-  const membersByCourse = (membershipsResult.data ?? []).reduce<Record<string, Set<string>>>(
-    (result, membership) => {
-      const courseId = membership.course_id as string;
-      const userId = membership.user_id as string;
-      if (!result[courseId]) result[courseId] = new Set();
-      result[courseId].add(userId);
-      return result;
-    },
-    {}
-  );
-
   const studentCounts = (membershipsResult.data ?? []).reduce<Record<string, number>>((result, membership) => {
     if (membership.role !== "student") return result;
     result[membership.course_id] = (result[membership.course_id] ?? 0) + 1;
@@ -1159,24 +1131,18 @@ async function getCoursesFromDb(options: CourseQueryOptions = { status: "active"
   }, {});
 
   return (coursesResult.data ?? []).map((course) => {
-    const instructorId = course.instructor_user_id as string | null;
-    const joinedInstructorId =
-      instructorId &&
-      professorIds.has(instructorId) &&
-      membersByCourse[course.id]?.has(instructorId)
-        ? instructorId
-        : null;
-    const professor = joinedInstructorId
-      ? professors.find((item) => item.id === joinedInstructorId)
-      : undefined;
+    const assigned = resolveCourseInstructorProfessor(
+      course.instructor_user_id as string | null,
+      professors
+    );
     const stages = stagesByCourse[course.id] ?? [];
 
     return {
       id: course.id,
       name: course.name,
       code: course.code,
-      professor: professor?.name ?? "",
-      professorId: joinedInstructorId ?? "",
+      professor: assigned?.professorName ?? "",
+      professorId: assigned?.professorId ?? "",
       schedule: course.schedule,
       startDate: course.start_date ?? undefined,
       endDate: course.end_date ?? undefined,
