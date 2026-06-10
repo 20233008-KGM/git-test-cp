@@ -8,6 +8,7 @@ import {
   syncFirebaseUserToSupabaseSession,
 } from "../supabase-firebase-auth";
 import { api, invalidateApiSessionCache } from "../api/supabase-api";
+import { resolveProfileImageUrl } from "../utils/studentNetworkDisplay";
 
 export type Signupinput = {
   name: string;
@@ -57,8 +58,7 @@ type AiUserRow = {
 };
 
 function resolveImageUrl(userData: AiUserRow): string | undefined {
-  const url = userData.image?.trim() || userData.avatar?.trim();
-  return url || undefined;
+  return resolveProfileImageUrl(userData.image);
 }
 
 function asArray<T>(value: unknown): T[] {

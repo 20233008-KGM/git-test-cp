@@ -1,4 +1,5 @@
 import React from "react";
+import { isLikelyImageUrl } from "../utils/studentNetworkDisplay";
 
 const SIZE_STYLES = {
   xs: { box: "h-8 w-8", icon: "h-4 w-4" },
@@ -42,7 +43,7 @@ export default function UserAvatar({
   const initial = (name?.trim() || "?").charAt(0);
   const label = alt ?? (name ? `${name} 프로필` : "프로필");
 
-  if (imageUrl) {
+  if (imageUrl && isLikelyImageUrl(imageUrl)) {
     return (
       <div
         className={`${styles.box} shrink-0 overflow-hidden rounded-full ${className}`}

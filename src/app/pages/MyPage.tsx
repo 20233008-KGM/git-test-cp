@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
+import { isLikelyImageUrl } from "../utils/studentNetworkDisplay";
 import AppModal from "../components/layout/AppModal";
 import MyPageShell from "../components/mypage/MyPageShell";
 import AiReportPrintView from "../components/AiReportPrintView";
@@ -255,7 +256,8 @@ export default function MyPage() {
   const profileName = user?.name ?? "로그인 사용자";
   const profileEmail = user?.email ?? "-";
   const profileInitial = profileName.slice(0, 1);
-  const profileImageUrl = user?.imageUrl ?? null;
+  const profileImageUrl =
+    user?.imageUrl && isLikelyImageUrl(user.imageUrl) ? user.imageUrl : null;
   const studentId = user?.role === "student" ? user.studentId : "";
   const studentSchool = user?.role === "student" ? user.school : "";
   const profileSchoolAndMajor =

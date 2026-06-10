@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import type { ProfessorProfile } from "../types";
 import PageLoading from "../components/layout/PageLoading";
 import svgPaths from "../../imports/Group43/svg-bqpgzlg1zb";
+import { resolveProfileImageUrl } from "../utils/studentNetworkDisplay";
 
 export default function ProfessorProfilePage() {
   const { user, isProfessor, isAdmin, refreshProfile } = useAuth();
@@ -40,7 +41,11 @@ export default function ProfessorProfilePage() {
           setTeachingStyle(data.teachingStyle ?? "");
           setStudentGrowthApproach(data.studentGrowthApproach ?? "");
         }
-        setProfileImageUrl(myProfile.imageUrl ?? user.imageUrl ?? null);
+        setProfileImageUrl(
+          resolveProfileImageUrl(myProfile.imageUrl) ??
+            resolveProfileImageUrl(user.imageUrl) ??
+            null,
+        );
         setLoading(false);
       }
     );

@@ -24,6 +24,7 @@ import {
   nameToAvatarInitial,
   normalizeStudentTags,
   isLikelyImageUrl,
+  resolveProfileImageUrl,
   resolveStudentExtra,
   tagsFromEditHints,
   type ResolvedStudentExtra,
@@ -1293,7 +1294,8 @@ export default function StudentsNetworkPage() {
           }
         : null);
     if (!base) return null;
-    if (user?.imageUrl) return { ...base, image: user.imageUrl };
+    const image = resolveProfileImageUrl(user?.imageUrl);
+    if (image) return { ...base, image };
     return base;
   }, [students, isStudent, user, user?.imageUrl]);
 

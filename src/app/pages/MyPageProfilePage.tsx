@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../api/supabase-api";
 import MyPageShell from "../components/mypage/MyPageShell";
 import ProfileFieldLabel from "../components/mypage/ProfileFieldLabel";
+import { resolveProfileImageUrl } from "../utils/studentNetworkDisplay";
 
 const PORTFOLIO_ACCEPT = ".pdf,.zip,.ppt,.pptx,application/pdf,application/zip,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -53,7 +54,7 @@ export default function MyPageProfilePage() {
     void api.myPage
       .getProfile()
       .then((profile) => {
-        if (!cancelled) setProfileImageUrl(profile.imageUrl ?? null);
+        if (!cancelled) setProfileImageUrl(resolveProfileImageUrl(profile.imageUrl) ?? null);
       })
       .catch(() => {
         if (!cancelled) setProfileImageUrl(null);
@@ -64,7 +65,8 @@ export default function MyPageProfilePage() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user?.imageUrl) setProfileImageUrl(user.imageUrl);
+    const url = resolveProfileImageUrl(user?.imageUrl);
+    if (url) setProfileImageUrl(url);
   }, [user?.imageUrl]);
 
   useEffect(() => {
